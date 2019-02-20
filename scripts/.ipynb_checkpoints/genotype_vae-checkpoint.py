@@ -14,9 +14,10 @@ tfd = tfp.distributions
 class vae(object):
     
     
-    def __init_(self, data, n_hidden=1, n_latent=2):
+    def __init_(self, n_hidden=1, n_latent=2):
         self.n_hidden = n_hidden
         self.n_latent = n_latent
+        self.data = data
         raise NotImplemented
         
     
@@ -38,7 +39,8 @@ class vae(object):
         return encoder
     
     
-    def make_decoder(self, output_shape):
+    def make_decoder(self, data):
+        output_shape = tf.shape(data)
         net_layers = [tf.keras.layers.Flatten()]
         for i in range(self.n_hidden):
             tmp_layer = tf.keras.layers.Dense(2 * latent_size, activation=None)
@@ -47,20 +49,55 @@ class vae(object):
         def decoder(codes):
             orig_shape = tf.shape(input=codes)
             codes = tf.reshape(codes, (-1, 1, 1, self.n_latent))
-            norm_samples = decode_net(codes)
-            norm_samples tf.reshape(
+            logits = decode_net(codes)
+            logits = tf.reshape(
                 norm_samples,
                 shape= tf.concat([orig_shape[:-1], output_shape])
             )
-            raise NotImplemented
-        raise NotImplemented
+            return tfd.Independent(
+                tfd.Binomial(logits = logits, total_count=2),
+                reinterpreted_batch_ndims=len(output_shape),
+                name='genotypes'
+            )
+        return decoder
        
-    
+
     def encode(self):
         raise NotImplemented
     
     def decode(self):
         raise NotImplemented
 
-    def train(self):
-        raise NotImplemented
+    def model_fn(self,data,mode):
+        encoder = self.make_encoder()
+        decoder = self.make_decoder(data)
+        approx_posterior = encoder(data)
+        approx_posterior_sample = approx_posterior.sample(100)
+        decoder_likelihood = decoder(approx_posterior_sample)
+        distortion = -decoder_likelihood.log_prob(data)
+        avg_distortion = tf.reduce_mean(input_tensor=distortion)
+        rate = tfd.kl_divergence(approx_posterior, tfd.MultivariateNormalDiag(loc=tf.zeros([self.n_latent]), scale_identity_multiplier=1.0))
+        avg_rate = tf.reduce_mean(input_tensor=rate)
+        elbo_local = -(rate + distortion)
+        elbo = tf.reduce_mean(input_tensor=elbo_local)
+        loss = -elbo
+        global_step = tf.compat.v1.train.get_or_create_global_step()
+        learning_rate = tf.compat.v1.train.cosine_decay(
+            0.001,
+            global_step,
+            1000
+        )
+        optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate)
+        train_op = optimizer.minimize(loss, global_step=global_step)
+        return tf.estimator.EstimatorSpec(
+            mode=mode,
+            train_op=train_op,
+            eval_metric_ops ={
+                "elbo": tf.compat.v1.metrics.mean(elbo),
+                "rate": tf.compat.v1.metrics.mean(avg_rate),
+                "distortion":  tf.compat.v1.metrix.mean(avg_distortion)
+            }
+        )
+        
+        
+        
