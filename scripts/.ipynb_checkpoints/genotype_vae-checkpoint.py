@@ -6,53 +6,78 @@ reconstruct genotypes with similar nonlinear relationships with each other betwe
 import numpy as np
 import tensorflow as tf
 
-tfd = tfp.distributions
 
-
-class vae(object):
-    
-    
-    def __init__(self, n_hidden=1, n_latent=50):
+class vae(tf.keras.Model):
+    def __init__(self, n_hidden=1, n_latent=2):
+        super(vae, self).__init__()
         self.n_hidden = n_hidden
         self.n_latent = n_latent
-        
+        # encoder network
+        self.encode_net = tf.keras.Sequential()
+        self.encode_net.add(tf.keras.layers.Flatten())
+        for i in range(n_hidden):
+            if i == (n_hidden - 1):
+                tmp_layer = tf.keras.layers.Dense(2 * n_latent)
+            else:
+                tmp_layer = tf.keras.layers.Dense(2 * n_latent, activation = tf.nn.relu)
+            self.encode_net.add(tmp_layer)
+            
+        # decoder network    
+        self.decode_net = tf.keras.Sequential()
+        self.decode_net.add(tf.keras.layers.Flatten())
+        for i in range(n_hidden):
+            if i == (n_hidden - 1):
+                tmp_layer = tf.keras.layers.Dense(2 * n_latent)
+            else:
+                tmp_layer = tf.keras.layers.Dense(2 * n_latent, activation = tf.nn.relu)
+            self.decode_net.add(tmp_layer)
     
-    def build_encoder(self):
-        net_layers = [tf.keras.layers.Flatten()]
-        for i in range(self.n_hidden):
-            tmp_layer = tf.keras.layers.Dense(2 * self.n_latent, activation=None)
-            net_layers.append(tmp_layer)
-        encode_net = tf.keras.Sequential(net_layers)
-        
-        def encoder(X):
-            X = 2 * tf.cast(X, tf.float32) - 1
-            NN = encode_net(X)
-            return tfd.MultivariateNormalDiag(
-                loc=NN[..., :self.n_latent],
-                scale_diag=tf.nn.softplus(NN[..., self.n_latent:] + _softplus_inverse(1.0)),
-                name="encode"
-            )        
-        return encoder
-    
-    
-    def build_decoder(self, output_shape):
-        net_layers = [tf.keras.layers.Flatten()]
-        for i in range(self.n_hidden):
-            tmp_layer = tf.keras.layers.Dense(2 * self.n_latent, activation=None)
-            net_layers.append(tmp_layer)
-        decode_net = tf.keras.Sequential(net_layers)
-        def decoder(codes):
-            orig_shape = tf.shape(input=codes)
-            codes = tf.reshape(codes, (-1, 1, 1, self.n_latent))
-            logits = decode_net(codes)
-            logits = tf.reshape(
-                logits,
-                shape= tf.concat([orig_shape[:-1], output_shape], axis=0)
-            )
-            return tfd.Independent(
-                tfd.Binomial(logits=logits, total_count=2),
-                reinterpreted_batch_ndims=len(output_shape),
-                name='genotypes'
-            )
-        return decoder
-       
+    def sample(self, eps=None):
+        if eps is None:
+            eps = tf.random.normal(shape=(100, self.latent_dim))
+        return self.decode(eps, apply_sigmoid=True)
+
+    def encode(self, x):
+        mean, logvar = tf.split(self.encode_net(x), num_or_size_splits=2, axis=1)
+        return mean, logvar
+
+    def reparameterize(self, mean, logvar):
+        eps = tf.random.normal(shape=mean.shape)
+        return eps * tf.exp(logvar * .5) + mean
+
+    def decode(self, z, apply_sigmoid = False):
+        logits = self.decode_net(z)
+        if apply_sigmoid:
+            return tf.sigmoid(logits)
+        else:
+            return logits
+
+
+loss_object = tf.keras.losses.binary_crossentropy
+optimizer = tf.train.AdamOptimizer(learning_rate=1e-4)
+
+
+def log_normal_pdf(sample, mean, logvar, raxis=1):
+    log2pi = tf.math.log(2. * np.pi)
+    return tf.reduce_sum(
+        -.5 * ((sample - mean) ** 2. * tf.exp(-logvar) + logvar + log2pi),
+        axis=raxis
+    )
+
+def compute_loss(model, x):
+    mean, logvar = model.encode(x)
+    z = model.reparameterize(mean, logvar)    
+    x_logit = model.decode(z)
+    cross_ent = loss_object(x, tf.reduce_sum(x_logit,1))
+    logpx_z = -cross_ent
+    logpz = log_normal_pdf(z, 0., 0.)
+    logqz_x = log_normal_pdf(z, mean, logvar)
+    return -tf.reduce_mean(logpx_z + logpz - logqz_x)
+
+def compute_gradients(model, x):
+    with tf.GradientTape() as tape:
+        loss = compute_loss(model, x)
+    return tape.gradient(loss, model.trainable_variables), loss
+
+def apply_gradients(optimizer, gradients, variables):
+        optimizer.apply_gradients(zip(gradients, variables))
