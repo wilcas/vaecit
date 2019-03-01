@@ -3,7 +3,6 @@ from scipy import stats
 from numba import jit
 
 
-@jit
 def ftest(fit1, fit2, n):
     RSS1 = fit1['rss']
     RSS2 = fit2['rss']
@@ -12,8 +11,7 @@ def ftest(fit1, fit2, n):
     fstat = ((RSS1 - RSS2) / (p2-p1)) / (RSS2 / (n - p2))
     return 1 - stats.f.cdf(fstat, p2-p1,n-p2), fstat
 
-
-@jit    
+   
 def linreg_with_stats(y, X=None):
     if X is None:
         X = np.ones(shape = (y.shape[0],1))
@@ -36,7 +34,6 @@ def linreg_with_stats(y, X=None):
     return res_dict
 
 
-@jit
 def test1(T, L):
     n = T.shape[0]
     fit1 = linreg_with_stats(T, L)
@@ -45,7 +42,6 @@ def test1(T, L):
     return fit1, p
 
 
-@jit
 def test2(T, G, L):
     n = T.shape[0]
     fit1 = linreg_with_stats(G, np.c_[T, L])
@@ -54,7 +50,6 @@ def test2(T, G, L):
     return fit1, p
 
 
-@jit
 def test3(T, G, L):
     n = T.shape[0]
     fit1 = linreg_with_stats(T, np.c_[G, L])
@@ -63,7 +58,6 @@ def test3(T, G, L):
     return fit1, p
     
     
-@jit
 def test4(T, G, L, num_bootstrap):
     n = T.shape[0]
     fit = linreg_with_stats(G, L)
@@ -83,7 +77,7 @@ def test4(T, G, L, num_bootstrap):
     return fit1, p
 
 
-
+@jit
 def cit(target, mediator, instrument, num_bootstrap=10000):
     # run tests
     stats1, p1 = test1(target, instrument)
