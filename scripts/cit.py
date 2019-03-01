@@ -2,6 +2,8 @@ import numpy as np
 from scipy import stats
 from numba import jit
 
+
+@jit
 def ftest(fit1, fit2, n):
     RSS1 = fit1['rss']
     RSS2 = fit2['rss']
@@ -9,7 +11,9 @@ def ftest(fit1, fit2, n):
     p2 = fit2['beta'].size
     fstat = ((RSS1 - RSS2) / (p2-p1)) / (RSS2 / (n - p2))
     return 1 - stats.f.cdf(fstat, p2-p1,n-p2), fstat
-    
+
+
+@jit    
 def linreg_with_stats(y, X=None):
     if X is None:
         X = np.ones(shape = (y.shape[0],1))
@@ -31,20 +35,26 @@ def linreg_with_stats(y, X=None):
     }
     return res_dict
 
+
+@jit
 def test1(T, L):
     n = T.shape[0]
     fit1 = linreg_with_stats(T, L)
     fit2 = linreg_with_stats(T)
     p, _ = ftest(fit2, fit1, n)
     return fit1, p
-    
+
+
+@jit
 def test2(T, G, L):
     n = T.shape[0]
     fit1 = linreg_with_stats(G, np.c_[T, L])
     fit2 = linreg_with_stats(G, T)
     p, _ = ftest(fit2, fit1, n)
     return fit1, p
-    
+
+
+@jit
 def test3(T, G, L):
     n = T.shape[0]
     fit1 = linreg_with_stats(T, np.c_[G, L])
@@ -53,23 +63,26 @@ def test3(T, G, L):
     return fit1, p
     
     
+@jit
 def test4(T, G, L, num_bootstrap):
     n = T.shape[0]
     fit = linreg_with_stats(G, L)
     beta = fit['beta']
     residual = G - np.c_[np.ones(n),L]@beta
-    f_list = [None for i in range(num_bootstrap)]
+    f_list = []
     for i in range(num_bootstrap):
         np.random.shuffle(residual)
         fitA = linreg_with_stats(T,np.c_[residual, L])
         fitB = linreg_with_stats(T, residual)
         _, fstat = ftest(fitB, fitA, n)
-        f_list[i] = fstat
+        f_list.append(fstat)
     fit1 = linreg_with_stats(T, np.c_[G, L])
     fit2 = linreg_with_stats(T, G)
     _, fstat = ftest(fit2, fit1, n)
     p = sum([fstat > f for f in f_list]) / num_bootstrap
     return fit1, p
+
+
 
 def cit(target, mediator, instrument, num_bootstrap=10000):
     # run tests
