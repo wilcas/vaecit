@@ -1,28 +1,9 @@
 import numpy as np
+import numba
 from scipy import stats
-from numba import jit
 
 
-def ftest(fit1, fit2, n):
-    RSS1 = fit1['rss']
-    RSS2 = fit2['rss']
-    p1 = fit1['beta'].size
-    p2 = fit2['beta'].size
-    fstat = ((RSS1 - RSS2) / (p2-p1)) / (RSS2 / (n - p2))
-    return 1 - stats.f.cdf(fstat, p2-p1,n-p2), fstat
-
-   
-def linreg_with_stats(y, X=None):
-    if X is None:
-        X = np.ones(shape = (y.shape[0],1))
-    n = X.shape[0]
-    data = np.c_[np.ones(n), X]
-    beta, _, _, _ = np.linalg.lstsq(data,y, rcond=None)
-    y_bar = np.mean(y)
-    TSS = np.sum(np.square(y - y_bar))
-    RSS = np.sum(np.square(y - data@beta))
-    var_beta = RSS * np.linalg.pinv(data.T@data)
-    se = np.sqrt(np.diag(var_beta))
+def stats_dict(beta, RSS, TSS, se, t, n):
     res_dict = {
         'beta': beta,
         'rss': RSS,
@@ -32,6 +13,31 @@ def linreg_with_stats(y, X=None):
         'r2': 1 - (RSS / TSS)
     }
     return res_dict
+
+
+def ftest(fit1, fit2, n):
+    beta1, RSS1, _, _, _ = fit1
+    beta2, RSS2, _, _, _ = fit2
+    p1 = beta1.size
+    p2 = beta2.size
+    fstat = ((RSS1 - RSS2) / (p2-p1)) / (RSS2 / (n - p2))
+    return 1 - stats.f.cdf(fstat, p2-p1,n-p2), fstat
+
+
+def linreg_with_stats(y, X=None):
+    n = y.shape[0]
+    if X is None:
+        X = np.ones((n,1),np.float_)
+    n = X.shape[0]
+    data = np.c_[np.ones((n,1),np.float_), X]
+    beta, _, _, _ = np.linalg.lstsq(data,y, rcond=None)
+    y_bar = np.mean(y)
+    TSS = np.sum(np.square(y - y_bar))
+    RSS = np.sum(np.square(y - data@beta))
+    var_beta = RSS * np.linalg.pinv(data.T@data)
+    se = np.sqrt(np.diag(var_beta))
+    t = beta / se
+    return beta.reshape(-1), RSS, TSS, se.reshape(-1), t.reshape(-1)
 
 
 def test1(T, L):
@@ -61,7 +67,7 @@ def test3(T, G, L):
 def test4(T, G, L, num_bootstrap):
     n = T.shape[0]
     fit = linreg_with_stats(G, L)
-    beta = fit['beta']
+    beta, _, _,_,_ = fit
     residual = G - np.c_[np.ones(n),L]@beta
     f_list = []
     for i in range(num_bootstrap):
@@ -73,13 +79,14 @@ def test4(T, G, L, num_bootstrap):
     fit1 = linreg_with_stats(T, np.c_[G, L])
     fit2 = linreg_with_stats(T, G)
     _, fstat = ftest(fit2, fit1, n)
-    p = sum([fstat > f for f in f_list]) / num_bootstrap
+    p = np.sum([fstat > f for f in f_list]) / num_bootstrap
     return fit1, p
 
 
-@jit
+@numba.jit
 def cit(target, mediator, instrument, num_bootstrap=10000):
     # run tests
+    n = target.shape[0]
     stats1, p1 = test1(target, instrument)
     stats2, p2 = test2(target, mediator, instrument)
     stats3, p3 = test3(target, mediator, instrument)
@@ -88,13 +95,13 @@ def cit(target, mediator, instrument, num_bootstrap=10000):
     
     # merge stats into one table
     res = {
-        'test1': stats1,
+        'test1': stats_dict(*stats1,n),
         'p1': p1,
-        'test2': stats2,
+        'test2': stats_dict(*stats2,n),
         'p2': p2,
-        'test3': stats3,
+        'test3': stats_dict(*stats3,n),
         'p3': p3,
-        'test4': stats4,
+        'test4': stats_dict(*stats4,n),
         'p4': p4,
         'omni_p': omni_p
     }
