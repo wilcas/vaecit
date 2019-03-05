@@ -26,7 +26,7 @@ class VAE(tf.keras.Model):
         self.encode_net.add(tf.keras.layers.Dense(2*n_latent)) #no Activation
         self.decode_net = tf.keras.Sequential()
         self.decode_net.add(tf.keras.layers.InputLayer(input_shape=(n_latent,)))
-        for i in range(n_hidden)
+        for i in range(n_hidden):
             self.decode_net.add(tf.keras.layers.Dense(128 * (n_hidden - i + 1),activation=tf.nn.relu))        
         tf.keras.layers.Dense(output_size) #no Activation
         
