@@ -22,6 +22,10 @@ def ftest(fit1, fit2, n):
     p1 = beta1.shape[0]
     p2 = beta2.shape[0]
     fstat = ((RSS1 - RSS2) / (p2-p1)) / (RSS2 / (n - p2))
+#     print('''
+#         test1: {}
+#         test2: {}
+#         fstat: {}'''.format(fit1,fit2,fstat))
     return 1 - stats.f.cdf(fstat, p2-p1,n-p2), fstat
 
 
@@ -61,13 +65,15 @@ def test_independence(T, G, L, num_bootstrap):
     n = T.shape[0]
     fit = linreg_with_stats(G, np.c_[np.ones(n),L])
     beta, _, _,_,_ = fit
-    residual = G - np.c_[np.ones(n),L]@beta
+    test = np.c_[np.ones((n,1)),L]@beta
+    residual = G - (np.c_[np.ones((n,1)),L]@beta).reshape((n,1))
     bootstraps = run_bootstraps(T, residual, L, n, num_bootstrap)
     f_list = [ftest(fitB, fitA, n) for (fitB,fitA) in bootstraps]
+    print(f_list)
     fit1 = linreg_with_stats(T, np.c_[np.ones(n), G, L])
     fit2 = linreg_with_stats(T, np.c_[np.ones(n), G])
     _, fstat = ftest(fit2, fit1, n)
-    p = np.sum([fstat > f for (p, f) in f_list]) / num_bootstrap
+    p = np.sum([fstat > f for (p, f) in f_list]) / float(num_bootstrap)
     return fit1, p
 
 

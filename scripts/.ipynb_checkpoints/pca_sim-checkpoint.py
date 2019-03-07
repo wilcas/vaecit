@@ -17,7 +17,6 @@ def compute_genotype_pcs(genotype):
 
 def write_csv(results, filename):
     out_rows = []
-    print(results)
     for res in results:
         cur_row = {}
         for j in range(1,5):
