@@ -14,6 +14,8 @@ def stats_dict(beta, RSS, TSS, se, t, n):
     }
     return res_dict
 
+
+
 def ftest(fit1, fit2, n):
     beta1, RSS1, _, _, _ = fit1
     beta2, RSS2, _, _, _ = fit2
@@ -23,7 +25,7 @@ def ftest(fit1, fit2, n):
     return 1 - stats.f.cdf(fstat, p2-p1,n-p2), fstat
 
 
-@jit
+@jit(nopython=True, cache=True)
 def linreg_with_stats(y, X):
     n = y.shape[0]
     beta = np.linalg.pinv(X.T@X)@X.T@y
@@ -44,22 +46,28 @@ def test_association(y,design_null,design_full):
     return fit1, p
 
 
+@jit(nopython=True, cache=True)
+def run_bootstraps(T, residual, L, n, num_bootstrap):
+    fit_list = []
+    for i in range(num_bootstrap):
+        np.random.shuffle(residual)
+        fitA = linreg_with_stats(T,np.concatenate((np.ones((n,1)), residual, L), axis= 1))
+        fitB = linreg_with_stats(T, np.concatenate((np.ones((n,1)), residual),axis = 1))
+        fit_list.append((fitB, fitA))
+    return fit_list
+
+
 def test_independence(T, G, L, num_bootstrap):
     n = T.shape[0]
     fit = linreg_with_stats(G, np.c_[np.ones(n),L])
     beta, _, _,_,_ = fit
     residual = G - np.c_[np.ones(n),L]@beta
-    f_list = []
-    for i in range(num_bootstrap):
-        np.random.shuffle(residual)
-        fitA = linreg_with_stats(T,np.c_[np.ones(n), residual, L])
-        fitB = linreg_with_stats(T, np.c_[np.ones(n), residual])
-        _, fstat = ftest(fitB, fitA, n)
-        f_list.append(fstat)
-    fit1 = linreg_with_stats(T, np.c_[G, L])
-    fit2 = linreg_with_stats(T, G)
+    bootstraps = run_bootstraps(T, residual, L, n, num_bootstrap)
+    f_list = [ftest(fitB, fitA, n) for (fitB,fitA) in bootstraps]
+    fit1 = linreg_with_stats(T, np.c_[np.ones(n), G, L])
+    fit2 = linreg_with_stats(T, np.c_[np.ones(n), G])
     _, fstat = ftest(fit2, fit1, n)
-    p = np.sum([fstat > f for f in f_list]) / num_bootstrap
+    p = np.sum([fstat > f for (p, f) in f_list]) / num_bootstrap
     return fit1, p
 
 
@@ -85,8 +93,7 @@ def cit(target, mediator, instrument, num_bootstrap=10000):
     omni_p = max(p1, p2, p3, p4)
     
     # merge stats into one table
-    res = {
-        'test1': stats_dict(*stats1,n),
+    res = {'test1': stats_dict(*stats1,n),
         'p1': p1,
         'test2': stats_dict(*stats2,n),
         'p2': p2,

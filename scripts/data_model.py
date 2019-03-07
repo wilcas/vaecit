@@ -9,21 +9,21 @@ def generate_null(n=100, p=200):
     trait = np.random.normal(size=(n, 1))
     genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
     gene_exp = np.random.normal(size=(n, 1))
-    return trait, gene_exp, genotype
+    return trait, gene_exp, genotype.astype(np.float64)
 
 
 def generate_caus1(n=100, p=200):
     genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
     gene_exp = np.array([[1] for i in range(n)])+(genotype@np.array([[10] for i in range(p)])) + np.random.normal(size=(n, 1))
     trait = np.array([[2] for i in range(n)]) + 10 * gene_exp + np.random.normal(size=(n,1))
-    return trait, gene_exp, genotype
+    return trait, gene_exp, genotype.astype(np.float64)
 
 
 def generate_ind1(n=100, p=200):
     genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
     gene_exp = np.array([[1] for i in range(n)])+(genotype@np.array([[10] for i in range(p)])) + np.random.normal(size=(n, 1))
     trait = np.array([[2] for i in range(n)])+(genotype@np.array([[10] for i in range(p)])) + np.random.normal(size=(n, 1))
-    return trait, gene_exp, genotype
+    return trait, gene_exp, genotype.astype(np.float64)
 
 
 def generate_caus1_scale_kernel(n=100, p=200):
@@ -39,4 +39,4 @@ def generate_caus1_scale_kernel(n=100, p=200):
         np.random.multivariate_normal(mean=np.zeros(n), cov=10*K).reshape(n,1) +\
         np.random.normal(size=(n, 1))
     trait = np.array([[2] for i in range(n)]) + 10 * gene_exp + np.random.normal(size=(n, 1))
-    return trait, gene_exp, genotype
+    return trait, gene_exp, genotype.astype(np.float64)
