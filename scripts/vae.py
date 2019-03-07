@@ -16,7 +16,7 @@ def log_normal_pdf(sample, mean, logvar, raxis=1):
 
 
 class VAE(tf.keras.Model):
-    def __init__(self, output_size, n_latent=2, n_hidden=2): # default 2 latent dimensions
+    def __init__(self, output_size=100, n_latent=2, n_hidden=2): # default 2 latent dimensions
         super(VAE,self).__init__() # inherit Model functions
         self.n_latent = n_latent
         self.n_hidden = n_hidden
