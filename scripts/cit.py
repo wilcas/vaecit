@@ -44,6 +44,7 @@ def linreg_with_stats(y, X):
 
 def test_association(y,design_null,design_full):
     n = y.shape[0]
+    print(y.shape, design_null.shape, design_full.shape)
     fit1 = linreg_with_stats(y, design_full)
     fit2 = linreg_with_stats(y, design_null)
     p, _ = ftest(fit2, fit1, n)
@@ -69,7 +70,6 @@ def test_independence(T, G, L, num_bootstrap):
     residual = G - (np.c_[np.ones((n,1)),L]@beta).reshape((n,1))
     bootstraps = run_bootstraps(T, residual, L, n, num_bootstrap)
     f_list = [ftest(fitB, fitA, n) for (fitB,fitA) in bootstraps]
-    print(f_list)
     fit1 = linreg_with_stats(T, np.c_[np.ones(n), G, L])
     fit2 = linreg_with_stats(T, np.c_[np.ones(n), G])
     _, fstat = ftest(fit2, fit1, n)
