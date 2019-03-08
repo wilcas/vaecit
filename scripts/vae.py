@@ -71,4 +71,60 @@ class VAE(tf.keras.Model):
         logpz = log_normal_pdf(z, 0., 0.)
         logqz_x = log_normal_pdf(z, mean, logvar)
         return -tf.reduce_mean(logpx_z + logpz - logqz_x)
+
+
+class MMD_VAE(tf.keras.Model):
     
+    def __init__(self, output_size=100, n_latent=2, n_hidden=2): # default 2 latent dimensions
+        super(MMD_VAE,self).__init__() # inherit Model functions
+        self.n_latent = n_latent
+        self.n_hidden = n_hidden
+        self.encode_net = tf.keras.Sequential()
+        self.encode_net.add(tf.keras.layers.InputLayer(input_shape=(output_size,)))
+        for i in range(n_hidden):
+            self.encode_net.add(tf.keras.layers.Dense(128 * (i+1),activation=tf.nn.relu))
+        self.encode_net.add(tf.keras.layers.Dense(2*n_latent)) #no Activation
+        self.decode_net = tf.keras.Sequential()
+        self.decode_net.add(tf.keras.layers.InputLayer(input_shape=(n_latent,)))
+        for i in range(n_hidden):
+            self.decode_net.add(tf.keras.layers.Dense(128 * (n_hidden - i + 1),activation=tf.nn.relu))        
+        self.decode_net.add(tf.keras.layers.Dense(output_size)) #no Activation
+    
+    def call(self, data):
+        z = self.encode(data)
+        return self.decode(z)
+
+    def sample(self, eps=None):
+        if eps is None:
+            eps = tf.random.normal(shape=(100, self.n_latent))
+        return self.decode(eps)
+
+    def encode(self, x):
+        return self.encode_net(x)
+
+    def decode(self, z):
+        logits = self.decode_net(z)
+        return logits
+        
+    def total_loss(self, x,y):
+        train_z = self.encode_net(x)
+        train_xr = self.decode_net(train_z)
+        samples = tf.random_normal(tf.stack([200,self.n_latent]))
+        loss_mmd = compute_mmd(samples,train_z)
+        loss_nll = tf.reduce_mean(tf.square(train_xr - x))
+        return loss_mmd + loss_nll
+    
+    
+def compute_kernel(x, y):
+    x_size = tf.shape(x)[0]
+    y_size = tf.shape(y)[0]
+    dim = tf.shape(x)[1]
+    tiled_x = tf.tile(tf.reshape(x, tf.stack([x_size, 1, dim])), tf.stack([1, y_size, 1]))
+    tiled_y = tf.tile(tf.reshape(y, tf.stack([1, y_size, dim])), tf.stack([x_size, 1, 1]))
+    return tf.exp(-tf.reduce_mean(tf.square(tiled_x - tiled_y), axis=2) / tf.cast(dim, tf.float32))
+
+def compute_mmd(x, y):
+    x_kernel = compute_kernel(x, x)
+    y_kernel = compute_kernel(y, y)
+    xy_kernel = compute_kernel(x, y)
+    return tf.reduce_mean(x_kernel) + tf.reduce_mean(y_kernel) - 2 * tf.reduce_mean(xy_kernel)
