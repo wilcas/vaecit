@@ -80,7 +80,7 @@ def main():
                 Z_list = [cur_null_models[i].reparameterize(*cur_null_models[i].encode(genotype)).numpy() for ((_,_,genotype), i) in zip(null_datasets, range(num_sim))]
                 print(len(Z_list), len(null_datasets))
                 print(Z_list)
-                null_results = joblib.Parallel(n_jobs=-1, verbose=10)(
+                null_results = joblib.Parallel(n_jobs=16, verbose=10)(
                     joblib.delayed(cit.cit)(trait, gene_exp, Z, 1000)
                     for ((trait, gene_exp, _), Z) in zip(null_datasets, Z_list)
                 )
@@ -88,7 +88,7 @@ def main():
             
                 cur_caus1_models = caus1_models[param_set]
                 Z_list = [cur_caus1_models[i].reparameterize(*cur_caus1_models[i].encode(genotype)).numpy() for ((_,_,genotype), i) in zip(caus1_datasets, range(num_sim))]
-                caus1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
+                caus1_results = joblib.Parallel(n_jobs=16, verbose=10)(
                     joblib.delayed(cit.cit)(trait, gene_exp, Z, 1000)
                     for ((trait, gene_exp, _), Z) in zip(caus1_datasets, Z_list)
                 )
@@ -96,7 +96,7 @@ def main():
             
                 cur_ind1_models = ind1_models[param_set]
                 Z_list = [cur_ind1_models[i].reparameterize(*cur_ind1_models[i].encode(genotype)).numpy() for ((_,_,genotype), i) in zip(ind1_datasets, range(num_sim))]
-                ind1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
+                ind1_results = joblib.Parallel(n_jobs=16, verbose=10)(
                     joblib.delayed(cit.cit)(trait, gene_exp, Z, 1000)
                     for ((trait, gene_exp, _), Z) in zip(ind1_datasets, Z_list)
                 )

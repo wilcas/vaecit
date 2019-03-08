@@ -74,32 +74,31 @@ def main():
     # Run causal inference test
     with joblib.parallel_backend('loky'):
         for param_set in product([num_genotypes], latent, depths):
-            for trial in range(5):
-                cur_null_models = null_models[param_set]
-                Z_list = [cur_null_models[i].reparameterize(*cur_null_models[i].encode(genotype)).numpy() for ((_,_,genotype), i) in zip(null_datasets, range(num_sim))]
-                print(len(Z_list), len(null_datasets))
-                print(Z_list)
-                null_results = joblib.Parallel(n_jobs=-1, verbose=10)(
-                    joblib.delayed(cit.cit)(trait, gene_exp, Z, 1000)
-                    for ((trait, gene_exp, _), Z) in zip(null_datasets, Z_list)
-                )
-                write_csv(null_results, "cit_null_mmdvae_{}_depth_{}_latent_trial_{}.csv".format(param_set[1], param_set[2], trial))
-            
-                cur_caus1_models = caus1_models[param_set]
-                Z_list = [cur_caus1_models[i].reparameterize(*cur_caus1_models[i].encode(genotype)).numpy() for ((_,_,genotype), i) in zip(caus1_datasets, range(num_sim))]
-                caus1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
-                    joblib.delayed(cit.cit)(trait, gene_exp, Z, 1000)
-                    for ((trait, gene_exp, _), Z) in zip(caus1_datasets, Z_list)
-                )
-                write_csv(caus1_results, "cit_caus1_mmdvae_{}_depth_{}_latent_trial_{}.csv".format(param_set[1], param_set[2], trial))
-            
-                cur_ind1_models = ind1_models[param_set]
-                Z_list = [cur_ind1_models[i].reparameterize(*cur_ind1_models[i].encode(genotype)).numpy() for ((_,_,genotype), i) in zip(ind1_datasets, range(num_sim))]
-                ind1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
-                    joblib.delayed(cit.cit)(trait, gene_exp, Z, 1000)
-                    for ((trait, gene_exp, _), Z) in zip(ind1_datasets, Z_list)
-                )
-                write_csv(ind1_results, "cit_ind1_mmdvae_{}_depth_{}_latent_trial_{}.csv".format(param_set[1], param_set[2], trial))
+            cur_null_models = null_models[param_set]
+            Z_list = [cur_null_models[i].encode(genotype).numpy() for ((_,_,genotype), i) in zip(null_datasets, range(num_sim))]
+            print(len(Z_list), len(null_datasets))
+            print(Z_list)
+            null_results = joblib.Parallel(n_jobs=16, verbose=10)(
+                joblib.delayed(cit.cit)(trait, gene_exp, Z, 1000)
+                for ((trait, gene_exp, _), Z) in zip(null_datasets, Z_list)
+            )
+            write_csv(null_results, "cit_null_mmdvae_{}_depth_{}_latent_trial_{}.csv".format(param_set[1], param_set[2], trial))
+        
+            cur_caus1_models = caus1_models[param_set]
+            Z_list = [cur_caus1_models[i].encode(genotype).numpy() for ((_,_,genotype), i) in zip(caus1_datasets, range(num_sim))]
+            caus1_results = joblib.Parallel(n_jobs=16, verbose=10)(
+                joblib.delayed(cit.cit)(trait, gene_exp, Z, 1000)
+                for ((trait, gene_exp, _), Z) in zip(caus1_datasets, Z_list)
+            )
+            write_csv(caus1_results, "cit_caus1_mmdvae_{}_depth_{}_latent_trial_{}.csv".format(param_set[1], param_set[2], trial))
+        
+            cur_ind1_models = ind1_models[param_set]
+            Z_list = [cur_ind1_models[i].encode(genotype).numpy() for ((_,_,genotype), i) in zip(ind1_datasets, range(num_sim))]
+            ind1_results = joblib.Parallel(n_jobs=16, verbose=10)(
+                joblib.delayed(cit.cit)(trait, gene_exp, Z, 1000)
+                for ((trait, gene_exp, _), Z) in zip(ind1_datasets, Z_list)
+            )
+            write_csv(ind1_results, "cit_ind1_mmdvae_{}_depth_{}_latent_trial_{}.csv".format(param_set[1], param_set[2], trial))
             
     return 0
     
