@@ -51,11 +51,11 @@ def write_csv(results, filename):
 
 def main():
     # Simulation parameters
-    num_sim = 1
+    num_sim = 100
     num_subjects = 100
     num_genotypes = 200
-    depths = [1]#,2,3] # number of hidden layers
-    latent = [1]#,2,3,4,5] # number of latent variables
+    depths = [1,2,3] # number of hidden layers
+    latent = [1,2,3,4,5] # number of latent variables
     
     # Generate datasets
     null_datasets = [dm.generate_null(n=num_subjects, p=num_genotypes) for i in range(num_sim)]
