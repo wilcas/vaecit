@@ -8,4 +8,4 @@
 #SBATCH --cpus-per-task=16
 
 source $HOME/projects/def-saram/wcasazza/tensorflow/bin/activate
-python $HOME/projects/def-saram/wcasazza/vaecit/scripts/vae_sim.py
+python $HOME/projects/def-saram/wcasazza/vaecit/scripts/mmd_vae_sim.py
