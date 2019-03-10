@@ -82,7 +82,7 @@ def main():
                 joblib.delayed(cit.cit)(trait, gene_exp, Z, 1000)
                 for ((trait, gene_exp, _), Z) in zip(null_datasets, Z_list)
             )
-            write_csv(null_results, "cit_null_mmdvae_{}_depth_{}_latent_trial_{}.csv".format(param_set[1], param_set[2], trial))
+            write_csv(null_results, "cit_null_mmdvae_{}_depth_{}_latent.csv".format(param_set[1], param_set[2]))
         
             cur_caus1_models = caus1_models[param_set]
             Z_list = [cur_caus1_models[i].encode(genotype).numpy() for ((_,_,genotype), i) in zip(caus1_datasets, range(num_sim))]
@@ -90,7 +90,7 @@ def main():
                 joblib.delayed(cit.cit)(trait, gene_exp, Z, 1000)
                 for ((trait, gene_exp, _), Z) in zip(caus1_datasets, Z_list)
             )
-            write_csv(caus1_results, "cit_caus1_mmdvae_{}_depth_{}_latent_trial_{}.csv".format(param_set[1], param_set[2], trial))
+            write_csv(caus1_results, "cit_caus1_mmdvae_{}_depth_{}_latent.csv".format(param_set[1], param_set[2]))
         
             cur_ind1_models = ind1_models[param_set]
             Z_list = [cur_ind1_models[i].encode(genotype).numpy() for ((_,_,genotype), i) in zip(ind1_datasets, range(num_sim))]
@@ -98,7 +98,7 @@ def main():
                 joblib.delayed(cit.cit)(trait, gene_exp, Z, 1000)
                 for ((trait, gene_exp, _), Z) in zip(ind1_datasets, Z_list)
             )
-            write_csv(ind1_results, "cit_ind1_mmdvae_{}_depth_{}_latent_trial_{}.csv".format(param_set[1], param_set[2], trial))
+            write_csv(ind1_results, "cit_ind1_mmdvae_{}_depth_{}_latent.csv".format(param_set[1], param_set[2]))
             
     return 0
     

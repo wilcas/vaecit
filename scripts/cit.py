@@ -78,35 +78,52 @@ def test_independence(T, G, L, num_bootstrap):
 
 
 def cit(target, mediator, instrument, num_bootstrap=10000):
-    # run tests
+    # run tests 
     n = target.shape[0]
-    stats1, p1 = test_association(
-        target, 
-        np.ones((n, 1)),
-        np.c_[np.ones((n, 1)), instrument]
-    )
-    stats2, p2 = test_association(
-        mediator,
-        np.c_[np.ones((n, 1)), target],
-        np.c_[np.ones((n, 1)), target, instrument]
-    )
-    stats3, p3 = test_association(
-        target,
-        np.c_[np.ones((n, 1)), mediator],
-        np.c_[np.ones((n, 1)), mediator, instrument]
-    )
-    stats4, p4 = test_independence(target, mediator, instrument, num_bootstrap)
-    omni_p = max(p1, p2, p3, p4)
-    
-    # merge stats into one table
-    res = {'test1': stats_dict(*stats1,n),
-        'p1': p1,
-        'test2': stats_dict(*stats2,n),
-        'p2': p2,
-        'test3': stats_dict(*stats3,n),
-        'p3': p3,
-        'test4': stats_dict(*stats4,n),
-        'p4': p4,
-        'omni_p': omni_p
-    }
+    try: # so we don't lose everything in the case of a numerical error
+        stats1, p1 = test_association(
+            target, 
+            np.ones((n, 1)),
+            np.c_[np.ones((n, 1)), instrument]
+        )
+        stats2, p2 = test_association(
+            mediator,
+            np.c_[np.ones((n, 1)), target],
+            np.c_[np.ones((n, 1)), target, instrument]
+        )
+        stats3, p3 = test_association(
+            target,
+            np.c_[np.ones((n, 1)), mediator],
+            np.c_[np.ones((n, 1)), mediator, instrument]
+        )
+        stats4, p4 = test_independence(target, mediator, instrument, num_bootstrap)
+        omni_p = max(p1, p2, p3, p4)
+        
+        # merge stats into one table
+        res = {'test1': stats_dict(*stats1,n),
+            'p1': p1,
+            'test2': stats_dict(*stats2,n),
+            'p2': p2,
+            'test3': stats_dict(*stats3,n),
+            'p3': p3,
+            'test4': stats_dict(*stats4,n),
+            'p4': p4,
+            'omni_p': omni_p
+        }
+    except:
+        stats1 = (np.ones(2),-1,1,1,1)
+        stats2 = (np.ones(3),-1,1,1,1)
+        stats3 = (np.ones(3),-1,1,1,1)
+        stats4 = (np.ones(3),-1,1,1,1)
+        
+        res = {'test1': stats_dict(*stats1,n),
+            'p1': -1,
+            'test2': stats_dict(*stats2,n),
+            'p2': -1,
+            'test3': stats_dict(*stats3,n),
+            'p3': -1,
+            'test4': stats_dict(*stats4,n),
+            'p4': -1,
+            'omni_p': -1
+        }
     return res
