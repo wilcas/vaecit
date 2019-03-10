@@ -111,10 +111,10 @@ def cit(target, mediator, instrument, num_bootstrap=10000):
             'omni_p': omni_p
         }
     except:
-        stats1 = (np.ones(2),-1,1,1,1)
-        stats2 = (np.ones(3),-1,1,1,1)
-        stats3 = (np.ones(3),-1,1,1,1)
-        stats4 = (np.ones(3),-1,1,1,1)
+        stats1 = (np.ones(2),-1,1,np.ones(2),np.ones(2))
+        stats2 = (np.ones(3),-1,1,np.ones(3),np.ones(3))
+        stats3 = (np.ones(3),-1,1,np.ones(3),np.ones(3))
+        stats4 = (np.ones(3),-1,1,np.ones(3),np.ones(3))
         
         res = {'test1': stats_dict(*stats1,n),
             'p1': -1,
