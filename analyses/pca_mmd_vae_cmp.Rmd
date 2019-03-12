@@ -1,0 +1,140 @@
+---
+title: "PCA vs MMD VAE"
+author: "William Casazza"
+date: "March 10, 2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(scales)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Testing Dimensionality Reduction in Causal Inference
+
+## PCA in Place of Genotype
+Step 1: Load in Data
+```{r Load PCA Data}
+pca_test_list <- list()
+for(f in dir("data/pca_tests/")){
+  model <- gsub("cit_(.*)_([0-9])_PCs.csv","\\1", f)
+  num_pc <- as.numeric(gsub("cit_(.*)_([0-9])_PCs.csv","\\2", f))
+  tmp <- read.csv(sprintf("data/pca_tests/%s", f))
+  tmp$model <- model
+  tmp$num_pc <- num_pc
+  pca_test_list[[f]] <- tmp
+}
+tail(pca_df <- rbind_list(pca_test_list))
+```
+Step 2 is pulling apart the data and plotting
+### Differences in performance using different numbers of PCs
+```{r Plot PCA P Values}
+pca_df <- rbind_list(pca_test_list)
+pca_df <- pca_df %>% mutate(model = plyr::mapvalues(model,from = c("caus1","ind1","null"), to = c("Causal", "Independent", "Null"))) %>% rename(nPC = num_pc)
+(p <- ggplot(pca_df, aes(x=omni_p)) + 
+  geom_histogram() + 
+  facet_grid(model~nPC, scales = 'free_y', labeller = labeller(nPC=label_both)) + 
+  labs(x = "P Value", y = "") +
+  ggtitle("Omnibus Test Using Principal Components")+
+  scale_y_continuous(breaks=pretty_breaks())+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), text = element_text(face = "bold")))
+ggsave("omnibus_test_pca.svg",p)
+
+ggplot(pca_df, aes(x=p1)) + 
+  geom_histogram() + 
+  facet_grid(model~nPC, scales = 'free_y')+ 
+  ggtitle("Test 1 P") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1))
+ggplot(pca_df, aes(x=p2)) + 
+  geom_histogram() + 
+  facet_grid(model~nPC, scales = 'free_y')+ 
+  ggtitle("Test 2 P") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1))
+ggplot(pca_df, aes(x=p3)) + 
+  geom_histogram() + 
+  facet_grid(model~nPC, scales = 'free_y')+ 
+  ggtitle("Test 3 P") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1)) 
+ggplot(pca_df, aes(x=p4)) + 
+  geom_histogram() + 
+  facet_grid(model~nPC, scales = 'free_y')+ 
+  ggtitle("Test 4 P") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1)) 
+```
+
+### Interesting Notes
+Caus1 Appears to work better in the way we constructed the data, but it's important to note that it's about a 50 50 shot to call independent association, as constructed, as causal mediation. In the case where there's no association between variables we don't call causal mediation at all, which is a good behavior.
+
+
+## MMD VAE
+
+Step 1: Load in the data
+
+```{r Load PCA Data}
+mmd_test_list <- list()
+for(f in dir("data/mmd_vae_tests/")){
+  model <- gsub("cit_(.*)_mmdvae_([0-9]*)_depth_([0-9]*)_latent.csv","\\1", f)
+  num_hidden <- as.numeric(gsub("cit_(.*)_mmdvae_([0-9]*)_depth_([0-9]*)_latent.csv","\\3", f))
+  num_latent <- as.numeric(gsub("cit_(.*)_mmdvae_([0-9]*)_depth_([0-9]*)_latent.csv","\\2", f))
+  tmp <- read.csv(sprintf("data/mmd_vae_tests/%s", f))
+  tmp$model <- model
+  tmp$num_hidden <- num_hidden
+  tmp$num_latent <- num_latent
+  mmd_test_list[[f]] <- tmp
+}
+tail(mmd_df <- rbind_list(mmd_test_list))
+```
+
+Step 2 is pulling apart the data and plotting
+### Differences in performance using different numbers of latent variables and hidden layers
+```{r Plot PCA P Values}
+
+mmd_df <- rbind_list(mmd_test_list)
+mmd_df <- mmd_df %>% mutate(model = plyr::mapvalues(model,from = c("caus1","ind1","null"), to = c("Causal", "Independent", "Null"))) %>% rename(nLatent = num_latent, nHidden = num_hidden)
+(p <- ggplot(mmd_df, aes(x=omni_p)) + 
+  geom_histogram() + 
+  facet_grid(model~nHidden + nLatent, scales = 'free_y', labeller = labeller(nHidden=label_both, nLatent = label_both)) + 
+  labs(x = "P Value", y = "") +
+  ggtitle("Omnibus Test Using Latent Encodings")+
+  scale_y_continuous(breaks=pretty_breaks())+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), text = element_text(face = "bold")))
+ggsave("omnibus_test_mmd.svg",p)
+
+
+ggplot(mmd_df, aes(x=p1)) +
+  geom_histogram() +
+  facet_grid(model~nHidden + nLatent, scales = 'free_y', labeller = labeller(nHidden=label_both, nLatent = label_both)) + 
+  ggtitle("Causal Inference Test Condition 1 Using Latent Encodings") +
+    labs(x = "P Value", y = "") +
+    scale_y_continuous(breaks=pretty_breaks())+
+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), text = element_text(face = "bold"))
+
+
+ggplot(mmd_df, aes(x=p4)) +
+  geom_histogram() +
+  facet_grid(model~nHidden + nLatent, scales = 'free_y', labeller = labeller(nHidden=label_both, nLatent = label_both)) + 
+  ggtitle("Causal Inference Test Condition 4 Using Latent Encodings") +
+    labs(x = "P Value", y = "") +
+  scale_y_continuous(breaks=pretty_breaks())+
+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), text = element_text(face = "bold"))
+
+
+ggplot(mmd_df, aes(x=p2)) +
+  geom_histogram() +
+  facet_grid(model~nHidden + nLatent, scales = 'free_y', labeller = labeller(nHidden=label_both, nLatent = label_both)) + 
+  ggtitle("Test 2 P") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1))
+ggplot(mmd_df, aes(x=p3)) +
+  geom_histogram() +
+  facet_grid(model~num_hidden + num_latent, scales = 'free_y')+
+  ggtitle("Test 3 P") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1))
+ggplot(mmd_df, aes(x=p4)) +
+  geom_histogram() +
+  facet_grid(model~num_hidden + num_latent, scales = 'free_y')+
+  ggtitle("Test 4 P") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1))
+```

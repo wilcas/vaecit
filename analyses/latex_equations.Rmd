@@ -1,0 +1,39 @@
+---
+title: "latex equations"
+author: "William Casazza"
+date: "March 11, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+We say that $M$ causally mediates the relationship between
+
+$L$ and $T$ if the following sets of conditions are satisfied:
+
+$$
+\begin{aligned}
+&1.\:L \propto T (L \text{ is associated with } T) \\
+
+&2.\:L \propto (M|T)\\
+
+&3.\:M \propto (T|M)\\
+
+&4.\:L \perp (T|M) (L \text{ is independent of } (T|M))
+\end{aligned}
+$$
+
+
+$$ E_{X\sim P_D}[E_{z\sim Q}[\log P(X|z)] - \mathcal{D}[Q(z | X) \parallel P(z)]]$$
+
+$$ - \lambda \mathcal{D}[Q(z) \parallel P(z)] - E_{z \sim Q}[\mathcal{D}[Q(X|z) \parallel P(X|z)]] + \alpha I_Q (X;z)$$ 
+
+$$
+\begin{aligned}
+&1.\:T = \alpha + \sum_{i=1}^z \beta_z L_z + \epsilon;\: \epsilon \sim N(0,\sigma^2)\\
+&2.\:M = \alpha + \beta_T T + \sum_{i=1}^z \beta_z L_z + \epsilon;\: \epsilon \sim N(0,\sigma^2)\\
+&3.\:T = \alpha + \beta_M M + \sum_{i=1}^z \beta_z L_z + \epsilon;\: \epsilon \sim N(0,\sigma^2)
+\end{aligned}
+$$
