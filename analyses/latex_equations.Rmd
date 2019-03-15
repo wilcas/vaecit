@@ -19,7 +19,7 @@ $$
 
 &2.\:L \propto (M|T)\\
 
-&3.\:M \propto (T|M)\\
+&3.\:M \propto (T|L)\\
 
 &4.\:L \perp (T|M) (L \text{ is independent of } (T|M))
 \end{aligned}
