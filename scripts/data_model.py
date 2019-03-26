@@ -7,7 +7,7 @@ import numpy as np
 import h5py
 
 from scipy import io
-
+from functools import reduce
 
 def generate_null(n=100, p=200):
     trait = np.random.normal(size=(n, 1))
@@ -51,7 +51,7 @@ def load_expression(fname):
     expression = exp_and_phen['data'][0][0][0]
     samples = exp_and_phen['data'][0][0][4]
     genes = exp_and_phen['data'][0][0][3]
-    return samples, genes, expression
+    return samples.flatten(), genes.flatten(), expression
 
 
 def load_genotype(fname,rsids, sep=','):
@@ -70,7 +70,7 @@ def load_genotype(fname,rsids, sep=','):
         raise LookupError("{} not found in {}".format(",".join(rsids), fname))
     else:
         genotype = np.ndarray(genotype).T
-        return samples, snps, genotype
+        return np.array(samples), np.array(snps),genotype
 
 
 def load_methylation(fname):
@@ -84,7 +84,6 @@ def load_methylation(fname):
                 digit = item.tostring().decode('utf-8').rstrip('\x00')
                 cur_id += digit
             samples += [cur_id]
-
         probe_ids = []
         _, cols = h5['m']['rowlabels'].shape
         for i in range(cols):
@@ -95,8 +94,23 @@ def load_methylation(fname):
                 cur_id += c
             probe_ids += [cur_id]
         methylation = h5['m']['data'][:]
-    return samples, probe_ids, methylation
+    return np.array(samples), np.array(probe_ids), methylation
 
 
 def load_acetylation(fname):
-    raise NotImplemented
+    acetyl_obj = io.loadmat(fname)
+    acetylation = acetyl_obj['aceR2'][0][0][0]
+    samples = acetyl_obj['aceR2'][0][0][2]
+    peak_id = acetyl_obj['aceR2'][0][0][1]
+    return samples.flatten(), peak_id.flatten(), acetylation
+
+
+def match_samples(*samples):
+    """Sort data by sample ids"""
+    shared = reduce(np.intersect1d, (samples))
+    shared_idx = []
+    for sample_vec in samples:
+        indices = sample_vec.argsort()
+        to_keep = sample_vec[indices] in shared
+        shared_idx += [np.extract(to_keep, indices)]
+    return shared_idx
