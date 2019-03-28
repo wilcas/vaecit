@@ -3,8 +3,10 @@ This Module serves to generate datasets under different causal structures. It mi
 version of this project.
 """
 import csv
-import numpy as np
 import h5py
+import numpy as np
+import os
+import re
 
 from scipy import io
 from functools import reduce
@@ -54,22 +56,37 @@ def load_expression(fname):
     return samples.flatten(), genes.flatten(), expression
 
 
-def load_genotype(fname,rsids, sep=','):
+def load_genotype(fname,rsids):
     rsids = list(set(rsids)) #unique rsids
     snps = []
-    with open(fname, 'r') as f:
-        genotype = []
-        samples  = f.readline().split(sep=sep)
-        for line in f:
-            items = line.split(sep=sep)
-            if items[0] in rsids:
-                genotype.append(items[1:])
-                rsids.pop(items[0])
-                snps += [items[0]]
+    genotype = []
+    if re.match(".*\.raw$", fname): #plink format
+        sep = ' '
+        with open(fname, 'r') as f:
+            rsids_base = f.readline().split(sep=sep)
+        rsids_file = [re.sub("_.*","",rsid) for rsid in rsids_base]
+        rsids_file = np.array(rsids_file)
+        rsid_idx = [np.argwhere(rsid in rsids_file) for rsid in rsids]
+        rsids = [rsid for rsid in rsids if rsid not in rsids_file]
+        genotype = np.loadtxt(fname, skiprows=1, usecols=rsid_idx, delimiter=sep)
+        samples = np.loadtxt(fname, skiprows=1, usecols=0, delimiter=sep, dtype=str)
+
+    elif re.match(".*\.csv$", fname): #csv
+        sep = ','
+        with open(fname, 'r') as f:
+            samples  = f.readline().split(sep=sep)
+            for line in f:
+                items = line.split(sep=sep)
+                if items[0] in rsids:
+                    genotype.append(items[1:])
+                    rsids.pop(items[0])
+                    snps += [items[0]]
+        genotype = np.ndarray(genotype).T
+    else:
+        raise NotImplementedError("Format of {} not recognized".format(fname))
     if len(rsids) > 0:
         raise LookupError("{} not found in {}".format(",".join(rsids), fname))
     else:
-        genotype = np.ndarray(genotype).T
         return np.array(samples), np.array(snps),genotype
 
 
@@ -114,3 +131,29 @@ def match_samples(*samples):
         to_keep = sample_vec[indices] in shared
         shared_idx += [np.extract(to_keep, indices)]
     return shared_idx
+
+def get_snp_groups(rsids, coord_file, genotype_dir, sep='\t'):
+    """Get genotype file containing each rsid"""
+    coords = np.loadtxt(coord_file, delimiter=sep,dtype=str)
+    coords_rsids = [re.sub("_.*","",rsid) for rsid in coords[:,0].flatten()]
+    snp_files = []
+    if re.match(".*hrc.*",genotype_dir): #plink raw, sample by snp
+        for rsid in rsids:
+            chrom_idx = np.argwhere(rsid in coords_rsids)
+            chrom = coords[chrom_idx,1]
+            snp_files += [os.path.join(genotype_dir, "chr{}.raw".format(chrom))]
+    elif re.match(".*1kg.*",genotype_dir): #csv file, snp by sample
+        for rsid in rsids:
+            chrom_idx = np.argwhere(rsid in coords_rsids)
+            chrom = coords[chrom_idx1]
+            fstring = os.path.join(genotype_dir, "snpMatrixChr{}{}.csv")
+            fA = fstring.format(chrom,"a")
+            fB = fstring.format(chrom,"b")
+            file_rsids = np.loadtxt(fA, delimiter=',', skiprows=1, usecols=0, dtype=str)
+            if rsid in file_rsids:
+                snp_files += [fA]
+            else:
+                snp_files += [fB]
+    else:
+        raise ValueError("Invalid Genotype group: {}".format(genotype_group))
+    return snp_files
