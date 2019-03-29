@@ -7,8 +7,9 @@ import h5py
 import numpy as np
 import os
 import re
+import vae
 
-from scipy import io
+from scipy import io,stats
 from functools import reduce
 
 def generate_null(n=100, p=200):
@@ -157,3 +158,38 @@ def get_snp_groups(rsids, coord_file, genotype_dir, sep='\t'):
     else:
         raise ValueError("Invalid Genotype group: {}".format(genotype_group))
     return snp_files
+
+
+def compute_pcs(A):
+    (U, D, vh) = np.linalg.svd(stats.zscore(A), full_matrices=False, compute_uv=True)
+    return U@np.diag(D)
+
+
+def get_mediator(data, ids, which_ids, nFeatures):
+    if nFeatures > 1:
+        feature_idx = ids[ids in which_ids]
+        tmp_data = data[:,feature_idx]
+        cur_data = compute_pcs(tmp_data)[:,0]
+    else:
+        cur_data = ids[:, ids == which_ids[0]]
+    return cur_methyl
+
+
+def reduce_genotype(genotype, lv_method, num_latent, vae_depth=None):
+    #@TODO address case where num_latent > number of genotypes
+    if genotype.shape[1] == 1:
+        return genotype
+    if genotype.shape[1] < num_latent:
+        num_latent = genotype.shape[1] / 2
+    if lv_method == 'mmdvae':
+        params = {
+            "output_size": genotype.shape[0],
+            "n_latent": num_latent,
+            "n_hidden": vae_depth}
+        model = vae.train_mmd_vae(stats.zscore(genotype), params)
+        latent_genotype = model.encode(stats.zscore(genotype))
+    elif lv_method == "pca":
+        latent_genotype = compute_pcs(genotype)[:, 0:num_latent]
+    else:
+        raise NotImplemented
+    return latent_genotype

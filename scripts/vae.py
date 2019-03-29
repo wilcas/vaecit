@@ -15,6 +15,20 @@ def log_normal_pdf(sample, mean, logvar, raxis=1):
     )
 
 
+def train_vae(genotype, params):
+    model = VAE(**params)
+    model.compile(loss=model.total_loss, optimizer=tf.train.AdamOptimizer(1e-4))
+    model.fit(genotype, genotype, epochs = 100, batch_size = 10, verbose=0)
+    return model
+
+
+def train_mmd_vae(genotype, params):
+    model = MMD_VAE(**params)
+    model.compile(loss=model.total_loss, optimizer=tf.train.AdamOptimizer(1e-4))
+    model.fit(genotype, genotype, epochs = 100, batch_size = 10, verbose=0)
+    return model
+
+
 class VAE(tf.keras.Model):
     def __init__(self, output_size=100, n_latent=2, n_hidden=2): # default 2 latent dimensions
         super(VAE,self).__init__() # inherit Model functions
@@ -28,40 +42,40 @@ class VAE(tf.keras.Model):
         self.decode_net = tf.keras.Sequential()
         self.decode_net.add(tf.keras.layers.InputLayer(input_shape=(n_latent,)))
         for i in range(n_hidden):
-            self.decode_net.add(tf.keras.layers.Dense(128 * (n_hidden - i + 1),activation=tf.nn.relu))        
+            self.decode_net.add(tf.keras.layers.Dense(128 * (n_hidden - i + 1),activation=tf.nn.relu))
         self.decode_net.add(tf.keras.layers.Dense(output_size)) #no Activation
-        
-    
+
+
     def call(self, data):
         mean,logvar = self.encode(data)
         z = self.reparameterize(mean, logvar)
         return self.decode(z)
 
-    
+
     def sample(self, eps=None):
         if eps is None:
             eps = tf.random.normal(shape=(100, self.n_latent))
         return self.decode(eps, apply_sigmoid=True)
 
-    
+
     def encode(self, x):
         mean, logvar = tf.split(self.encode_net(x), num_or_size_splits=2, axis=1)
         return mean, logvar
 
-    
+
     def reparameterize(self, mean, logvar):
         eps = tf.random.normal(shape=mean.shape)
         return eps * tf.exp(logvar * .5) + mean
 
-    
+
     def decode(self, z, apply_sigmoid = False):
         logits = self.decode_net(z)
         if apply_sigmoid:
             return tf.sigmoid(logits)
         else:
             return logits
-    
-    
+
+
     def total_loss(self, x,y):
         mean, logvar = self.encode(x)
         z = self.reparameterize(mean, logvar)
@@ -74,7 +88,7 @@ class VAE(tf.keras.Model):
 
 
 class MMD_VAE(tf.keras.Model):
-    
+
     def __init__(self, output_size=100, n_latent=2, n_hidden=2): # default 2 latent dimensions
         super(MMD_VAE,self).__init__() # inherit Model functions
         self.n_latent = n_latent
@@ -87,9 +101,9 @@ class MMD_VAE(tf.keras.Model):
         self.decode_net = tf.keras.Sequential()
         self.decode_net.add(tf.keras.layers.InputLayer(input_shape=(n_latent,)))
         for i in range(n_hidden):
-            self.decode_net.add(tf.keras.layers.Dense(128 * (n_hidden - i + 1),activation=tf.nn.relu))        
+            self.decode_net.add(tf.keras.layers.Dense(128 * (n_hidden - i + 1),activation=tf.nn.relu))
         self.decode_net.add(tf.keras.layers.Dense(output_size, activation=tf.nn.sigmoid))
-    
+
     def call(self, data):
         z = self.encode(data)
         return self.decode(z)
@@ -105,7 +119,7 @@ class MMD_VAE(tf.keras.Model):
     def decode(self, z):
         logits = self.decode_net(z)
         return logits
-        
+
     def total_loss(self, x,y):
         train_z = self.encode_net(x)
         train_xr = self.decode_net(train_z)
@@ -113,8 +127,8 @@ class MMD_VAE(tf.keras.Model):
         loss_mmd = compute_mmd(samples,train_z)
         loss_nll = tf.reduce_mean(tf.square(train_xr - x))
         return loss_mmd + loss_nll
-    
-    
+
+
 def compute_kernel(x, y):
     x_size = tf.shape(x)[0]
     y_size = tf.shape(y)[0]
