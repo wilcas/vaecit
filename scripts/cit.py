@@ -3,6 +3,31 @@ from scipy import stats
 from numba import jit
 
 
+def write_csv(results, filename):
+    out_rows = []
+    for res in results:
+        cur_row = {}
+        for j in range(1,5):
+            cur_test = 'test{}'.format(j)
+            cur_p = 'p{}'.format(j)
+            for key in res[cur_test]:
+                if key in ['rss', 'r2']: #single value for test
+                    cur_key = '{}_{}'.format(cur_test,key)
+                    cur_row[cur_key] = res[cur_test][key]
+                else:
+                    for k in range(len(res[cur_test][key])):
+                        cur_key = '{}_{}{}'.format(cur_test,key,k)
+                        cur_row[cur_key] = res[cur_test][key][k]
+            cur_row[cur_p] = res[cur_p]
+        cur_row['omni_p'] = res['omni_p']
+        out_rows.append(cur_row)
+    with open(filename, 'w') as f:
+        names = out_rows[0].keys()
+        writer = csv.DictWriter(f, names)
+        writer.writeheader()
+        writer.writerows(out_rows)
+
+
 def stats_dict(beta, RSS, TSS, se, t, n):
     res_dict = {
         'beta': beta,
@@ -22,11 +47,7 @@ def ftest(fit1, fit2, n):
     p1 = beta1.shape[0]
     p2 = beta2.shape[0]
     fstat = ((RSS1 - RSS2) / (p2-p1)) / (RSS2 / (n - p2))
-#     print('''
-#         test1: {}
-#         test2: {}
-#         fstat: {}'''.format(fit1,fit2,fstat))
-    return 1 - stats.f.cdf(fstat, p2-p1,n-p2), fstat
+    return 1. - stats.f.cdf(fstat, p2-p1,n-p2), fstat
 
 
 @jit(nopython=True, cache=True)
@@ -44,7 +65,6 @@ def linreg_with_stats(y, X):
 
 def test_association(y,design_null,design_full):
     n = y.shape[0]
-    print(y.shape, design_null.shape, design_full.shape)
     fit1 = linreg_with_stats(y, design_full)
     fit2 = linreg_with_stats(y, design_null)
     p, _ = ftest(fit2, fit1, n)
@@ -78,11 +98,11 @@ def test_independence(T, G, L, num_bootstrap):
 
 
 def cit(target, mediator, instrument, num_bootstrap=10000):
-    # run tests 
+    # run tests
     n = target.shape[0]
     try: # so we don't lose everything in the case of a numerical error
         stats1, p1 = test_association(
-            target, 
+            target,
             np.ones((n, 1)),
             np.c_[np.ones((n, 1)), instrument]
         )
@@ -98,7 +118,7 @@ def cit(target, mediator, instrument, num_bootstrap=10000):
         )
         stats4, p4 = test_independence(target, mediator, instrument, num_bootstrap)
         omni_p = max(p1, p2, p3, p4)
-        
+
         # merge stats into one table
         res = {'test1': stats_dict(*stats1,n),
             'p1': p1,
@@ -115,7 +135,7 @@ def cit(target, mediator, instrument, num_bootstrap=10000):
         stats2 = (np.ones(3),-1,1,np.ones(3),np.ones(3))
         stats3 = (np.ones(3),-1,1,np.ones(3),np.ones(3))
         stats4 = (np.ones(3),-1,1,np.ones(3),np.ones(3))
-        
+
         res = {'test1': stats_dict(*stats1,n),
             'p1': -1,
             'test2': stats_dict(*stats2,n),

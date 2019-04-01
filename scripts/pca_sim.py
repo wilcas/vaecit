@@ -3,7 +3,8 @@ The goal is to generate a series of regression results under different causal sc
 simulated genotype PCs as surrogates for genotype.
 """
 import cit
-import csv 
+import csv
+import doctest
 import joblib
 
 import data_model as dm
@@ -38,21 +39,21 @@ def write_csv(results, filename):
         writer = csv.DictWriter(f, names)
         writer.writeheader()
         writer.writerows(out_rows)
-                    
+
 
 def main():
     num_sim = 100
     num_subjects = 100
     num_genotypes = 200
     pcs_to_test = [1,2,3,4,5]
-    
+
     null_datasets = [dm.generate_null(n=num_subjects, p=num_genotypes) for i in range(num_sim)]
     null_PCs = [compute_genotype_pcs(genotype) for (_, _, genotype) in null_datasets]
     caus1_datasets = [dm.generate_caus1(n=num_subjects, p=num_genotypes) for i in range(num_sim)]
     caus1_PCs = [compute_genotype_pcs(genotype) for (_, _, genotype) in caus1_datasets]
     ind1_datasets = [dm.generate_ind1(n=num_subjects, p=num_genotypes) for i in range(num_sim)]
     ind1_PCs = [compute_genotype_pcs(genotype) for (_, _, genotype) in ind1_datasets]
-    
+
     with joblib.parallel_backend('loky'):
         for i in pcs_to_test:
             null_results = joblib.Parallel(n_jobs=-1, verbose=10)(
@@ -60,22 +61,22 @@ def main():
                     for ((trait, gene_exp, _), Z) in zip(null_datasets,null_PCs)
                 )
             write_csv(null_results, "cit_null_{}_PCs.csv".format(i))
-            
+
             caus1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
                     joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i], 1000)
                     for ((trait, gene_exp, _), Z) in zip(caus1_datasets,caus1_PCs)
                 )
             write_csv(caus1_results, "cit_caus1_{}_PCs.csv".format(i))
-            
+
             ind1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
-                    joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i], 1000) 
+                    joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i], 1000)
                     for ((trait, gene_exp, _), Z) in zip(ind1_datasets, ind1_PCs)
                 )
             write_csv(ind1_results, "cit_ind1_{}_PCs.csv".format(i))
-            
+
     return 0
-    
-    
-    
+
+
+
 if __name__ == '__main__':
     main()
