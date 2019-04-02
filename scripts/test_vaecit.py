@@ -303,7 +303,7 @@ class LoadingDataTests(unittest.TestCase):
         self.assertTrue(isinstance(methylation[0],float))
 
 
-    def test_load_acetylation(self):# TODO: finish this
+    def test_load_acetylation(self):
         ac_samples, peak_ids, acetylation = dm.load_acetylation(self.acetyl_file)
         g_samples , _, _ = dm.load_genotype(self.geno_file_1kg, rsids)
         ac_idx, _ = dm.match_samples(ac_samples, g_samples)
@@ -315,7 +315,7 @@ class LoadingDataTests(unittest.TestCase):
         self.assertTrue(isinstance(acetylation[0],float))
 
 
-    def test_load_expression(self):# TODO: finish
+    def test_load_expression(self):
         e_samples, e_ids, expression = dm.load_expression(self.gene_exp_file)
         g_samples , _, _ = dm.load_genotype(self.geno_file_1kg, rsids)
         e_idx, _ = dm.match_samples(e_samples, g_samples)
