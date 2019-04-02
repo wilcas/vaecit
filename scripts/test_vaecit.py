@@ -275,19 +275,68 @@ class LoadingDataTests(unittest.TestCase):
         self.assertEqual(res_1kg[2].shape, res_hrc[2].shape)
         self.assertRaises(NotImplementedError,dm.load_genotype("blah.tch", rsids))
         self.assertRaises(LookupError,dm.load_genotype(self.geno_file_1kg,["rs119"]))
+        for (a,b) in zip(np.sort(res_1kg), np.sort(res_hrc)):
+            self.assertEqual(a,b)
 
 
-    def test_get_snp_groups(self):# TODO: Finish
-        rsids = ['rs11907414', 'rs73121632', 'rs11907414','rs6016785']
+    def test_get_snp_groups(self):
+        rsids = np.array(['rs11907414', 'rs73121632', 'rs11907414','rs6016785'])
         coord_file = os.path.join(self.base_path,)
         path_1kg = os.path.dirname(self.geno_file_1kg)
+        path_hrc = os.path.dirname(self.geno_file_hrc)
+        result_1kg = dm.get_snp_groups(rsids, coord_file, path_1kg)
+        result_hrc = dm.get_snp_groups(rsids, coord_file, path_hrc)
+        self.assertEqual(len(result_1kg), 1)
+        self.assertEqual(len(result_hrc), 1)
+        self.assertEqual(self.geno_file_1kg, result_1kg)
+        self.assertEqual(self.geno_file_hrc, result_hrc)
 
     def test_load_methylation(self):
-        raise NotImplementedError("No test case")
+        m_samples, probe_ids, methylation = dm.load_methylation(self.methyl_file)
+        g_samples , _, _ = dm.load_genotype(self.geno_file_1kg, rsids)
+        m_idx, _ = dm.match_samples(m_samples, g_samples)
+        self.assertEqual(len(samples[m_idx]), 468)
+        self.assertEqual(len(probe_ids), 420103)
+        self.assertEqual(methylation[m_idx,:].shape,(468, 420103))
+        self.assertTrue(isinstance(m_samples[0],str))
+        self.assertTrue(isinstance(probe_ids[0],str))
+        self.assertTrue(isinstance(methylation[0],float))
 
 
     def test_load_acetylation(self):# TODO: finish this
-        raise NotImplementedError("No test case")
+        ac_samples, peak_ids, acetylation = dm.load_acetylation(self.acetyl_file)
+        g_samples , _, _ = dm.load_genotype(self.geno_file_1kg, rsids)
+        ac_idx, _ = dm.match_samples(ac_samples, g_samples)
+        self.assertEqual(len(samples[ac_idx]), 433)
+        self.assertEqual(len(peak_ids), 25850)
+        self.assertEqual(acetylation[ac_idx,:].shape,(433, 25850))
+        self.assertTrue(isinstance(ac_samples[0],str))
+        self.assertTrue(isinstance(peak_ids[0],str))
+        self.assertTrue(isinstance(acetylation[0],float))
+
+
+    def test_load_expression(self):# TODO: finish
+        e_samples, e_ids, expression = dm.load_expression(self.gene_exp_file)
+        g_samples , _, _ = dm.load_genotype(self.geno_file_1kg, rsids)
+        e_idx, _ = dm.match_samples(e_samples, g_samples)
+        self.assertEqual(len(samples[e_idx]), 494)
+        self.assertEqual(len(e_ids), )
+        self.assertEqual(acetylation[ac_idx,:].shape,(494, 13484))
+        self.assertTrue(isinstance(e_samples[0],str))
+        self.assertTrue(isinstance(e_ids[0],str))
+        self.assertTrue(isinstance(expression[0],float))
+
+
+    def test_matching_samples(self):
+        e_samples, _, _ = dm.load_expression(self.gene_exp_file)
+        g_samples , _, _ = dm.load_genotype(self.geno_file_1kg, rsids)
+        ac_samples, _, _ = dm.load_acetylation(self.acetyl_file)
+        m_samples, _, _ = dm.load_methylation(self.methyl_file)
+        samples_idx = dm.match_samples(e_samples, g_samples, ac_samples, m_samples)
+        self.assertEqual(len(e_samples[samples_idx[0]]), 411)
+        self.assertEqual(len(g_samples[samples_idx[1]]), 411)
+        self.assertEqual(len(ac_samples[samples_idx[2]]), 411)
+        self.assertEqual(len(m_samples[samples_idx[3]]), 411)
 
 
 if __name__ == '__main__':

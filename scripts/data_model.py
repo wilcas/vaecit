@@ -88,7 +88,7 @@ def load_genotype(fname,rsids):
     if len(rsids) > 0:
         raise LookupError("{} not found in {}".format(",".join(rsids), fname))
     else:
-        return np.array(samples), np.array(snps),genotype
+        return np.array(samples), np.array(snps), genotype
 
 
 def load_methylation(fname):
