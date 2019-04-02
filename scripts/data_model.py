@@ -133,6 +133,7 @@ def match_samples(*samples):
         shared_idx += [np.extract(to_keep, indices)]
     return shared_idx
 
+
 def get_snp_groups(rsids, coord_file, genotype_dir, sep='\t'):
     """Get genotype file containing each rsid"""
     coords = np.loadtxt(coord_file, delimiter=sep,dtype=str)
@@ -165,14 +166,14 @@ def compute_pcs(A):
     return U@np.diag(D)
 
 
-def get_mediator(data, ids, which_ids, nFeatures):
-    if nFeatures > 1:
-        feature_idx = ids[ids in which_ids]
+def get_mediator(data, ids, which_ids):
+    if len(which_ids) > 1:
+        feature_idx = np.argwhere(np.isin(ids, which_ids)).flatten()
         tmp_data = data[:,feature_idx]
         cur_data = compute_pcs(tmp_data)[:,0]
     else:
-        cur_data = ids[:, ids == which_ids[0]]
-    return cur_methyl
+        cur_data = data[:, ids == which_ids[0]]
+    return cur_data
 
 
 def reduce_genotype(genotype, lv_method, num_latent, vae_depth=None):

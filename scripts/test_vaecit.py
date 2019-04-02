@@ -130,12 +130,10 @@ class CausalInferenceTests(unittest.TestCase):
         results_ind1 = [
             cit.cit(T,G,L,100)['omni_p']
             for (T,G,L) in self.ind1_data]
-        print(sum(results_ind1)/ self.n)
         self.assertTrue(sum([elem > 0.3 for elem in results_ind1]) > 50)
         results_caus1 = [
             cit.cit(T,G,L,100)['omni_p']
             for (T,G,L) in self.caus1_data]
-        print(sum(results_caus1)/ self.n)
         self.assertTrue(sum([elem < 0.3 for elem in results_caus1]) < 50)
 
 
@@ -228,34 +226,44 @@ class DataProcessingTests(unittest.TestCase):
             for (test1,test2) in zip(samples[i-1][shared_idx[i-1]], samples[i][shared_idx[i]]):
                 self.assertEqual(test1,test2)
 
-    def test_get_mediator(self):# TODO: Finish
-        raise NotImplementedError("No test case")
+
+    def test_get_mediator(self):
+        test_data = np.arange(9).reshape(3,3)
+        ids = np.array(["A","B","C"])
+        tests1 = zip(
+            dm.get_mediator(test_data, ids, np.array(["B","C"])).flatten(),
+            dm.compute_pcs(test_data[:,[1,2]])[:,0].flatten())
+        for (a,b) in tests1:
+            self.assertEqual(a,b)
+        tests2 = zip(
+            dm.get_mediator(test_data, ids, np.array(["B"])).flatten(),
+            test_data[:,1].flatten())
+        for(a,b) in tests2:
+            self.assertEqual(a,b)
 
 
-    @unittest.skipUnless(os.path.exists("/zfs3/scratch/saram_lab/ROSMAP/"),
-        "Meant for issues with reading in specific dataset")
-    def test_get_snp_groups(self):# TODO: Finish
-        raise NotImplementedError("No test case")
-
-
-    def test_compute_pcs(self):# TODO: finish this
-        raise NotImplementedError("No test case")
-
-
-    def test_reduce_genotype(self):# TODO: finish this
-        raise NotImplementedError("No test case")
+    def test_compute_pcs(self):
+        test_data = np.random.randn(10,7)
+        result = dm.compute_pcs(test_data)
+        variances = np.var(result,0)
+        var_explained = variances / sum(variances)
+        self.assertEqual(result.shape, test_data.shape)
+        self.assertAlmostEqual(sum(var_explained),1.)
+        for i in range(1,min(test_data.shape)):
+            self.assertTrue(var_explained[i-1] >= var_explained[i])
 
 
 @unittest.skipUnless(os.path.exists("/zfs3/scratch/saram_lab/ROSMAP/"),
     "Meant for issues with reading in specific dataset")
 class LoadingDataTests(unittest.TestCase):
     def setUp(self):
-        base_path = "/zfs3/scratch/saram_lab/ROSMAP/data/"
-        self.gene_exp_file = os.path.join(base_path,"expressionAndPhenotype.mat")
-        self.methyl_file = os.path.join(base_path,"methylationSNMnorm.mat")
-        self.acetyl_file = os.path.join(base_path,"acetylationNormNoNaN.mat")
-        self.geno_file_hrc = os.path.join(base_path,"genotypeImputed/hrc/snpMatrix/hrc/chr20.raw")
-        self.geno_file_1kg = os.path.join(base_path,"genotypeImputed/1kg/snpMatrix/1kg/snpMatrixChr20a.csv")
+        self.base_path = "/zfs3/scratch/saram_lab/ROSMAP/data/"
+        self.gene_exp_file = os.path.join(self.base_path,"expressionAndPhenotype.mat")
+        self.methyl_file = os.path.join(self.base_path,"methylationSNMnorm.mat")
+        self.acetyl_file = os.path.join(self.base_path,"acetylationNormNoNaN.mat")
+        self.geno_file_hrc = os.path.join(self.base_path,"genotypeImputed/hrc/snpMatrix/hrc/chr20.raw")
+        self.geno_file_1kg = os.path.join(self.base_path,"genotypeImputed/1kg/snpMatrix/1kg/snpMatrixChr20a.csv")
+
 
     def test_load_genotype(self):
         rsids = ['rs11907414', 'rs73121632', 'rs11907414','rs6016785']
@@ -269,15 +277,16 @@ class LoadingDataTests(unittest.TestCase):
         self.assertRaises(LookupError,dm.load_genotype(self.geno_file_1kg,["rs119"]))
 
 
+    def test_get_snp_groups(self):# TODO: Finish
+        rsids = ['rs11907414', 'rs73121632', 'rs11907414','rs6016785']
+        coord_file = os.path.join(self.base_path,)
+        path_1kg = os.path.dirname(self.geno_file_1kg)
+
     def test_load_methylation(self):
         raise NotImplementedError("No test case")
 
 
     def test_load_acetylation(self):# TODO: finish this
-        raise NotImplementedError("No test case")
-
-
-    def test_reduce_genotype(self):# TODO: finish this
         raise NotImplementedError("No test case")
 
 

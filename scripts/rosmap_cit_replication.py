@@ -87,13 +87,11 @@ def main():
             cur_methyl = dm.get_mediator(
                 methylation,
                 m_ids,
-                row.probes.split(","),
-                row.nProbes)
+                row.probes.split(","))
             cur_acetyl = dm.get_mediator(
                 acetylation,
                 ac_ids,
-                row.peaks.split(","),
-                row.nPeaks)
+                row.peaks.split(","))
             # run CIT
             methyl_results += [cit.cit(cur_exp, cur_methyl, latent_genotype)]
             acetyl_results += [cit.cit(cur_exp, cur_acetyl, latent_genotype)]
