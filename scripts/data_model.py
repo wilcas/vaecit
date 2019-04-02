@@ -53,7 +53,9 @@ def load_expression(fname):
     exp_and_phen = io.loadmat(fname)
     expression = exp_and_phen['data'][0][0][0]
     samples = exp_and_phen['data'][0][0][4]
+    samples = np.array([re.sub(":.*","",sample[0]) for sample in samples])
     genes = exp_and_phen['data'][0][0][3]
+    genes = np.array([re.sub(":.*","",gene[0]) for gene in genes])
     return samples.flatten(), genes.flatten(), expression
 
 
@@ -71,24 +73,25 @@ def load_genotype(fname,rsids):
         rsids = [rsid for rsid in rsids if rsid not in rsids_file]
         genotype = np.loadtxt(fname, skiprows=1, usecols=rsid_idx, delimiter=sep)
         samples = np.loadtxt(fname, skiprows=1, usecols=0, delimiter=sep, dtype=str)
-
+        snps = np.array(rsids)
     elif re.match(".*\.csv$", fname): #csv
         sep = ','
         with open(fname, 'r') as f:
-            samples  = f.readline().split(sep=sep)
+            samples  = np.array(f.readline().split(sep=sep))
             for line in f:
                 items = line.split(sep=sep)
                 if items[0] in rsids:
                     genotype.append(items[1:])
                     rsids.pop(items[0])
                     snps += [items[0]]
-        genotype = np.ndarray(genotype).T
+        genotype = np.array(genotype).T
+        snps = np.array(snps)
     else:
         raise NotImplementedError("Format of {} not recognized".format(fname))
     if len(rsids) > 0:
         raise LookupError("{} not found in {}".format(",".join(rsids), fname))
     else:
-        return np.array(samples), np.array(snps), genotype
+        return samples.flatten(), snps.flatten(), genotype
 
 
 def load_methylation(fname):
@@ -119,8 +122,10 @@ def load_acetylation(fname):
     acetyl_obj = io.loadmat(fname)
     acetylation = acetyl_obj['aceR2'][0][0][0]
     samples = acetyl_obj['aceR2'][0][0][2]
-    peak_id = acetyl_obj['aceR2'][0][0][1]
-    return samples.flatten(), peak_id.flatten(), acetylation
+    samples = np.array([sample[0] for sample in samples])
+    peak_ids = acetyl_obj['aceR2'][0][0][1]
+    peak_ids = np.array([peak_id[0] for peak_id in peak_ids])
+    return samples.flatten(), peak_ids.flatten(), acetylation
 
 
 def match_samples(*samples):
