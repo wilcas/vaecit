@@ -111,18 +111,6 @@ class CausalInferenceTests(unittest.TestCase):
             zip(self.ind1_reg_results, self.ind1_reg_results_null)]
         self.assertAlmostEqual(sum(results) / self.n,0)
 
-        results_neg = [
-            cit.ftest(fit2,fit1,self.n)[0]
-            for (fit1,fit2) in
-            zip(self.ind1_neg_reg_results, self.ind1_reg_results_null)]
-        design_full_neg = [
-            np.c_[trait,np.ones((n,1)), gene_exp]
-            for (trait,gene_exp,_) in self.ind1_data]
-        results_association = [
-            cit.test_association(data[:,0],data[:,1:],data[:,2:])[1]
-            for data in design_full_neg]
-        for test1,test2 in  zip(results_neg, results_association):
-            self.assertAlmostEqual(test1,test2)
 
     def test_independence_test(self):
         results_ind1 = [
