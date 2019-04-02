@@ -1,3 +1,4 @@
+import csv
 import numpy as np
 from scipy import stats
 from numba import jit
@@ -59,8 +60,8 @@ def linreg_with_stats(y, X):
     RSS = np.sum(np.square(y - X@beta))
     var_beta = RSS * np.linalg.pinv(X.T@X)
     se = np.sqrt(np.diag(var_beta))
-    t = beta / se
-    return beta.reshape(-1), RSS, TSS, se.reshape(-1), t.reshape(-1)
+    t = beta.flatten() / se.flatten()
+    return beta.flatten(), RSS, TSS, se.flatten(), t.flatten()
 
 
 def test_association(y,design_null,design_full):
