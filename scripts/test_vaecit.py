@@ -287,7 +287,7 @@ class LoadingDataTests(unittest.TestCase):
         path_hrc = os.path.dirname(self.geno_file_hrc)
         coord_path = os.path.join(self.base_path,"genotypeImputed/1kg/snpPos/")
         coord_files = [f for f in os.listdir(coord_path) if f.endswith('.csv')]
-        coord_df = pd.concat(map(pd.read_csv, coord_files))
+        coord_df = pd.concat([pd.read_csv(f) for f in  coord_files])
         result_1kg = dm.get_snp_groups(rsids, coord_df, path_1kg)
         result_hrc = dm.get_snp_groups(rsids, coord_df, path_hrc)
         self.assertEqual(len(result_1kg), 1)
