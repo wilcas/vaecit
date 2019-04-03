@@ -61,7 +61,7 @@ def load_expression(fname):
 
 
 def load_genotype(fname,rsids):
-    rsids = list(set(rsids)) #unique rsids
+    rsids = np.unique(rsids) #unique rsids
     snps = []
     genotype = []
     if re.match(".*\.raw$", fname): #plink format
@@ -70,26 +70,25 @@ def load_genotype(fname,rsids):
             rsids_base = f.readline().split(sep=sep)
         rsids_file = [re.sub("_.*","",rsid) for rsid in rsids_base]
         rsids_file = np.array(rsids_file)
-        rsid_idx = [np.argwhere(rsid in rsids_file) for rsid in rsids]
-        rsids = [rsid for rsid in rsids if rsid not in rsids_file]
-        genotype = np.loadtxt(fname, skiprows=1, usecols=rsid_idx, delimiter=sep)
-        samples = np.loadtxt(fname, skiprows=1, usecols=0, delimiter=sep, dtype=str)
-        snps = np.array(rsids)
+        rsid_idx = [np.nonzero(rsids_file == rsid)[0][0] for rsid in rsids]
+        snps = np.array(rsids_file)[rsid_idx]
+        not_found = [rsid for rsid in rsids if rsid not in rsids_file]
+        samples = np.loadtxt(fname, skiprows=1, usecols=0, delimiter=sep, dtype=str).flatten()
+        samples_idx = [(("ROS" or "MAP") in sample) for sample in samples]
+        samples = np.array([re.sub("[A-Z]*","",item) for item in samples[samples_idx]])
+        genotype = np.loadtxt(fname, skiprows=1, usecols=rsid_idx, delimiter=sep)[samples_idx,:]
     elif re.match(".*\.csv$", fname): #csv
         sep = ','
+        rsids_file = np.loadtxt(fname,skiprows=1, usecols=0,delimiter=sep, dtype=str).flatten()
+        rsid_idx = [np.nonzero(rsids_file == rsid)[0][0] for rsid in rsids]
         with open(fname, 'r') as f:
-            samples  = np.array(f.readline().split(sep=sep))
-            for line in f:
-                items = line.split(sep=sep)
-                if items[0] in rsids:
-                    genotype.append(items[1:])
-                    rsids.pop(items[0])
-                    snps += [items[0]]
-        genotype = np.array(genotype).T
-        snps = np.array(snps)
+            samples  = np.array(f.readline().rstrip('\n').split(sep=sep)).astype(str)
+        genotype = np.loadtxt(fname,skiprows=1,usecols=range(1,len(samples)),delimiter=sep).T[:, rsid_idx]
+        snps = np.array(rsids_file)[rsid_idx]
+        not_found = [rsid for rsid in rsids if rsid not in snps]
     else:
         raise NotImplementedError("Format of {} not recognized".format(fname))
-    if len(rsids) > 0:
+    if len(not_found) > 0:
         raise LookupError("{} not found in {}".format(",".join(rsids), fname))
     else:
         return samples.flatten(), snps.flatten(), genotype
@@ -121,11 +120,10 @@ def load_methylation(fname):
 
 def load_acetylation(fname):
     acetyl_obj = io.loadmat(fname)
-    acetylation = acetyl_obj['aceR2'][0][0][0]
-    samples = acetyl_obj['aceR2'][0][0][2]
-    samples = np.array([sample[0] for sample in samples])
-    peak_ids = acetyl_obj['aceR2'][0][0][1]
-    peak_ids = np.array([peak_id[0] for peak_id in peak_ids])
+    acetylation = acetyl_obj['acetyl']
+    samples = acetyl_obj['aceR'][0][0]
+    samples = np.array([tmp[0][0] for tmp in acetyl_obj["acetyList"]])
+    peak_ids = np.array([tmp[0][0] for tmp in acetyl_obj["peakNames"]])
     return samples.flatten(), peak_ids.flatten(), acetylation
 
 
@@ -145,11 +143,11 @@ def get_snp_groups(rsids, coord_df, genotype_dir, sep='\t'):
     snp_files = []
     if re.match(".*hrc.*",genotype_dir): #plink raw, sample by snp
         for rsid in rsids:
-            chrom = coord_df.iloc[coord_df.snp == rsid,1]
+            chrom = coord_df[coord_df['snp']== rsid]['chr'].values[0]
             snp_files += [os.path.join(genotype_dir, "chr{}.raw".format(chrom))]
     elif re.match(".*1kg.*",genotype_dir): #csv file, snp by sample
         for rsid in rsids:
-            chrom = coord_df.iloc[coord_df.snp == rsid,1]
+            chrom = coord_df[coord_df['snp']== rsid]['chr'].values[0]
             fstring = os.path.join(genotype_dir, "snpMatrixChr{}{}.csv")
             fA = fstring.format(chrom,"a")
             fB = fstring.format(chrom,"b")
@@ -160,7 +158,7 @@ def get_snp_groups(rsids, coord_df, genotype_dir, sep='\t'):
                 snp_files += [fB]
     else:
         raise ValueError("Invalid Genotype group: {}".format(genotype_group))
-    return snp_files
+    return np.unique(snp_files)
 
 
 def compute_pcs(A):

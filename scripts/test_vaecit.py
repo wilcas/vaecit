@@ -261,23 +261,29 @@ class LoadingDataTests(unittest.TestCase):
         self.base_path = "/zfs3/scratch/saram_lab/ROSMAP/data/"
         self.gene_exp_file = os.path.join(self.base_path,"expressionAndPhenotype.mat")
         self.methyl_file = os.path.join(self.base_path,"methylationSNMnorm.mat")
-        self.acetyl_file = os.path.join(self.base_path,"acetylationNormNoNaN.mat")
-        self.geno_file_hrc = os.path.join(self.base_path,"genotypeImputed/hrc/snpMatrix/hrc/chr20.raw")
-        self.geno_file_1kg = os.path.join(self.base_path,"genotypeImputed/1kg/snpMatrix/1kg/snpMatrixChr20a.csv")
+        self.acetyl_file = os.path.join(self.base_path,"acetylationNorm.mat")
+        self.geno_file_hrc = os.path.join(self.base_path,"genotypeImputed/hrc/snpMatrix/chr20.raw")
+        self.geno_file_1kg = os.path.join(self.base_path,"genotypeImputed/1kg/snpMatrix/snpMatrixChr20a.csv")
 
 
     def test_load_genotype(self):
-        rsids = ['rs11907414', 'rs73121632', 'rs11907414','rs6016785']
+        rsids = np.array(['rs11907414', 'rs73121632', 'rs11907414','rs6016785'])
+        self.assertRaises(NotImplementedError,dm.load_genotype,"blah.tch", rsids)
+        self.assertRaises(LookupError,dm.load_genotype,self.geno_file_1kg,["rs119"])
         res_1kg = dm.load_genotype(self.geno_file_1kg, rsids)
         res_hrc = dm.load_genotype(self.geno_file_hrc, rsids)
-        self.assertEqual(res_1kg[0].shape[1],3)
-        self.assertEqual(res_1kg[0],res_hrc[0])
-        self.assertEqual(res_1kg[1],res_hrc[1])
-        self.assertEqual(res_1kg[2].shape, res_hrc[2].shape)
-        self.assertRaises(NotImplementedError,dm.load_genotype("blah.tch", rsids))
-        self.assertRaises(LookupError,dm.load_genotype(self.geno_file_1kg,["rs119"]))
-        for (a,b) in zip(np.sort(res_1kg), np.sort(res_hrc)):
+        self.assertEqual(res_1kg[1].shape[0],3)
+        self.assertEqual(res_1kg[1].shape,res_hrc[1].shape)
+        for (a,b) in zip(res_1kg[1], res_hrc[1]):
             self.assertEqual(a,b)
+        idx1,idx2 = dm.match_samples(res_1kg[0], res_hrc[0])
+        self.assertNotEqual(len(idx1),0)
+        self.assertEqual(len(idx1),len(idx2))
+        for (a,b) in zip(res_1kg[0][idx1], res_hrc[0][idx2]):
+            self.assertEqual(a,b)
+        self.assertEqual(res_1kg[2].shape[1], res_hrc[2].shape[1])
+
+
 
 
     def test_get_snp_groups(self):
@@ -286,8 +292,8 @@ class LoadingDataTests(unittest.TestCase):
         path_1kg = os.path.dirname(self.geno_file_1kg)
         path_hrc = os.path.dirname(self.geno_file_hrc)
         coord_path = os.path.join(self.base_path,"genotypeImputed/1kg/snpPos/")
-        coord_files = [f for f in os.listdir(coord_path) if f.endswith('.csv')]
-        coord_df = pd.concat([pd.read_csv(f) for f in  coord_files])
+        coord_files = [os.path.join(coord_path,f) for f in os.listdir(coord_path) if f.endswith('.csv')]
+        coord_df = pd.concat([pd.read_csv(f, header=None, names=["snp", "chr", "pos"]) for f in  coord_files], axis=0, ignore_index = True)
         result_1kg = dm.get_snp_groups(rsids, coord_df, path_1kg)
         result_hrc = dm.get_snp_groups(rsids, coord_df, path_hrc)
         self.assertEqual(len(result_1kg), 1)
@@ -297,9 +303,10 @@ class LoadingDataTests(unittest.TestCase):
 
     def test_load_methylation(self):
         m_samples, probe_ids, methylation = dm.load_methylation(self.methyl_file)
+        rsids = np.array(['rs11907414', 'rs73121632', 'rs11907414','rs6016785'])
         g_samples , _, _ = dm.load_genotype(self.geno_file_1kg, rsids)
         m_idx, _ = dm.match_samples(m_samples, g_samples)
-        self.assertEqual(len(samples[m_idx]), 468)
+        self.assertEqual(len(m_samples[m_idx]), 468)
         self.assertEqual(len(probe_ids), 420103)
         self.assertEqual(methylation[m_idx,:].shape,(468, 420103))
         self.assertTrue(isinstance(m_samples[0],str))
@@ -309,11 +316,15 @@ class LoadingDataTests(unittest.TestCase):
 
     def test_load_acetylation(self):
         ac_samples, peak_ids, acetylation = dm.load_acetylation(self.acetyl_file)
+        rsids = np.array(['rs11907414', 'rs73121632', 'rs11907414','rs6016785'])
         g_samples , _, _ = dm.load_genotype(self.geno_file_1kg, rsids)
-        ac_idx, _ = dm.match_samples(ac_samples, g_samples)
-        self.assertEqual(len(samples[ac_idx]), 433)
-        self.assertEqual(len(peak_ids), 25850)
-        self.assertEqual(acetylation[ac_idx,:].shape,(433, 25850))
+        ac_idx, g_idx = dm.match_samples(ac_samples, g_samples)
+        print(ac_samples[ac_idx])
+        print(g_samples[g_idx])
+        print(ac_samples[ac_idx] == g_samples[g_idx])
+        self.assertEqual(len(ac_samples[ac_idx]), 433)
+        self.assertEqual(len(peak_ids), 26384)
+        self.assertEqual(acetylation[ac_idx,:].shape,(433, 26384))
         self.assertTrue(isinstance(ac_samples[0],str))
         self.assertTrue(isinstance(peak_ids[0],str))
         self.assertTrue(isinstance(acetylation[0],float))
@@ -321,9 +332,10 @@ class LoadingDataTests(unittest.TestCase):
 
     def test_load_expression(self):
         e_samples, e_ids, expression = dm.load_expression(self.gene_exp_file)
+        rsids = np.array(['rs11907414', 'rs73121632', 'rs11907414','rs6016785'])
         g_samples , _, _ = dm.load_genotype(self.geno_file_1kg, rsids)
         e_idx, _ = dm.match_samples(e_samples, g_samples)
-        self.assertEqual(len(samples[e_idx]), 494)
+        self.assertEqual(len(e_samples[e_idx]), 494)
         self.assertEqual(len(e_ids), )
         self.assertEqual(acetylation[ac_idx,:].shape,(494, 13484))
         self.assertTrue(isinstance(e_samples[0],str))
@@ -332,6 +344,7 @@ class LoadingDataTests(unittest.TestCase):
 
 
     def test_matching_samples(self):
+        rsids = np.array(['rs11907414', 'rs73121632', 'rs11907414','rs6016785'])
         e_samples, _, _ = dm.load_expression(self.gene_exp_file)
         g_samples , _, _ = dm.load_genotype(self.geno_file_1kg, rsids)
         ac_samples, _, _ = dm.load_acetylation(self.acetyl_file)
