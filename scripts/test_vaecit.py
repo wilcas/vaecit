@@ -281,7 +281,7 @@ class LoadingDataTests(unittest.TestCase):
 
     def test_get_snp_groups(self):
         rsids = np.array(['rs11907414', 'rs73121632', 'rs11907414','rs6016785'])
-        coord_file = os.path.join(self.base_path,)
+        coord_file = os.path.join(self.base_path,"coordinates/snpCoord.txt")
         path_1kg = os.path.dirname(self.geno_file_1kg)
         path_hrc = os.path.dirname(self.geno_file_hrc)
         result_1kg = dm.get_snp_groups(rsids, coord_file, path_1kg)
