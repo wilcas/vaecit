@@ -1,5 +1,6 @@
 import data_model as dm
 import cit
+import glob
 import numpy as np
 import os
 import pandas as pd
@@ -284,8 +285,11 @@ class LoadingDataTests(unittest.TestCase):
         coord_file = os.path.join(self.base_path,"coordinates/snpCoord.txt")
         path_1kg = os.path.dirname(self.geno_file_1kg)
         path_hrc = os.path.dirname(self.geno_file_hrc)
-        result_1kg = dm.get_snp_groups(rsids, coord_file, path_1kg)
-        result_hrc = dm.get_snp_groups(rsids, coord_file, path_hrc)
+        coord_path = os.path.join(self.base_path,"genotypeImputed/1kg/snpPos/")
+        coord_files = [f for f in os.listdir(coord_path) if f.endswith('.csv')]
+        coord_df = pd.concat(map(pd.read_csv, coord_files))
+        result_1kg = dm.get_snp_groups(rsids, coord_df, path_1kg)
+        result_hrc = dm.get_snp_groups(rsids, coord_df, path_hrc)
         self.assertEqual(len(result_1kg), 1)
         self.assertEqual(len(result_hrc), 1)
         self.assertEqual(self.geno_file_1kg, result_1kg)

@@ -5,6 +5,7 @@ version of this project.
 import csv
 import h5py
 import numpy as np
+import pandas as pd
 import os
 import re
 import vae
@@ -139,21 +140,16 @@ def match_samples(*samples):
     return shared_idx
 
 
-def get_snp_groups(rsids, coord_file, genotype_dir, sep='\t'):
+def get_snp_groups(rsids, coord_df, genotype_dir, sep='\t'):
     """Get genotype file containing each rsid"""
-    coords = np.loadtxt(coord_file, delimiter=sep,dtype=str)
-    coords_rsids = np.array([re.sub("_.*","",rsid) for rsid in coords[:,0].flatten()])
     snp_files = []
     if re.match(".*hrc.*",genotype_dir): #plink raw, sample by snp
         for rsid in rsids:
-            chrom_idx = np.argwhere(coords_rsids == rsid)
-            chrom = coords[chrom_idx,1]
+            chrom = coord_df.iloc[coord_df.snp == rsid,1]
             snp_files += [os.path.join(genotype_dir, "chr{}.raw".format(chrom))]
     elif re.match(".*1kg.*",genotype_dir): #csv file, snp by sample
         for rsid in rsids:
-            print(coords_rsids == rsid)
-            chrom_idx = np.argwhere(coords_rsids == rsid)
-            chrom = coords[chrom_idx,1]
+            chrom = coord_df.iloc[coord_df.snp == rsid,1]
             fstring = os.path.join(genotype_dir, "snpMatrixChr{}{}.csv")
             fA = fstring.format(chrom,"a")
             fB = fstring.format(chrom,"b")
