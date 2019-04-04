@@ -1,5 +1,5 @@
 ---
-title: "PCA vs MMD VAE"
+title: "PCA vs MMD VAE 2"
 author: "William Casazza"
 date: "March 10, 2019"
 output: github_document
@@ -12,16 +12,16 @@ options(warn=-1)
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Testing Dimensionality Reduction in Causal Inference
+# Testing Dimensionality Reduction in Causal Inference (SECOND ANALYSIS)
 
 ## PCA in Place of Genotype
 Step 1: Load in Data
 ```{r Load PCA Data}
 pca_test_list <- list()
-for(f in dir("../data/pca_tests/")){
+for(f in dir("../data/pca_tests_2/")){
   model <- gsub("cit_(.*)_([0-9])_PCs.csv","\\1", f)
   num_pc <- as.numeric(gsub("cit_(.*)_([0-9])_PCs.csv","\\2", f))
-  tmp <- read.csv(sprintf("../data/pca_tests/%s", f))
+  tmp <- read.csv(sprintf("../data/pca_tests_2/%s", f))
   tmp$model <- model
   tmp$num_pc <- num_pc
   pca_test_list[[f]] <- tmp
@@ -65,7 +65,7 @@ ggplot(pca_df, aes(x=p4)) +
 ```
 
 ### Interesting Notes
-<!-- TODO insert notes here -->
+Caus1 Appears to work better in the way we constructed the data, but it's important to note that it's about a 50 50 shot to call independent association, as constructed, as causal mediation. In the case where there's no association between variables we don't call causal mediation at all, which is a good behavior.
 
 
 ## MMD VAE
@@ -74,11 +74,11 @@ Step 1: Load in the data
 
 ```{r Load MMD VAE Data}
 mmd_test_list <- list()
-for(f in dir("../data/mmd_vae_tests/")){
+for(f in dir("../data/mmd_vae_tests_2/")){
   model <- gsub("cit_(.*)_mmdvae_([0-9]*)_depth_([0-9]*)_latent.csv","\\1", f)
   num_hidden <- as.numeric(gsub("cit_(.*)_mmdvae_([0-9]*)_depth_([0-9]*)_latent.csv","\\3", f))
   num_latent <- as.numeric(gsub("cit_(.*)_mmdvae_([0-9]*)_depth_([0-9]*)_latent.csv","\\2", f))
-  tmp <- read.csv(sprintf("../data/mmd_vae_tests/%s", f))
+  tmp <- read.csv(sprintf("../data/mmd_vae_tests_2/%s", f))
   tmp$model <- model
   tmp$num_hidden <- num_hidden
   tmp$num_latent <- num_latent
