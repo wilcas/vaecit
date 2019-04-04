@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import os
 import re
+import random
 import vae
 
 from scipy import io,stats
@@ -22,14 +23,14 @@ def generate_null(n=100, p=200):
 
 def generate_caus1(n=100, p=200):
     genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
-    gene_exp = np.array([[1] for i in range(n)])+(genotype@np.array([[2] for i in range(p)])) + np.random.normal(size=(n, 1))
-    trait = np.array([[1] for i in range(n)]) + 1 * gene_exp + np.random.normal(size=(n,1))
+    gene_exp = np.array([[1] for i in range(n)])+(genotype@np.array([[random.randint(-50,50)] for i in range(p)])) + np.random.normal(size=(n, 1))
+    trait = np.array([[1] for i in range(n)]) + 2 * gene_exp + np.random.normal(size=(n,1))
     return trait, gene_exp, genotype.astype(np.float64)
 
 
 def generate_ind1(n=100, p=200):
     genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
-    gene_exp = np.array([[1] for i in range(n)])+(genotype@np.array([[-1] for i in range(p)])) + np.random.normal(size=(n, 1))
+    gene_exp = np.array([[1] for i in range(n)])+(genotype@np.array([[random.randint(-50,50)] for i in range(p)])) + np.random.normal(size=(n, 1))
     trait = np.array([[2] for i in range(n)])+(genotype@np.array([[20] for i in range(p)])) + np.random.normal(size=(n, 1))
     return trait, gene_exp, genotype.astype(np.float64)
 

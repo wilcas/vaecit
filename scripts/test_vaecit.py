@@ -103,7 +103,6 @@ class CausalInferenceTests(unittest.TestCase):
         self.assertTrue(isinstance(TSS, float))
         self.assertEqual(se.shape,(2,))
         self.assertEqual(t.shape,(2,))
-        self.assertAlmostEqual(20.,round(beta[1]))
 
     def test_ftest_association(self):
         results = [
