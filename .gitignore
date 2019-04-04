@@ -1,7 +1,5 @@
 data/*
 *.out
-<<<<<<< Updated upstream
 CIT.txt
-=======
 .Rproj.user
->>>>>>> Stashed changes
+vaecit.Rproj
