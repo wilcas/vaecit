@@ -63,8 +63,6 @@ def load_expression(fname):
 
 def load_genotype(fname,rsids):
     rsids = np.unique(rsids) #unique rsids
-    snps = []
-    genotype = []
     if re.match(".*\.raw$", fname): #plink format
         sep = ' '
         with open(fname, 'r') as f:
@@ -80,17 +78,15 @@ def load_genotype(fname,rsids):
         genotype = np.loadtxt(fname, skiprows=1, usecols=rsid_idx, delimiter=sep)[samples_idx,:]
     elif re.match(".*\.csv$", fname): #csv
         sep = ','
-        rsids_file = np.loadtxt(fname,skiprows=1, usecols=0,delimiter=sep, dtype=str).flatten()
-        rsid_idx = [np.nonzero(rsids_file == rsid)[0][0] for rsid in rsids]
-        with open(fname, 'r') as f:
-            samples  = np.array(f.readline().rstrip('\n').split(sep=sep)).astype(str)
-        genotype = np.loadtxt(fname,skiprows=1,usecols=range(1,len(samples)),delimiter=sep).T[:, rsid_idx]
-        snps = np.array(rsids_file)[rsid_idx]
-        not_found = [rsid for rsid in rsids if rsid not in snps]
+        df = pd.read_csv(fname)
+        genotype = df.loc[rsids.tolist(),].T
+        samples = genotype.index.to_numpy()
+        snps = genotype.columns.to_numpy()
+        genotype = genotype.to_numpy()
     else:
         raise NotImplementedError("Format of {} not recognized".format(fname))
-    if len(not_found) > 0:
-        raise LookupError("{} not found in {}".format(",".join(rsids), fname))
+    if len(snps) < len(rsids):
+        raise LookupError("{} snps not found in {}".format(len(rsids) - len(snps), fname))
     else:
         return samples.flatten(), snps.flatten(), genotype
 

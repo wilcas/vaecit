@@ -268,7 +268,7 @@ class LoadingDataTests(unittest.TestCase):
     def test_load_genotype(self):
         rsids = np.array(['rs11907414', 'rs73121632', 'rs11907414','rs6016785'])
         self.assertRaises(NotImplementedError,dm.load_genotype,"blah.tch", rsids)
-        self.assertRaises(LookupError,dm.load_genotype,self.geno_file_1kg,["rs119"])
+        self.assertRaises(KeyError,dm.load_genotype,self.geno_file_1kg,["rs119"])
         res_1kg = dm.load_genotype(self.geno_file_1kg, rsids)
         res_hrc = dm.load_genotype(self.geno_file_hrc, rsids)
         self.assertEqual(res_1kg[1].shape[0],3)
