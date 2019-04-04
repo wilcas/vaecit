@@ -54,9 +54,9 @@ def load_expression(fname):
     exp_and_phen = io.loadmat(fname)
     expression = exp_and_phen['data'][0][0][0]
     samples = exp_and_phen['data'][0][0][4]
-    samples = np.array([re.sub(":.*","",sample[0]) for sample in samples])
+    samples = np.array([re.sub(":.*","",sample[0][0]) for sample in samples])
     genes = exp_and_phen['data'][0][0][3]
-    genes = np.array([re.sub(":.*","",gene[0]) for gene in genes])
+    genes = np.array([re.sub(":.*","",gene[0][0]) for gene in genes])
     return samples.flatten(), genes.flatten(), expression
 
 
@@ -96,25 +96,10 @@ def load_genotype(fname,rsids):
 
 def load_methylation(fname):
     with h5py.File(fname, 'r') as h5:
-        samples = []
-        _, cols = h5['m']['id'].shape
-        for i in range(cols):
-            ref = h5['m']['id'][0,i]
-            cur_id = ""
-            for item in h5[ref]:
-                digit = item.tostring().decode('utf-8').rstrip('\x00')
-                cur_id += digit
-            samples += [cur_id]
-        probe_ids = []
-        _, cols = h5['m']['rowlabels'].shape
-        for i in range(cols):
-            ref = h5['m']['rowlabels'][0,i]
-            cur_id = ""
-            for item in h5[ref]:
-                c = item.tostring().decode('utf-8').rstrip('\x00')
-                cur_id += c
-            probe_ids += [cur_id]
-        methylation = h5['m']['data'][:]
+        samples = bytes(h5['methyList'][()]).decode().replace("\x00","").split(",")
+        probe_ids = bytes(h5['probeNames'][()]).decode().replace("\x00","").split(",")
+        methylation = np.zeros(h5['methy'].shape,dtype = 'float32')
+        h5['methy'].read_direct(methylation)
     return np.array(samples), np.array(probe_ids), methylation
 
 

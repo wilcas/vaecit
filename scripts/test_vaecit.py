@@ -260,7 +260,7 @@ class LoadingDataTests(unittest.TestCase):
     def setUp(self):
         self.base_path = "/zfs3/scratch/saram_lab/ROSMAP/data/"
         self.gene_exp_file = os.path.join(self.base_path,"expressionAndPhenotype.mat")
-        self.methyl_file = os.path.join(self.base_path,"methylationSNMnorm.mat")
+        self.methyl_file = "/zfs3/users/william.casazza/william.casazza/methylationSNMnormpy.mat"
         self.acetyl_file = os.path.join(self.base_path,"acetylationNorm.mat")
         self.geno_file_hrc = os.path.join(self.base_path,"genotypeImputed/hrc/snpMatrix/chr20.raw")
         self.geno_file_1kg = os.path.join(self.base_path,"genotypeImputed/1kg/snpMatrix/snpMatrixChr20a.csv")
@@ -336,11 +336,9 @@ class LoadingDataTests(unittest.TestCase):
         g_samples , _, _ = dm.load_genotype(self.geno_file_1kg, rsids)
         e_idx, _ = dm.match_samples(e_samples, g_samples)
         self.assertEqual(len(e_samples[e_idx]), 494)
-        self.assertEqual(len(e_ids), )
-        self.assertEqual(acetylation[ac_idx,:].shape,(494, 13484))
+        self.assertEqual(expression[e_idx,:].shape,(494, 13484))
         self.assertTrue(isinstance(e_samples[0],str))
         self.assertTrue(isinstance(e_ids[0],str))
-        self.assertTrue(isinstance(expression[0],float))
 
 
     def test_matching_samples(self):
