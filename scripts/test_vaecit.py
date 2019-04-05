@@ -319,7 +319,7 @@ class LoadingDataTests(unittest.TestCase):
         rsids = np.array(['rs11907414', 'rs73121632', 'rs11907414','rs6016785'])
         g_samples , _, _ = dm.load_genotype(self.geno_file_1kg, rsids)
         ac_idx, _ = dm.match_samples(ac_samples, g_samples)
-        nan_idx = np.all(np.isnan(acetylation[ac_idx,:]), axis=0)
+        nan_idx = np.all(np.isnan(acetylation[ac_idx,:]), axis=1)
         self.assertEqual(len(ac_samples[ac_idx][~nan_idx]), 433)
         self.assertEqual(len(peak_ids), 26384)
         self.assertEqual(acetylation[ac_idx, :][~nan_idx].shape,(433, 26384))

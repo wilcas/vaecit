@@ -102,8 +102,7 @@ def load_methylation(fname):
 
 def load_acetylation(fname):
     acetyl_obj = io.loadmat(fname)
-    acetylation = acetyl_obj['acetyl']
-    samples = acetyl_obj['aceR'][0][0]
+    acetylation = acetyl_obj['acety']
     samples = np.array([tmp[0][0] for tmp in acetyl_obj["acetyList"]])
     peak_ids = np.array([tmp[0][0] for tmp in acetyl_obj["peakNames"]])
     return samples.flatten(), peak_ids.flatten(), acetylation

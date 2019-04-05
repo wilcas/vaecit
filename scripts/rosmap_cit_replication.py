@@ -16,61 +16,63 @@ tf.set_random_seed(hash("William Casazza"))
 
 
 @click.command()
-@click.add_option(
+@click.option(
     '--m-file',
     type=str,
     help="Methylation MATLAB data filename")
-@click.add_option(
+@click.option(
     '--ac-file',
     type=str,
     help="Acetylation MATLAB data filename")
-@click.add_option(
+@click.option(
     '--exp-file',
     type=str,
     help="Expression MATLAB data filename")
-@click.add_option(
+@click.option(
     '--genotype-dir',
     type=str,
     help="Directory containing genotype CSVs")
-@click.add_option(
+@click.option(
     '--cit-tests',
     type=str,
     help="Filename of manifest containing rsids, probe/peak ids and genes to test for causal mediation.")
-@click.add_option(
+@click.option(
     '--snp-coords',
     type=str,
-    help="Filename of file containing snp coordinates")
-@click.add_option(
+    help="Directory of csv files containing snp coordinates")
+@click.option(
     '--lv-method',
     type=click.Choice(['pca', 'mmdvae']))
-@click.add_option(
+@click.option(
     '--num-latent',
     type=int)
-@click.add_option(
+@click.option(
     '--out-name',
     type=str,
     help="Suffix for output files, no path")
-@click.add_option(
+@click.option(
     '--vae-depth',
     type=int,
     default=None)
-def main():
+def main(**opts):
     # load known data
-    (m_samples, m_ids, methylation) = dm.load_methylation(m_file)
-    (ac_samples, ac_ids, acetylation) = dm.load_acetylation(ac_file)
-    (e_samples, e_ids, expression) = dm.load_expression(exp_file)
+    (m_samples, m_ids, methylation) = dm.load_methylation(opts['m_file'])
+    (ac_samples, ac_ids, acetylation) = dm.load_acetylation(opts['ac_file'])
+    (e_samples, e_ids, expression) = dm.load_expression(opts['exp_file'])
+    coord_files = [os.path.join(opts['snp_coords'],f) for f in os.listdir(opts['snp_coords']) if f.endswith('.csv')]
+    coord_df = pd.concat([pd.read_csv(f, header=None, names=["snp", "chr", "pos"]) for f in  coord_files], axis=0, ignore_index = True)
     methyl_results = []
     acetyl_results = []
     # parse out tests by qtl Gene
-    tests_df = pd.read_csv(cit_tests)
-    for (gene, df) in tests_df.group_by('gene'):
+    tests_df = pd.read_csv(opts['cit_tests'], sep='\t')
+    for (gene, df) in tests_df.groupby('gene'):
         # get load in genotypes associated with gene
-        snp_files = dm.get_snp_groups(df.snp, snp_coords, genotype_dir)
+        snp_files = dm.get_snp_groups(df.snp.as_matrix(), coord_df, opts['genotype_dir'])
         df['fname'] = snp_files
         g_ids = np.array()
         genotype = np.array()
-        for (snp_file, snp_df) in df.group_by('fname'):
-            g_samples, g_ids_cur, genotype_cur = dm.load_genotype(snp_file,snp_df.snp)
+        for (snp_file, snp_df) in df.groupby('fname'):
+            g_samples, g_ids_cur, genotype_cur = dm.load_genotype(snp_file,snp_df.snp.as_matrix())
             genotype = np.concatenate((genotype,genotype_cur),axis = 1)
             g_ids = np.concatenate((g_ids, g_ids_cur), axis = 0)
         # match samples
@@ -80,7 +82,7 @@ def main():
         (e_samples, expression) = (e_samples[e_idx], expression[e_idx,:])
         (g_samples, genotype) = (g_samples[g_idx], genotype[g_idx,:])
         # reduce genotype
-        latent_genotype = dm.reduce_genotype(genotype, lv_method, num_latent, vae_depth)
+        latent_genotype = dm.reduce_genotype(genotype, opts['lv_method'], opts['num_latent'], opts['vae_depth'])
 
         cur_exp = expression[:, e_ids == row.gene]
         for (_, row) in df.iterrows():
@@ -96,8 +98,8 @@ def main():
             methyl_results += [cit.cit(cur_exp, cur_methyl, latent_genotype)]
             acetyl_results += [cit.cit(cur_exp, cur_acetyl, latent_genotype)]
     # generate output
-    write_csv("methyl_" + out_name, methyl_results)
-    write_csv("acetyl_" + out_name, acetyl_results)
+    write_csv("methyl_" + opts['out_name'], methyl_results)
+    write_csv("acetyl_" + opts['out_name'], acetyl_results)
     return 0
 
 
