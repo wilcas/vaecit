@@ -12,6 +12,7 @@ import random
 import vae
 
 from scipy import io,stats
+from scipy.sparse.linalg import svds
 from functools import reduce
 
 def generate_null(n=100, p=200):
@@ -106,6 +107,12 @@ def load_acetylation(fname):
     samples = np.array([tmp[0][0] for tmp in acetyl_obj["acetyList"]])
     peak_ids = np.array([tmp[0][0] for tmp in acetyl_obj["peakNames"]])
     return samples.flatten(), peak_ids.flatten(), acetylation
+
+
+def standardize_remove_pcs(data, k):
+    data_norm = stats.zscore(data)
+    u,d,vt = svds(data_norm,k)
+    return data_norm - (u @ np.diag(d) @ vt)
 
 
 def match_samples(*samples):

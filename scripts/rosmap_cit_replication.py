@@ -63,10 +63,16 @@ tf.set_random_seed(hash("William Casazza"))
     type=int,
     default=None)
 def main(**opts):
+    pcs_to_remove = 10
     # load known data
     (m_samples, m_ids, methylation) = dm.load_methylation(opts['m_file'])
     (ac_samples, ac_ids, acetylation) = dm.load_acetylation(opts['ac_file'])
     (e_samples, e_ids, expression) = dm.load_expression(opts['exp_file'])
+    # remove 'hidden' cell-type specific effects
+    methylation = dm.standardize_remove_pcs(methylation, pcs_to_remove)
+    acetylation = dm.standardize_remove_pcs(acetylation, pcs_to_remove)
+    expression = dm.standardize_remove_pcs(expression, pcs_to_remove)
+    # get snp coordinates
     coord_files = [os.path.join(opts['snp_coords'],f) for f in os.listdir(opts['snp_coords']) if f.endswith('.csv')]
     coord_df = pd.concat([pd.read_csv(f, header=None, names=["snp", "chr", "pos"]) for f in  coord_files], axis=0, ignore_index = True)
     methyl_results = []
@@ -94,7 +100,7 @@ def main(**opts):
         (g_samples, cur_genotype) = (g_samples[g_idx], genotype[g_idx,:])
         # reduce genotype
         latent_genotype = dm.reduce_genotype(cur_genotype, opts['lv_method'], opts['num_latent'], opts['vae_depth'])
-
+        # get probes and peaks
         cur_exp = expression[:, e_ids == gene]
         for (_, row) in df.iterrows():
             cur_methyl = dm.get_mediator(

@@ -302,30 +302,18 @@ class LoadingDataTests(unittest.TestCase):
 
     def test_load_methylation(self):
         m_samples, probe_ids, methylation = dm.load_methylation(self.methyl_file)
-        rsids = np.array(['rs11907414', 'rs73121632', 'rs11907414','rs6016785'])
-        g_samples , _, _ = dm.load_genotype(self.geno_file_1kg, rsids)
-        m_idx, _ = dm.match_samples(m_samples, g_samples)
-        nan_idx = np.all(np.isnan(methylation[m_idx, :]), axis=1)
-        self.assertEqual(len(m_samples[m_idx][~nan_idx]), 468)
         self.assertEqual(len(probe_ids), 420103)
-        self.assertEqual(methylation[m_idx,:][~nan_idx].shape,(468, 420103))
+        self.assertEqual(methylation.shape[1], 420103)
         self.assertTrue(isinstance(m_samples[0],str))
         self.assertTrue(isinstance(probe_ids[0],str))
-        self.assertTrue(isinstance(methylation[0],float))
 
 
     def test_load_acetylation(self):
         ac_samples, peak_ids, acetylation = dm.load_acetylation(self.acetyl_file)
-        rsids = np.array(['rs11907414', 'rs73121632', 'rs11907414','rs6016785'])
-        g_samples , _, _ = dm.load_genotype(self.geno_file_1kg, rsids)
-        ac_idx, _ = dm.match_samples(ac_samples, g_samples)
-        nan_idx = np.all(np.isnan(acetylation[ac_idx,:]), axis=1)
-        self.assertEqual(len(ac_samples[ac_idx][~nan_idx]), 433)
         self.assertEqual(len(peak_ids), 26384)
-        self.assertEqual(acetylation[ac_idx, :][~nan_idx].shape,(433, 26384))
+        self.assertEqual(acetylation.shape[1], 26384)
         self.assertTrue(isinstance(ac_samples[0],str))
         self.assertTrue(isinstance(peak_ids[0],str))
-        self.assertTrue(isinstance(acetylation[0],float))
 
 
     def test_load_expression(self):
