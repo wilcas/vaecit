@@ -97,7 +97,7 @@ def load_methylation(fname):
         probe_ids = bytes(h5['probeNames'][()]).decode().replace("\x00","").split(",")
         methylation = np.zeros(h5['methy'].shape,dtype = 'float32')
         h5['methy'].read_direct(methylation)
-    return np.array(samples), np.array(probe_ids), methylation
+    return np.array(samples), np.array(probe_ids), methylation.T
 
 
 def load_acetylation(fname):
@@ -139,7 +139,7 @@ def get_snp_groups(rsids, coord_df, genotype_dir, sep='\t'):
                 snp_files += [fB]
     else:
         raise ValueError("Invalid Genotype group: {}".format(genotype_group))
-    return np.unique(snp_files)
+    return snp_files
 
 
 def compute_pcs(A):
@@ -149,7 +149,7 @@ def compute_pcs(A):
 
 def get_mediator(data, ids, which_ids):
     if len(which_ids) > 1:
-        feature_idx = np.argwhere(np.isin(ids, which_ids)).flatten()
+        feature_idx = np.isin(ids, which_ids)
         tmp_data = data[:,feature_idx]
         cur_data = compute_pcs(tmp_data)[:,0]
     else:
