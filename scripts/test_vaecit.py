@@ -283,8 +283,6 @@ class LoadingDataTests(unittest.TestCase):
         self.assertEqual(res_1kg[2].shape[1], res_hrc[2].shape[1])
 
 
-
-
     def test_get_snp_groups(self):
         rsids = np.array(['rs11907414', 'rs73121632', 'rs11907414','rs6016785'])
         coord_file = os.path.join(self.base_path,"coordinates/snpCoord.txt")

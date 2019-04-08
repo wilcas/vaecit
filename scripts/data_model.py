@@ -171,8 +171,7 @@ def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = No
 def reduce_genotype(genotype, lv_method, num_latent, vae_depth=None):
     if genotype.shape[1] == 1:
         return genotype
-    if genotype.shape[1] < num_latent:
-        num_latent = genotype.shape[1] / 2
+    num_latent = min(genotype.shape[1],num_latent)
     if lv_method == 'mmdvae':
         params = {
             "output_size": genotype.shape[0],

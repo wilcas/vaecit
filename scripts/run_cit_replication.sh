@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -l walltime=20:00:00
+#PBS -l walltime=30:00:00
 #PBS -l mem=22GB
 #PBS -l nodes=1:ppn=4
 #PBS -q small
@@ -16,6 +16,7 @@ python rosmap_cit_replication.py \
   --genotype-dir="/zfs3/scratch/saram_lab/ROSMAP/data/genotypeImputed/1kg/snpMatrix/" \
   --snp-coords="/zfs3/scratch/saram_lab/ROSMAP/data/genotypeImputed/1kg/snpPos/" \
   --cit-tests="$HOME/vaecit/CIT.txt" \
-  --lv-method="pca" \
+  --lv-method="mmdvae" \
   --num-latent=3 \
-  --out-name="pca_3_latent_cit.csv"
+  --vae-depth=10 \
+  --out-name="mmdvae_3_latent_depth_10_cit.csv"
