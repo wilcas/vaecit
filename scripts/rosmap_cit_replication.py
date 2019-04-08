@@ -103,20 +103,19 @@ def main(**opts):
         # get probes and peaks
         cur_exp = expression[:, e_ids == gene]
         for (_, row) in df.iterrows():
-            cur_methyl = dm.get_mediator(
+            cur_epigenetic = dm.get_mediator(
                 cur_methylation,
                 m_ids,
-                row.probes.split(","))
-            cur_acetyl = dm.get_mediator(
-                cur_acetylation,
-                ac_ids,
-                row.peaks.split(","))
+                row.probes.split(","),
+                data2=cur_acetylation,
+                ids2=ac_ids,
+                which_ids2=row.peaks.split(",")
+            )
+
             # run CIT
-            methyl_results += [cit.cit(cur_exp, cur_methyl, latent_genotype)]
-            acetyl_results += [cit.cit(cur_exp, cur_acetyl, latent_genotype)]
+            mediation_results += [cit.cit(cur_exp, cur_epigenetic, latent_genotype)]
     # generate output
-    write_csv("methyl_" + opts['out_name'], methyl_results)
-    write_csv("acetyl_" + opts['out_name'], acetyl_results)
+    write_csv(opts['out_name'], mediation_results)
     return 0
 
 
