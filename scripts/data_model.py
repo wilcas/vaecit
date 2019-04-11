@@ -158,10 +158,10 @@ def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = No
 
     feature_idx = np.isin(ids, which_ids)
     tmp_data = data[:,feature_idx]
-    if data2 and ids2 and which_ids2:
+    if (data2 != None).any() or (ids2 != None).any() and (which_ids2 != None).any():
         feature_idx2 = np.isin(ids2, which_ids2)
-        tmp_data2 = data[:feature_idx2]
-        cur_data = np.concatenate(tmp_data, tmp_data2, axis=1)
+        tmp_data2 = data[:, feature_idx2]
+        cur_data = np.concatenate((tmp_data, tmp_data2), axis=1)
         cur_data = compute_pcs(cur_data)[:, 0]
     else:
         cur_data = compute_pcs(data[:, ids == which_ids])[:, 0]

@@ -90,8 +90,8 @@ def main(**opts):
         # grab from remaining files
         for (snp_file, snp_df) in groups:
             _, g_ids_cur, genotype_cur = dm.load_genotype(snp_file,snp_df.snp.values)
-            genotype = np.concatenate(genotype,genotype_cur,axis = 1)
-            g_ids = np.concatenate(g_ids, g_ids_cur, axis = 0)
+            genotype = np.concatenate((genotype,genotype_cur),axis = 1)
+            g_ids = np.concatenate((g_ids, g_ids_cur), axis = 0)
         # match samples
         (m_idx, ac_idx, e_idx, g_idx) =  dm.match_samples(m_samples, ac_samples, e_samples, g_samples)
         (m_samples, cur_methylation) = (m_samples[m_idx], methylation[m_idx,:])
