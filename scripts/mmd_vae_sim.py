@@ -55,7 +55,7 @@ def main():
     num_subjects = 500
     num_genotypes = 50
     depths = [1,3,5] # number of hidden layers
-    latent = [2,10,20] # number of latent variables
+    latent = [1,10] # number of latent variables
     
     # Generate datasets
     null_datasets = [dm.generate_null(n=num_subjects, p=num_genotypes) for i in range(num_sim)]

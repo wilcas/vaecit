@@ -4,7 +4,6 @@ simulated genotype PCs as surrogates for genotype.
 """
 import cit
 import csv
-import doctest
 import joblib
 
 import data_model as dm
