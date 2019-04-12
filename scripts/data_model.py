@@ -19,7 +19,7 @@ def generate_null(n=100, p=200):
     trait = np.random.normal(size=(n,))
     genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
     gene_exp = np.random.normal(size=(n,))
-    return trait, gene_exp, genotype.astype(np.float64)
+    return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
 def generate_caus1(n=100, p=200):
@@ -27,7 +27,7 @@ def generate_caus1(n=100, p=200):
     exp_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
     gene_exp = random.choice([-1,1])*np.random.uniform() + (genotype@exp_coeffs) + np.random.normal(size=(n,))
     trait = np.random.uniform() + np.random.uniform() * gene_exp + np.random.normal(size=(n,))
-    return trait, gene_exp, genotype.astype(np.float64)
+    return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
 def generate_ind1(n=100, p=200):
@@ -36,7 +36,7 @@ def generate_ind1(n=100, p=200):
     gene_exp = np.random.uniform()+(genotype@exp_coeffs)  + np.random.normal(size=(n,))
     trait_coeffs= np.array([random.choice([-1,1])*np.random.uniform() for i in range(p)])
     trait = np.random.uniform()+(genotype@trait_coeffs)+ np.random.normal(size=(n,))
-    return trait, gene_exp, genotype.astype(np.float64)
+    return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
 def generate_caus1_scale_kernel(n=100, p=200):
@@ -161,7 +161,7 @@ def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = No
 
     feature_idx = np.isin(ids, which_ids)
     tmp_data = data[:,feature_idx]
-    if (data2 != None).any() or (ids2 != None).any() and (which_ids2 != None).any():
+    if not np.isscalar(data2):
         feature_idx2 = np.isin(ids2, which_ids2)
         tmp_data2 = data[:, feature_idx2]
         cur_data = np.concatenate((tmp_data, tmp_data2), axis=1)

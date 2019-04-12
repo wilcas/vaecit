@@ -18,15 +18,15 @@ knitr::opts_chunk$set(echo = TRUE)
 Step 1: Load in Data
 ```{r Load PCA Data}
 pca_test_list <- list()
-for(f in dir("../data/pca_tests_3/")){
+for(f in dir("csvs")){
   model <- gsub("cit_(.*)_([0-9])_PCs.*.csv","\\1", f)
-  num_pc <- as.numeric(gsub("cit_(.*)_([0-9])_PCs.csv","\\2", f))
-  tmp <- read.csv(sprintf("../data/pca_tests_3/%s", f))
+  num_pc <- as.numeric(gsub("cit_(.*)_([0-9])_PCs.*.csv","\\2", f))
+  tmp <- read.csv(sprintf("csvs/%s", f))
   tmp$model <- model
   tmp$num_pc <- num_pc
   pca_test_list[[f]] <- tmp
 }
-tail(pca_df <- rbind_list(pca_test_list))
+tail(pca_df <- bind_rows(pca_test_list))
 ```
 Step 2 is pulling apart the data and plotting
 ### Differences in performance using different numbers of PCs

@@ -44,7 +44,7 @@ def main():
     num_sim = 100
     num_subjects = 500
     num_genotypes = 50
-    pcs_to_test = [1,2,3,4,5]
+    pcs_to_test = [1]
 
     null_datasets = [dm.generate_null(n=num_subjects, p=num_genotypes) for i in range(num_sim)]
     null_PCs = [compute_genotype_pcs(genotype) for (_, _, genotype) in null_datasets]
@@ -56,19 +56,19 @@ def main():
     with joblib.parallel_backend('loky'):
         for i in pcs_to_test:
             null_results = joblib.Parallel(n_jobs=-1, verbose=10)(
-                    joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i],10000)
+                    joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i],100000)
                     for ((trait, gene_exp, _), Z) in zip(null_datasets,null_PCs)
                 )
             write_csv(null_results, "cit_null_{}_PCs_{}_gen.csv".format(i,num_genotypes))
 
             caus1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
-                    joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i], 10000)
+                    joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i], 100000)
                     for ((trait, gene_exp, _), Z) in zip(caus1_datasets,caus1_PCs)
                 )
             write_csv(caus1_results, "cit_caus1_{}_PCs_{}_gen.csv".format(i, num_genotypes))
 
             ind1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
-                    joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i], 10000)
+                    joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i], 100000)
                     for ((trait, gene_exp, _), Z) in zip(ind1_datasets, ind1_PCs)
                 )
             write_csv(ind1_results, "cit_ind1_{}_PCs_{}_gen.csv".format(i, num_genotypes))
