@@ -48,7 +48,7 @@ def ftest(fit1, fit2, n):
     p1 = beta1.shape[0]
     p2 = beta2.shape[0]
     fstat = ((RSS1 - RSS2) / (p2-p1)) / (RSS2 / (n - p2))
-    return 1. - stats.f.cdf(fstat, p2-p1,n-p2), fstat
+    return (1. - stats.f.cdf(fstat, p2-p1,n-p2)), fstat
 
 
 @jit(nopython=True, cache=True)
@@ -78,8 +78,7 @@ def run_bootstraps(T, residual, L, n, num_bootstrap):
     for i in range(num_bootstrap):
         np.random.shuffle(residual)
         fitA = linreg_with_stats(T,np.concatenate((np.ones((n,1)), residual, L), axis= 1))
-        fitB = linreg_with_stats(T, np.concatenate((np.ones((n,1)), residual),axis = 1))
-        fit_list.append((fitB, fitA))
+        fit_list.append(fitA)
     return fit_list
 
 
@@ -90,61 +89,43 @@ def test_independence(T, G, L, num_bootstrap):
     test = np.c_[np.ones((n,1)),L]@beta
     residual = G - (np.c_[np.ones((n,1)),L]@beta).reshape((n,1))
     bootstraps = run_bootstraps(T, residual, L, n, num_bootstrap)
-    f_list = [ftest(fitB, fitA, n) for (fitB,fitA) in bootstraps]
+    f_list = [t[-1]**2 for (_,_,_,_,t) in bootstraps]
     fit1 = linreg_with_stats(T, np.c_[np.ones(n), G, L])
-    fit2 = linreg_with_stats(T, np.c_[np.ones(n), G])
-    _, fstat = ftest(fit2, fit1, n)
-    p = np.sum([fstat > f for (p, f) in f_list]) / float(num_bootstrap)
+    fstat = fit1[-1][-1]**2
+    p = np.sum(f_list <= fstat) / num_bootstrap
     return fit1, p
 
 
 def cit(target, mediator, instrument, num_bootstrap=10000):
     # run tests
     n = target.shape[0]
-    try: # so we don't lose everything in the case of a numerical error
-        stats1, p1 = test_association(
-            target,
-            np.ones((n, 1)),
-            np.c_[np.ones((n, 1)), instrument]
-        )
-        stats2, p2 = test_association(
-            mediator,
-            np.c_[np.ones((n, 1)), target],
-            np.c_[np.ones((n, 1)), target, instrument]
-        )
-        stats3, p3 = test_association(
-            target,
-            np.c_[np.ones((n, 1)), mediator],
-            np.c_[np.ones((n, 1)), mediator, instrument]
-        )
-        stats4, p4 = test_independence(target, mediator, instrument, num_bootstrap)
-        omni_p = max(p1, p2, p3, p4)
+    stats1, p1 = test_association(
+        target,
+        np.ones((n, 1)),
+        np.c_[np.ones((n, 1)), instrument]
+    )
+    stats2, p2 = test_association(
+        mediator,
+        np.c_[np.ones((n, 1)), target],
+        np.c_[np.ones((n, 1)), target, instrument]
+    )
+    stats3, p3 = test_association(
+        target,
+        np.c_[np.ones((n, 1)), instrument],
+        np.c_[np.ones((n, 1)), mediator, instrument]
+    )
+    stats4, p4 = test_independence(target, mediator, instrument, num_bootstrap)
+    omni_p = max(p1, p2, p3, p4)
 
-        # merge stats into one table
-        res = {'test1': stats_dict(*stats1,n),
-            'p1': p1,
-            'test2': stats_dict(*stats2,n),
-            'p2': p2,
-            'test3': stats_dict(*stats3,n),
-            'p3': p3,
-            'test4': stats_dict(*stats4,n),
-            'p4': p4,
-            'omni_p': omni_p
-        }
-    except:
-        stats1 = (np.ones(2),-1,1,np.ones(2),np.ones(2))
-        stats2 = (np.ones(3),-1,1,np.ones(3),np.ones(3))
-        stats3 = (np.ones(3),-1,1,np.ones(3),np.ones(3))
-        stats4 = (np.ones(3),-1,1,np.ones(3),np.ones(3))
-
-        res = {'test1': stats_dict(*stats1,n),
-            'p1': -1,
-            'test2': stats_dict(*stats2,n),
-            'p2': -1,
-            'test3': stats_dict(*stats3,n),
-            'p3': -1,
-            'test4': stats_dict(*stats4,n),
-            'p4': -1,
-            'omni_p': -1
-        }
+    # merge stats into one table
+    res = {'test1': stats_dict(*stats1,n),
+        'p1': p1,
+        'test2': stats_dict(*stats2,n),
+        'p2': p2,
+        'test3': stats_dict(*stats3,n),
+        'p3': p3,
+        'test4': stats_dict(*stats4,n),
+        'p4': p4,
+        'omni_p': omni_p
+    }
     return res

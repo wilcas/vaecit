@@ -17,11 +17,12 @@ knitr::opts_chunk$set(echo = TRUE)
 ## PCA in Place of Genotype
 Step 1: Load in Data
 ```{r Load PCA Data}
+dir()
 pca_test_list <- list()
-for(f in dir("csvs")){
+for(f in dir("../scripts/csvs")){
   model <- gsub("cit_(.*)_([0-9])_PCs.*.csv","\\1", f)
   num_pc <- as.numeric(gsub("cit_(.*)_([0-9])_PCs.*.csv","\\2", f))
-  tmp <- read.csv(sprintf("csvs/%s", f))
+  tmp <- read.csv(sprintf("../scripts/csvs/%s", f))
   tmp$model <- model
   tmp$num_pc <- num_pc
   pca_test_list[[f]] <- tmp
@@ -148,9 +149,34 @@ ggplot(mmd_df, aes(x=p3)) +
 ggplot(pca_df, aes(p1, fill = Model)) + geom_histogram(position = "identity", alpha = 0.6) + scale_fill_manual(values = c("blue", "red", "gold")) + labs(y = "Count (100 simulations per model)",x = "P Value Association PC->Expression") + ggtitle("Directed Association Using Genotype PC 1")+ theme_minimal(base_family = "Arial")
 ggplot(pca_df, aes(omni_p , fill = Model)) + geom_histogram(position = "identity", alpha = 0.6) + scale_fill_manual(values = c("blue", "red", "gold"))+ labs(y = "Count (100 simulations per model)",x = "P Value Epigenetic Mediation") + ggtitle("Capturing Epigenetic Mediation of Genotype PC1")+ theme_minimal(base_family = "Arial") + scale_y_continuous(limits=c(0,100))
 ```
+```{r pca debugging}
+to_plot_pca <- pca_df %>% gather(key = "test", value = "test_pvalue",p1,p2,p3,p4,omni_p)
+ggplot(to_plot_pca, aes(test_pvalue, fill = Model)) + 
+  geom_histogram(position = "identity", alpha = 0.6) + 
+  scale_fill_manual(values = c("blue", "red", "gold")) +
+  labs(y = "Count (100 simulations per model)",x = "P Value Epigenetic Mediation") +
+  ggtitle("Capturing Epigenetic Mediation of Genotype PC1")+ 
+  theme_minimal(base_family = "Arial") + 
+  scale_y_continuous(limits=c(0,100)) + 
+  facet_wrap(~test,ncol=2)
+```
+
 
 ```{r mmdvae VanBUG}
+
 ggplot(mmd_df, aes(p1, fill = Model)) + geom_histogram(position = "identity", alpha = 0.6) + scale_fill_manual(values = c("blue", "red", "gold")) + labs(y = "Count (200 simulations per model)",x = "P Value Association LV->Expression") + ggtitle("Directed Association with 1 Autoencoder LV")+ theme_minimal(base_family = "Arial")
 ggplot(mmd_df, aes(omni_p , fill = Model)) + geom_histogram(position = "identity", alpha = 0.6) + scale_fill_manual(values = c("blue", "red", "gold")) + labs(y = "Count (200 simulations per model)",x = "P Value Epigenetic Mediation") + ggtitle("Capturing Epigenetic Mediation of 1 Autoencoder LV")+ theme_minimal(base_family = "Arial")
+```
+```{r mmd vae debug}
+mmd_df <- mmd_df %>% mutate(p3 = 1 - p3) %>% mutate(omni_p = pmax(p1,p2,p3,p4))
+to_plot_mmd <- mmd_df %>% gather(key = "test", value = "test_pvalue",p1,p2,p3,p4,omni_p)
+ggplot(to_plot_mmd, aes(test_pvalue, fill = Model)) + 
+  geom_histogram(position = "identity", alpha = 0.6) + 
+  scale_fill_manual(values = c("blue", "red", "gold")) +
+  labs(y = "Count (100 simulations per model)",x = "P Value Epigenetic Mediation") +
+  ggtitle("Capturing Epigenetic Mediation of Genotype PC1")+ 
+  theme_minimal(base_family = "Arial") + 
+  scale_y_continuous(limits=c(0,100)) + 
+  facet_wrap(~test,ncol=2)
 ```
 

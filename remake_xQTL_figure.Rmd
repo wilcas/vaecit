@@ -1,0 +1,16 @@
+---
+title: "Test Figures"
+output: html_notebook
+---
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+percents <- tibble(
+  "Mediation Model" = c("Full Mediation", "Independent Association", "Unclassified"),
+  Percentage = c(11,85,3)
+)
+head(percents)
+ggplot(percents, aes(`Mediation Model`, Percentage)) + geom_bar(stat='identity') + labs(x = "Mediation Model") +geom_text(aes(label = paste0(Percentage, "%"), y = Percentage),vjust = c(1.4, 1.4, -0.1), size = 7, color = c("magenta", 'yellow', 'black'))+ ggtitle("Breakdown of xQTL Mediation Results") +theme_minimal(base_family = "Arial")
+```
+

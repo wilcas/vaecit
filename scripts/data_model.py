@@ -26,16 +26,16 @@ def generate_caus1(n=100, p=200):
     genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
     exp_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
     gene_exp = random.choice([-1,1])*np.random.uniform() + (genotype@exp_coeffs) + np.random.normal(size=(n,))
-    trait = np.random.uniform() + np.random.uniform() * gene_exp + np.random.normal(size=(n,))
+    trait = random.choice([-1,1])*np.random.uniform() + random.choice([-1,1])*np.random.uniform() * gene_exp + np.random.normal(size=(n,))
     return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
 def generate_ind1(n=100, p=200):
     genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
     exp_coeffs= np.array([random.choice([-1,1])*np.random.uniform() for i in range(p)])
-    gene_exp = np.random.uniform()+(genotype@exp_coeffs)  + np.random.normal(size=(n,))
+    gene_exp = random.choice([-1,1])*np.random.uniform()+(genotype@exp_coeffs)  + np.random.normal(size=(n,))
     trait_coeffs= np.array([random.choice([-1,1])*np.random.uniform() for i in range(p)])
-    trait = np.random.uniform()+(genotype@trait_coeffs)+ np.random.normal(size=(n,))
+    trait = random.choice([-1,1])*np.random.uniform()+(genotype@trait_coeffs)+ np.random.normal(size=(n,))
     return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
