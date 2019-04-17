@@ -1,7 +1,6 @@
 import csv
 import numpy as np
 from scipy import stats
-from numba import jit
 from ctypes import CDLL, c_int, c_void_p, c_double, POINTER, byref
 
 def write_csv(results, filename):
@@ -41,7 +40,6 @@ def stats_dict(beta, RSS, TSS, se, t, n):
     return res_dict
 
 
-
 def ftest(fit1, fit2, n):
     beta1, RSS1, _, _, _ = fit1
     beta2, RSS2, _, _, _ = fit2
@@ -51,17 +49,6 @@ def ftest(fit1, fit2, n):
     return (1. - stats.f.cdf(fstat, p2-p1,n-p2)), fstat
 
 
-# @jit(nopython=True, cache=True)
-# def linreg_with_stats(y, X):
-#     n = y.shape[0]
-#     beta = np.linalg.pinv(X)@y
-#     y_bar =np.mean(y)
-#     TSS = np.sum(np.square(y - y_bar))
-#     RSS = np.sum(np.square(y - X@beta))
-#     var_beta = RSS * np.linalg.pinv(X.T@X)
-#     se = np.sqrt(np.diag(var_beta))
-#     t = beta.flatten() / se.flatten()
-#     return beta.flatten(), RSS, TSS, se.flatten(), t.flatten()
 def linreg_with_stats(y,X):
     lib = CDLL('./cit_functions.so')
     lib.linreg_with_stats.argtypes = [
@@ -80,22 +67,13 @@ def linreg_with_stats(y,X):
     lib.linreg_with_stats(n,p,y,X,beta,byref(RSS),byref(TSS),se,t)
     return (beta.flatten(),RSS.value,TSS.value,se.flatten(),t.flatten())
 
+
 def test_association(y,design_null,design_full):
     n = y.shape[0]
     fit1 = linreg_with_stats(y, design_full)
     fit2 = linreg_with_stats(y, design_null)
     p, _ = ftest(fit2, fit1, n)
     return fit1, p
-
-
-# @jit(nopython=True, cache=True)
-# def run_bootstraps(T, residual, L, n, num_bootstrap):
-#     fit_list = []
-#     for i in range(num_bootstrap):
-#         np.random.shuffle(residual)
-#         fitA = linreg_with_stats(T,np.concatenate((np.ones((n,1)), residual, L), axis= 1))
-#         fit_list.append(fitA)
-#     return fit_list
 
 
 def run_bootstraps(T, residual, L, n, num_bootstrap):
