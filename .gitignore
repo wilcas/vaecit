@@ -4,3 +4,4 @@ CIT.txt
 .Rproj.user
 vaecit.Rproj
 .Rhistory
+*__pycache__*

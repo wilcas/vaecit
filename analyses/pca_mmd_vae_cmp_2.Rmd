@@ -19,10 +19,10 @@ Step 1: Load in Data
 ```{r Load PCA Data}
 dir()
 pca_test_list <- list()
-for(f in dir("../scripts/csvs")){
+for(f in dir("../data/csvs")){
   model <- gsub("cit_(.*)_([0-9])_PCs.*.csv","\\1", f)
   num_pc <- as.numeric(gsub("cit_(.*)_([0-9])_PCs.*.csv","\\2", f))
-  tmp <- read.csv(sprintf("../scripts/csvs/%s", f))
+  tmp <- read.csv(sprintf("../data/csvs/%s", f))
   tmp$model <- model
   tmp$num_pc <- num_pc
   pca_test_list[[f]] <- tmp
