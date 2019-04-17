@@ -15,17 +15,17 @@ def log_normal_pdf(sample, mean, logvar, raxis=1):
     )
 
 
-def train_vae(genotype, params):
+def train_vae(genotype, params, epochs=100):
     model = VAE(**params)
     model.compile(loss=model.total_loss, optimizer=tf.train.AdamOptimizer(1e-4))
-    model.fit(genotype, genotype, epochs = 100, batch_size = 10, verbose=0)
+    model.fit(genotype, genotype, epochs = epochs, batch_size = 10, verbose=0)
     return model
 
 
-def train_mmd_vae(genotype, params):
+def train_mmd_vae(genotype, params, epochs=100):
     model = MMD_VAE(**params)
     model.compile(loss=model.total_loss, optimizer=tf.train.AdamOptimizer(1e-4))
-    model.fit(genotype, genotype, epochs = 100, batch_size = 10, verbose=0)
+    model.fit(genotype, genotype, epochs=epochs, batch_size = 10, verbose=0)
     return model
 
 

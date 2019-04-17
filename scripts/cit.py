@@ -2,7 +2,7 @@ import csv
 import numpy as np
 from scipy import stats
 from numba import jit
-
+from ctypes import CDLL, c_int, c_void_p, c_double, POINTER, byref
 
 def write_csv(results, filename):
     out_rows = []
@@ -51,18 +51,34 @@ def ftest(fit1, fit2, n):
     return (1. - stats.f.cdf(fstat, p2-p1,n-p2)), fstat
 
 
-@jit(nopython=True, cache=True)
-def linreg_with_stats(y, X):
-    n = y.shape[0]
-    beta = np.linalg.pinv(X.T@X)@X.T@y
-    y_bar =np.mean(y)
-    TSS = np.sum(np.square(y - y_bar))
-    RSS = np.sum(np.square(y - X@beta))
-    var_beta = RSS * np.linalg.pinv(X.T@X)
-    se = np.sqrt(np.diag(var_beta))
-    t = beta.flatten() / se.flatten()
-    return beta.flatten(), RSS, TSS, se.flatten(), t.flatten()
-
+# @jit(nopython=True, cache=True)
+# def linreg_with_stats(y, X):
+#     n = y.shape[0]
+#     beta = np.linalg.pinv(X)@y
+#     y_bar =np.mean(y)
+#     TSS = np.sum(np.square(y - y_bar))
+#     RSS = np.sum(np.square(y - X@beta))
+#     var_beta = RSS * np.linalg.pinv(X.T@X)
+#     se = np.sqrt(np.diag(var_beta))
+#     t = beta.flatten() / se.flatten()
+#     return beta.flatten(), RSS, TSS, se.flatten(), t.flatten()
+def linreg_with_stats(y,X):
+    lib = CDLL('./cit_functions.so')
+    lib.linreg_with_stats.argtypes = [
+        c_int, c_int, np.ctypeslib.ndpointer(dtype=np.float),
+        np.ctypeslib.ndpointer(dtype=np.float),
+        np.ctypeslib.ndpointer(dtype=np.float),POINTER(c_double), POINTER(c_double),
+        np.ctypeslib.ndpointer(dtype=np.float),
+        np.ctypeslib.ndpointer(dtype=np.float)]
+    lib.linreg_with_stats.restype = c_void_p
+    n, p = X.shape
+    beta =  np.empty(p, np.float)
+    se = np.empty(p, np.float)
+    t = np.empty(p, np.float)
+    RSS = c_double(0.)
+    TSS = c_double(0.)
+    lib.linreg_with_stats(n,p,y,X,beta,byref(RSS),byref(TSS),se,t)
+    return (beta.flatten(),RSS.value,TSS.value,se.flatten(),t.flatten())
 
 def test_association(y,design_null,design_full):
     n = y.shape[0]
@@ -72,25 +88,39 @@ def test_association(y,design_null,design_full):
     return fit1, p
 
 
-@jit(nopython=True, cache=True)
+# @jit(nopython=True, cache=True)
+# def run_bootstraps(T, residual, L, n, num_bootstrap):
+#     fit_list = []
+#     for i in range(num_bootstrap):
+#         np.random.shuffle(residual)
+#         fitA = linreg_with_stats(T,np.concatenate((np.ones((n,1)), residual, L), axis= 1))
+#         fit_list.append(fitA)
+#     return fit_list
+
+
 def run_bootstraps(T, residual, L, n, num_bootstrap):
-    fit_list = []
-    for i in range(num_bootstrap):
-        np.random.shuffle(residual)
-        fitA = linreg_with_stats(T,np.concatenate((np.ones((n,1)), residual, L), axis= 1))
-        fit_list.append(fitA)
-    return fit_list
+    lib = CDLL('./cit_functions.so')
+    lib.run_bootstraps.argtypes = [
+        c_int, c_int, np.ctypeslib.ndpointer(dtype=np.float),
+        np.ctypeslib.ndpointer(dtype=np.float),
+        np.ctypeslib.ndpointer(dtype=np.float),
+        np.ctypeslib.ndpointer(dtype=np.float)
+    ]
+    lib.run_bootstraps.restype = c_void_p
+    tstats = np.empty(num_bootstrap, np.float)
+    lib.run_bootstraps(n, num_bootstrap,T,residual,L,tstats)
+    return tstats
 
 
 def test_independence(T, G, L, num_bootstrap):
     n = T.shape[0]
-    fit = linreg_with_stats(G, np.c_[np.ones(n),L])
+    fit = linreg_with_stats(G, np.concatenate((np.ones((n,1)),L),axis=1))
     beta, _, _,_,_ = fit
-    test = np.c_[np.ones((n,1)),L]@beta
-    residual = G - (np.c_[np.ones((n,1)),L]@beta).reshape((n,1))
+    test = np.concatenate((np.ones((n,1)),L), axis=1)@beta
+    residual = G - (np.concatenate((np.ones((n,1)),L), axis=1)@beta).reshape((n,1))
     bootstraps = run_bootstraps(T, residual, L, n, num_bootstrap)
-    f_list = [t[-1]**2 for (_,_,_,_,t) in bootstraps]
-    fit1 = linreg_with_stats(T, np.c_[np.ones(n), G, L])
+    f_list = [t**2 for t in bootstraps]
+    fit1 = linreg_with_stats(T, np.concatenate((np.ones((n,1)), G, L),axis=1))
     fstat = fit1[-1][-1]**2
     p = np.sum(f_list <= fstat) / num_bootstrap
     return fit1, p
