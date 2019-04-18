@@ -57,7 +57,7 @@ extern "C" {
           tmp_L
         );
         resid = design.memptr();
-        tstats[i] = linreg_get_t(n,3,T,resid,1);
+        tstats[i] = linreg_get_t(n,3,T,resid,2);
     }
     return;
   }
