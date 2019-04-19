@@ -41,6 +41,8 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
     latent_genotype = dm.reduce_genotype(cur_genotype, opts['lv_method'], opts['num_latent'], opts['vae_depth'])
     # get probes and peaks
     cur_exp = expression[:, e_ids == gene]
+
+    n = len(g_samples)
     mediation_results = []
     for (_, row) in df.iterrows():
         cur_epigenetic = dm.get_mediator(
@@ -51,9 +53,9 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
             ids2=ac_ids,
             which_ids2=row.peaks.split(",")
         )
-
         # run CIT
-        mediation_results.append(cit.cit(cur_exp, cur_epigenetic, latent_genotype))
+        mediation_results.append(
+            cit.cit(cur_exp.reshape(n,1), cur_epigenetic.reshape(n,1), latent_genotype.reshape(n,opts['num_latent'])))
     return mediation_results
 
 
