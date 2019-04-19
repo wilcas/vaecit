@@ -41,7 +41,7 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
     latent_genotype = dm.reduce_genotype(cur_genotype, opts['lv_method'], opts['num_latent'], opts['vae_depth'])
     # get probes and peaks
     cur_exp = expression[:, e_ids == gene]
-    mediation = []
+    mediation_results = []
     for (_, row) in df.iterrows():
         cur_epigenetic = dm.get_mediator(
             cur_methylation,
