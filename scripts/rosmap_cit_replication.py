@@ -96,7 +96,7 @@ def main(**opts):
     express = (e_samples, e_ids, expression)
     with joblib.parallel_backend('loky'):
         mediation_results = joblib.Parallel(n_jobs=-1, verbose=10)(
-            joblib.delayed(cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts))
+            joblib.delayed(cit_on_qtl_set)(df, gene, coord_df, methyl, acetyl, express, opts)
             for (gene, df) in tests_df.groupby('gene')
         )
     merged_results = [item for sublist in mediation_results for item in sublist]
