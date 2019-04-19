@@ -42,7 +42,11 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
     # get probes and peaks
     cur_exp = expression[:, e_ids == gene]
 
+<<<<<<< HEAD
     n = cur_expression.shape[0]
+=======
+    n = len(g_samples)
+>>>>>>> 1c144046361b3293f97871f8c4258b24bc254c19
     mediation_results = []
     for (_, row) in df.iterrows():
         cur_epigenetic = dm.get_mediator(
