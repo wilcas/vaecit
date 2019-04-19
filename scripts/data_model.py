@@ -125,7 +125,7 @@ def match_samples(*samples):
     for sample_vec in samples:
         indices = sample_vec.argsort()
         to_keep = np.array([elem in shared for elem in  sample_vec[indices]])
-        shared_idx += [np.extract(to_keep, indices)]
+        shared_idx.append(np.extract(to_keep, indices))
     return shared_idx
 
 
@@ -135,7 +135,7 @@ def get_snp_groups(rsids, coord_df, genotype_dir, sep='\t'):
     if re.match(".*hrc.*",genotype_dir): #plink raw, sample by snp
         for rsid in rsids:
             chrom = coord_df[coord_df['snp']== rsid]['chr'].values[0]
-            snp_files += [os.path.join(genotype_dir, "chr{}.raw".format(chrom))]
+            snp_files.append(os.path.join(genotype_dir, "chr{}.raw".format(chrom)))
     elif re.match(".*1kg.*",genotype_dir): #csv file, snp by sample
         for rsid in rsids:
             chrom = coord_df[coord_df['snp']== rsid]['chr'].values[0]
@@ -144,9 +144,9 @@ def get_snp_groups(rsids, coord_df, genotype_dir, sep='\t'):
             fB = fstring.format(chrom,"b")
             file_rsids = np.loadtxt(fA, delimiter=',', skiprows=1, usecols=0, dtype=str)
             if rsid in file_rsids:
-                snp_files += [fA]
+                snp_files.append(fA)
             else:
-                snp_files += [fB]
+                snp_files.append(fB)
     else:
         raise ValueError("Invalid Genotype group: {}".format(genotype_group))
     return snp_files
