@@ -40,7 +40,7 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
     # reduce genotype
     latent_genotype = dm.reduce_genotype(cur_genotype, opts['lv_method'], opts['num_latent'], opts['vae_depth'])
     # get probes and peaks
-    cur_exp = expression[:, e_ids == gene]
+    cur_exp = cur_expression[:, e_ids == gene]
 
     n = cur_expression.shape[0]
     mediation_results = []
