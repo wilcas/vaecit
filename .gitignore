@@ -5,3 +5,6 @@ CIT.txt
 vaecit.Rproj
 .Rhistory
 *__pycache__*
+*.o*
+*.so
+*.e*

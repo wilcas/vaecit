@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -l walltime=30:00:00
-#PBS -l mem=22GB
-#PBS -l nodes=1:ppn=4
+#PBS -l mem=32GB
+#PBS -l nodes=1:ppn=6
 #PBS -q small
 #PBS -m be
 #PBS -M william.casazza@stat.ubc.ca
@@ -17,6 +17,6 @@ python rosmap_cit_replication.py \
   --snp-coords="/zfs3/scratch/saram_lab/ROSMAP/data/genotypeImputed/1kg/snpPos/" \
   --cit-tests="$HOME/vaecit/CIT.txt" \
   --lv-method="mmdvae" \
-  --num-latent=3 \
+  --num-latent=1 \
   --vae-depth=10 \
-  --out-name="mmdvae_3_latent_depth_10_cit.csv"
+  --out-name="mmdvae_1_latent_depth_10_cit.csv"
