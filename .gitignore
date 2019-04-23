@@ -8,3 +8,4 @@ vaecit.Rproj
 *.o*
 *.so
 *.e*
+*.RData

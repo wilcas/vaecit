@@ -180,3 +180,8 @@ ggplot(to_plot_mmd, aes(test_pvalue, fill = Model)) +
   facet_wrap(~test,ncol=2)
 ```
 
+```{r distribution max 4 uniform RV}
+unif_tests <- matrix(runif(4000),1000,4)
+ggplot(data.frame(P = apply(unif_tests,1,max)), aes(x = P)) + geom_histogram(fill="gold", alpha = 0.8)+theme_minimal()
+```
+

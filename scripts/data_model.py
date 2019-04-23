@@ -153,17 +153,22 @@ def get_snp_groups(rsids, coord_df, genotype_dir, sep='\t'):
 
 
 def compute_pcs(A):
-    (U, D, vh) = np.linalg.svd(stats.zscore(A), full_matrices=False, compute_uv=True)
+    n = A.size[0]
+    A_std = stats.zscore(A)
+    try:
+        (U, D, vh) = np.linalg.svd(A_std, full_matrices=False, compute_uv=True)
+    except np.linalg.LinAlgError:
+        A2 = np.conj(A_std.T)@A_std
+        (U,D,vh) = np.linalg.svd(A_std, full_matrices=False, compute_uv=True) #@TODO check this
     return U@np.diag(D)
 
 
 def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = None):
-
     feature_idx = np.isin(ids, which_ids)
     tmp_data = data[:,feature_idx]
     if not np.isscalar(data2):
         feature_idx2 = np.isin(ids2, which_ids2)
-        tmp_data2 = data2[:, feature_idx2]
+        tmp_data2 = data[:, feature_idx2]
         cur_data = np.concatenate((tmp_data, tmp_data2), axis=1)
         cur_data = compute_pcs(cur_data)[:, 0]
     else:

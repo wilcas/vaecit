@@ -11,11 +11,11 @@ source activate tf_vae
 cd /zfs3/users/william.casazza/william.casazza/vaecit/scripts
 python rosmap_cit_replication.py \
   --m-file="$HOME/methylationSNMnormpy.mat" \
-  --ac-file="/zfs3/scratch/saram_lab/ROSMAP/data/acetylationNorm.mat" \
+  --ac-file="/zfs3/scratch/saram_lab/ROSMAP/data/acetylationNormNoNaN.mat" \
   --exp-file="/zfs3/scratch/saram_lab/ROSMAP/data/expressionAndPhenotype.mat" \
   --genotype-dir="/zfs3/scratch/saram_lab/ROSMAP/data/genotypeImputed/1kg/snpMatrix/" \
   --snp-coords="/zfs3/scratch/saram_lab/ROSMAP/data/genotypeImputed/1kg/snpPos/" \
   --cit-tests="$HOME/vaecit/CIT.txt" \
   --lv-method="pca" \
   --num-latent=1 \
-  --out-name="mmdvae_3_latent_depth_10_cit.csv"
+  --out-name="pca_1_latent_cit.csv"
