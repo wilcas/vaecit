@@ -153,7 +153,7 @@ def get_snp_groups(rsids, coord_df, genotype_dir, sep='\t'):
 
 
 def compute_pcs(A):
-    n = A.size[0]
+    n = A.shape[0]
     A_std = stats.zscore(A)
     try:
         (U, D, vh) = np.linalg.svd(A_std, full_matrices=False, compute_uv=True)
