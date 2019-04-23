@@ -168,7 +168,7 @@ def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = No
     tmp_data = data[:,feature_idx]
     if not np.isscalar(data2):
         feature_idx2 = np.isin(ids2, which_ids2)
-        tmp_data2 = data[:, feature_idx2]
+        tmp_data2 = data2[:, feature_idx2]
         cur_data = np.concatenate((tmp_data, tmp_data2), axis=1)
         cur_data = compute_pcs(cur_data)[:, 0]
     else:
