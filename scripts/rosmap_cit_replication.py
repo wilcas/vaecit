@@ -88,6 +88,7 @@ def main(**opts):
     acetylation = dm.standardize_remove_pcs(acetylation, pcs_to_remove)
     mask = ~np.all(np.isnan(acetylation),axis=0)
     acetylation = acetylation[:, mask]
+    ac_ids = ac_ids[mask]
     expression = dm.standardize_remove_pcs(expression, pcs_to_remove)
     # get snp coordinates
     coord_files = [os.path.join(opts['snp_coords'],f) for f in os.listdir(opts['snp_coords']) if f.endswith('.csv')]
