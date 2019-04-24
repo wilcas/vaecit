@@ -79,7 +79,7 @@ def load_genotype(fname,rsids):
         not_found = [rsid for rsid in rsids if rsid not in rsids_file]
         samples = pd.read_csv(fname,sep=sep, skiprows=1, usecols=0,header=None).to_numpy().flatten()
         samples_idx = [(("ROS" or "MAP") in sample) for sample in samples]
-        samples = np.array()[re.sub("[A-Z]*","",item) for item in samples[samples_idx]])
+        samples = np.array([re.sub("[A-Z]*","",item) for item in samples[samples_idx]])
         genotype = pd.read_csv(fname, skiprows=1, usecols=rsid_idx, sep=sep,header=None).to_numpy()[samples_idx,:]
     elif re.match(".*\.csv$", fname): #csv
         sep = ','
