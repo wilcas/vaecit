@@ -77,7 +77,7 @@ def load_genotype(fname,rsids):
         rsid_idx = [np.nonzero(rsids_file == rsid)[0][0] for rsid in rsids]
         snps = np.array(rsids_file)[rsid_idx]
         not_found = [rsid for rsid in rsids if rsid not in rsids_file]
-        samples = pd.read_csv(fname,sep=sep, skiprows=1, usecols=0,header=None).to_numpy().flatten()
+        samples = pd.read_csv(fname,sep=sep, skiprows=1, usecols=[0],header=None).to_numpy().flatten()
         samples_idx = [(("ROS" or "MAP") in sample) for sample in samples]
         samples = np.array([re.sub("[A-Z]*","",item) for item in samples[samples_idx]])
         genotype = pd.read_csv(fname, skiprows=1, usecols=rsid_idx, sep=sep,header=None).to_numpy()[samples_idx,:]
@@ -148,7 +148,7 @@ def get_snp_groups(rsids, coord_df, genotype_dir, sep='\t'):
                 fstring = os.path.join(genotype_dir, "snpMatrixChr{}{}.csv")
                 fA = fstring.format(chrom,"a")
                 fB = fstring.format(chrom,"b")
-                file_rsids = pd.read_csv(fA, sep=',', skiprows=1, usecols=0, header=None)
+                file_rsids = pd.read_csv(fA, sep=',', skiprows=1, usecols=[0], header=None)
             if rsid in file_rsids.to_numpy().flatten():
                 snp_files.append(fA)
             else:
