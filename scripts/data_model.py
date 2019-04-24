@@ -84,8 +84,8 @@ def load_genotype(fname,rsids):
     elif re.match(".*\.csv$", fname): #csv
         sep = ','
         df = pd.read_csv(fname)
-        rsids_file = df.columns.to_numpy()
-        samples = df.index.to_numpy()
+        rsids_file = df.columns.to_numpy().flatten()
+        samples = df.index.to_numpy().flatten()
         not_found = [rsid for rsid in rsids if rsid not in rsids_file]
         rsids = np.setdiff1d(rsids, np.array(not_found))
         genotype = df.loc[rsids.tolist(),].T
