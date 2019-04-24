@@ -80,7 +80,7 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
     help="Suffix for output files, no path")
 @click.option('--vae-depth', type=int, default=None)
 def main(**opts):
-    logging = logging.basicConfig(
+    logging.basicConfig(
         filename="{}_run.log{}".format(
             opts['out_name'].split(".")[0],
             int(time.time())),
