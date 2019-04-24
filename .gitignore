@@ -9,3 +9,4 @@ vaecit.Rproj
 *.so
 *.e*
 *.RData
+*.log*

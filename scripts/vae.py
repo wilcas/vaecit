@@ -23,9 +23,6 @@ def train_vae(genotype, params, epochs=100):
 
 
 def train_mmd_vae(genotype, params, epochs=100):
-    print(genotype.shape)
-    print(params)
-    print(genotype)
     model = MMD_VAE(**params)
     model.compile(loss=model.total_loss, optimizer=tf.train.AdamOptimizer(1e-4))
     model.fit(genotype, genotype, epochs=epochs, batch_size = 10, verbose=0)
