@@ -4,6 +4,7 @@ version of this project.
 """
 import csv
 import h5py
+import logging
 import numpy as np
 import pandas as pd
 import os
@@ -76,23 +77,26 @@ def load_genotype(fname,rsids):
         rsid_idx = [np.nonzero(rsids_file == rsid)[0][0] for rsid in rsids]
         snps = np.array(rsids_file)[rsid_idx]
         not_found = [rsid for rsid in rsids if rsid not in rsids_file]
-        samples = np.loadtxt(fname, skiprows=1, usecols=0, delimiter=sep, dtype=str).flatten()
+        samples = pd.read_csv(fname,sep=sep, skiprows=1, usecols=0,header=None).to_numpy().flatten()
         samples_idx = [(("ROS" or "MAP") in sample) for sample in samples]
-        samples = np.array([re.sub("[A-Z]*","",item) for item in samples[samples_idx]])
-        genotype = np.loadtxt(fname, skiprows=1, usecols=rsid_idx, delimiter=sep)[samples_idx,:]
+        samples = np.array()[re.sub("[A-Z]*","",item) for item in samples[samples_idx]])
+        genotype = pd.read_csv(fname, skiprows=1, usecols=rsid_idx, sep=sep,header=None).to_numpy()[samples_idx,:]
     elif re.match(".*\.csv$", fname): #csv
         sep = ','
         df = pd.read_csv(fname)
+        rsids_file = df.columns.to_numpy()
+        samples = df.index.to_numpy()
+        not_found = [rsid for rsid in rsids if rsid not in rsids_file]
+        rsids = np.setdiff1d(rsids, np.array(not_found))
         genotype = df.loc[rsids.tolist(),].T
         samples = genotype.index.to_numpy()
         snps = genotype.columns.to_numpy()
         genotype = genotype.to_numpy()
     else:
         raise NotImplementedError("Format of {} not recognized".format(fname))
-    if len(snps) < len(rsids):
-        raise LookupError("{} snps not found in {}".format(len(rsids) - len(snps), fname))
-    else:
-        return samples.flatten(), snps.flatten(), genotype
+    if len(not_found) > 0:
+        logging.WARNING("rsids {} not found in {}".format(not_found, fname))
+    return samples.flatten(), snps.flatten(), genotype
 
 
 def load_methylation(fname):
@@ -137,16 +141,19 @@ def get_snp_groups(rsids, coord_df, genotype_dir, sep='\t'):
             chrom = coord_df[coord_df['snp']== rsid]['chr'].values[0]
             snp_files.append(os.path.join(genotype_dir, "chr{}.raw".format(chrom)))
     elif re.match(".*1kg.*",genotype_dir): #csv file, snp by sample
+        prev_chrom = ""
         for rsid in rsids:
             chrom = coord_df[coord_df['snp']== rsid]['chr'].values[0]
-            fstring = os.path.join(genotype_dir, "snpMatrixChr{}{}.csv")
-            fA = fstring.format(chrom,"a")
-            fB = fstring.format(chrom,"b")
-            file_rsids = np.loadtxt(fA, delimiter=',', skiprows=1, usecols=0, dtype=str)
-            if rsid in file_rsids:
+            if chrom != prev_chrom:
+                fstring = os.path.join(genotype_dir, "snpMatrixChr{}{}.csv")
+                fA = fstring.format(chrom,"a")
+                fB = fstring.format(chrom,"b")
+                file_rsids = pd.read_csv(fA, sep=',', skiprows=1, usecols=0, header=None)
+            if rsid in file_rsids.to_numpy().flatten():
                 snp_files.append(fA)
             else:
                 snp_files.append(fB)
+            prev_chrom = chrom
     else:
         raise ValueError("Invalid Genotype group: {}".format(genotype_group))
     return snp_files

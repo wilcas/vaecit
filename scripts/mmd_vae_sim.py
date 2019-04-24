@@ -3,7 +3,7 @@ The goal is to generate a series of regression results under different causal sc
 simulated genotype PCs as surrogates for genotype.
 """
 import cit
-import csv 
+import csv
 import joblib
 import vae
 import os
@@ -47,7 +47,7 @@ def write_csv(results, filename):
         writer = csv.DictWriter(f, names)
         writer.writeheader()
         writer.writerows(out_rows)
-                    
+
 
 def main():
     # Simulation parameters
@@ -56,7 +56,7 @@ def main():
     num_genotypes = 50
     depths = [1,3,5] # number of hidden layers
     latent = [1,10] # number of latent variables
-    
+
     # Generate datasets
     null_datasets = [dm.generate_null(n=num_subjects, p=num_genotypes) for i in range(num_sim)]
     caus1_datasets = [dm.generate_caus1(n=num_subjects, p=num_genotypes) for i in range(num_sim)]
@@ -70,7 +70,7 @@ def main():
         null_models[param_set] = [train_vae(genotype, param_set) for (_, _, genotype) in null_datasets]
         caus1_models[param_set] = [train_vae(genotype, param_set) for (_, _, genotype) in caus1_datasets]
         ind1_models[param_set] = [train_vae(genotype, param_set) for (_, _, genotype) in ind1_datasets]
-    
+
     # Run causal inference test
     with joblib.parallel_backend('loky'):
         for param_set in product([num_genotypes], latent, depths):
@@ -83,7 +83,7 @@ def main():
                 for ((trait, gene_exp, _), Z) in zip(null_datasets, Z_list)
             )
             write_csv(null_results, "cit_null_mmdvae_{}_depth_{}_latent_{}_gen.csv".format(param_set[1], param_set[2],num_genotypes))
-        
+
             cur_caus1_models = caus1_models[param_set]
             Z_list = [cur_caus1_models[i].encode(genotype).numpy() for ((_,_,genotype), i) in zip(caus1_datasets, range(num_sim))]
             caus1_results = joblib.Parallel(n_jobs=16, verbose=10)(
@@ -91,7 +91,7 @@ def main():
                 for ((trait, gene_exp, _), Z) in zip(caus1_datasets, Z_list)
             )
             write_csv(caus1_results, "cit_caus1_mmdvae_{}_depth_{}_latent_{}_gen.csv".format(param_set[1], param_set[2],num_genotypes))
-        
+
             cur_ind1_models = ind1_models[param_set]
             Z_list = [cur_ind1_models[i].encode(genotype).numpy() for ((_,_,genotype), i) in zip(ind1_datasets, range(num_sim))]
             ind1_results = joblib.Parallel(n_jobs=16, verbose=10)(
@@ -99,10 +99,10 @@ def main():
                 for ((trait, gene_exp, _), Z) in zip(ind1_datasets, Z_list)
             )
             write_csv(ind1_results, "cit_ind1_mmdvae_{}_depth_{}_latent_{}_gen.csv".format(param_set[1], param_set[2],num_genotypes))
-            
+
     return 0
-    
-    
-    
+
+
+
 if __name__ == '__main__':
     main()

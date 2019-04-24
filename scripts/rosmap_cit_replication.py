@@ -2,7 +2,9 @@ import cit
 import click
 import csv
 import joblib
+import logging
 import os
+import time
 import vae
 
 import data_model as dm
@@ -78,6 +80,11 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
     help="Suffix for output files, no path")
 @click.option('--vae-depth', type=int, default=None)
 def main(**opts):
+    logging = logging.basicConfig(
+        filename="{}_run.log{}".format(
+            opts['out_name'].split(".")[0],'
+            int(time.time())),
+        level=logging.WARNING)
     pcs_to_remove = 10
     # load known data
     (m_samples, m_ids, methylation) = dm.load_methylation(opts['m_file'])
