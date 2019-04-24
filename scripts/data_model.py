@@ -84,8 +84,8 @@ def load_genotype(fname,rsids):
     elif re.match(".*\.csv$", fname): #csv
         sep = ','
         df = pd.read_csv(fname)
-        rsids_file = df.columns.to_numpy().flatten()
-        samples = df.index.to_numpy().flatten()
+        rsids_file = df.index.to_numpy().flatten()
+        samples = df.columns.to_numpy().flatten()
         not_found = [rsid for rsid in rsids if rsid not in rsids_file]
         rsids = np.setdiff1d(rsids, np.array(not_found))
         genotype = df.loc[rsids.tolist(),].T
@@ -189,7 +189,7 @@ def reduce_genotype(genotype, lv_method, num_latent, vae_depth=None):
     num_latent = min(genotype.shape[1],num_latent)
     if lv_method == 'mmdvae':
         params = {
-            "output_size": genotype.shape[0],
+            "output_size": genotype.shape[1],
             "n_latent": num_latent,
             "n_hidden": vae_depth}
         model = vae.train_mmd_vae(stats.zscore(genotype), params)

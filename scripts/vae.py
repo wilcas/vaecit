@@ -40,12 +40,12 @@ class VAE(tf.keras.Model):
         self.encode_net = tf.keras.Sequential()
         self.encode_net.add(tf.keras.layers.InputLayer(input_shape=(output_size,)))
         for i in range(n_hidden):
-            self.encode_net.add(tf.keras.layers.Dense(128 * (i+1),activation=tf.nn.relu))
+            self.encode_net.add(tf.keras.layers.Dense(128 * (n_hidden - i + 1),activation=tf.nn.relu))
         self.encode_net.add(tf.keras.layers.Dense(2*n_latent)) #no Activation
         self.decode_net = tf.keras.Sequential()
         self.decode_net.add(tf.keras.layers.InputLayer(input_shape=(n_latent,)))
         for i in range(n_hidden):
-            self.decode_net.add(tf.keras.layers.Dense(128 * (n_hidden - i + 1),activation=tf.nn.relu))
+            self.decode_net.add(tf.keras.layers.Dense(128 * (i + 1),activation=tf.nn.relu))
         self.decode_net.add(tf.keras.layers.Dense(output_size)) #no Activation
 
 
@@ -99,12 +99,12 @@ class MMD_VAE(tf.keras.Model):
         self.encode_net = tf.keras.Sequential()
         self.encode_net.add(tf.keras.layers.InputLayer(input_shape=(output_size,)))
         for i in range(n_hidden):
-            self.encode_net.add(tf.keras.layers.Dense(128 * (i+1),activation=tf.nn.relu))
+            self.encode_net.add(tf.keras.layers.Dense(128 * (n_hidden - i + 1),activation=tf.nn.relu))
         self.encode_net.add(tf.keras.layers.Dense(n_latent, activation=tf.identity)) #no Activation
         self.decode_net = tf.keras.Sequential()
         self.decode_net.add(tf.keras.layers.InputLayer(input_shape=(n_latent,)))
         for i in range(n_hidden):
-            self.decode_net.add(tf.keras.layers.Dense(128 * (n_hidden - i + 1),activation=tf.nn.relu))
+            self.decode_net.add(tf.keras.layers.Dense(128 * (i + 1),activation=tf.nn.relu))
         self.decode_net.add(tf.keras.layers.Dense(output_size, activation=tf.nn.sigmoid))
 
     def call(self, data):

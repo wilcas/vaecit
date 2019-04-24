@@ -106,11 +106,12 @@ def main(**opts):
     methyl = (m_samples, m_ids, methylation)
     acetyl = (ac_samples, ac_ids, acetylation)
     express = (e_samples, e_ids, expression)
-    with joblib.parallel_backend('loky'):
-        mediation_results = joblib.Parallel(n_jobs=-1, verbose=10)(
-            joblib.delayed(cit_on_qtl_set)(df, gene, coord_df, methyl, acetyl, express, opts)
-            for (gene, df) in tests_df.groupby('gene')
-        )
+    with joblib.parallel_backend("loky"):
+       mediation_results = joblib.Parallel(n_jobs=-1, verbose=10)(
+           joblib.delayed(cit_on_qtl_set)(df, gene, coord_df, methyl, acetyl, express, opts)
+           for (gene, df) in tests_df.groupby('gene')
+       )
+    # mediation_results = [cit_on_qtl_set(df,gene,coord_df,methyl,acetyl,express,opts) for (gene,df) in tests_df.groupby('gene')] # SEQUENTIAL VERSION
     merged_results = [item for sublist in mediation_results for item in sublist]
     # generate output
     write_csv(opts['out_name'], merged_results)
