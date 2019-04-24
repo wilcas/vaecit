@@ -82,7 +82,7 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
 def main(**opts):
     logging = logging.basicConfig(
         filename="{}_run.log{}".format(
-            opts['out_name'].split(".")[0],'
+            opts['out_name'].split(".")[0],
             int(time.time())),
         level=logging.WARNING)
     pcs_to_remove = 10
