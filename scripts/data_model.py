@@ -95,7 +95,7 @@ def load_genotype(fname,rsids):
     else:
         raise NotImplementedError("Format of {} not recognized".format(fname))
     if len(not_found) > 0:
-        logging.WARNING("rsids {} not found in {}".format(not_found, fname))
+        logging.warning("rsids {} not found in {}".format(not_found, fname))
     return samples.flatten(), snps.flatten(), genotype
 
 
