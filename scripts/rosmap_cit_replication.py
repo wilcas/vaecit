@@ -1,6 +1,7 @@
 import cit
 import click
 import csv
+import gc
 import joblib
 import logging
 import os
@@ -41,6 +42,8 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
     (g_samples, cur_genotype) = (g_samples[g_idx], genotype[g_idx,:])
     # reduce genotype
     latent_genotype = dm.reduce_genotype(cur_genotype, opts['lv_method'], opts['num_latent'], opts['vae_depth'])
+    if type(latent_genotype) != np.ndarray:
+        latent_genotype = latent_genotype.numpy().astype(np.float64)
     # get probes and peaks
     cur_exp = cur_expression[:, e_ids == gene]
 
@@ -106,7 +109,7 @@ def main(**opts):
     methyl = (m_samples, m_ids, methylation)
     acetyl = (ac_samples, ac_ids, acetylation)
     express = (e_samples, e_ids, expression)
-    with joblib.parallel_backend("loky"):
+    with joblib.parallel_backend("multiprocessing"):
        mediation_results = joblib.Parallel(n_jobs=-1, verbose=10)(
            joblib.delayed(cit_on_qtl_set)(df, gene, coord_df, methyl, acetyl, express, opts)
            for (gene, df) in tests_df.groupby('gene')

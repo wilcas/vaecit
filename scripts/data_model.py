@@ -10,11 +10,14 @@ import pandas as pd
 import os
 import re
 import random
+import tensorflow as tf
 import vae
 
 from scipy import io,stats
 from scipy.sparse.linalg import svds
 from functools import reduce
+
+tf.enable_eager_execution()
 
 def generate_null(n=100, p=200):
     trait = np.random.normal(size=(n,))

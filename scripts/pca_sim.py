@@ -53,7 +53,7 @@ def main():
     ind1_datasets = [dm.generate_ind1(n=num_subjects, p=num_genotypes) for i in range(num_sim)]
     ind1_PCs = [compute_genotype_pcs(genotype) for (_, _, genotype) in ind1_datasets]
 
-    with joblib.parallel_backend('loky'):
+    with joblib.parallel_backend('multiprocessing'):
         for i in pcs_to_test:
             null_results = joblib.Parallel(n_jobs=-1, verbose=10)(
                     joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i],10000)
