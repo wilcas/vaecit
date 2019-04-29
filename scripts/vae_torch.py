@@ -60,6 +60,9 @@ def compute_kernel(x,y):
     y_size = y.size()[0]
     tiled_x = x.reshape(x_size,1,dim).repeat([1,y_size,1])
     tiled_y = y.reshape(1,y_size,dim).repeat([x_size,1,1])
+    if torch.cuda.is_available():
+        tiled_x = tiled_x.cuda()
+        tiled_y = tiled_y.cuda()
     return torch.exp(-torch.mean((tiled_x - tiled_y)**2,2) / float(dim))
 
 
@@ -79,6 +82,9 @@ def loss(train_z,output,x):
 
 def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=False):
     model = MMD_VAE(**params)
+    if torch.cuda.is_available():
+        model = model.cuda()
+        genotype = torch.Tensor(genotype).cuda()
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
     traindata = AEData(genotype)
     trainloader = torch.utils.data.DataLoader(traindata, batch_size=10, shuffle=True)
