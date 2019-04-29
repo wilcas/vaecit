@@ -117,7 +117,7 @@ def main(**opts):
     # mediation_results = [cit_on_qtl_set(df,gene,coord_df,methyl,acetyl,express,opts) for (gene,df) in tests_df.groupby('gene')] # SEQUENTIAL VERSION
     merged_results = [item for sublist in mediation_results for item in sublist]
     # generate output
-    write_csv(opts['out_name'], merged_results)
+    dm.write_csv(opts['out_name'], merged_results)
     return 0
 
 
