@@ -49,10 +49,11 @@ extern "C" {
     arma::mat tmp_L = arma::mat(L,n,1,false,true);
     //initialize regression results
     double *resid;
+    arma::mat design;
     for(int i = 0; i < num_bootstrap; i++){
         //residual includes intercept
         tmp_residual = arma::shuffle(tmp_residual, 0);
-        arma::mat design = arma::join_rows(
+        design = arma::join_rows(
           tmp_residual,
           tmp_L
         );
@@ -61,20 +62,4 @@ extern "C" {
     }
     return;
   }
-}
-
-
-/* For testing C++ code */
-int main(){
-  double X  [] = {2,2,2};
-  double resid [] = {5,6,7};
-  double y [] = {4,4,4};
-  double t [100];
-  double RSS, TSS;
-
-  run_bootstraps(3,100,y,resid,X,t);
-  for(int i; i < 100; i++)
-  std::cout << t[i] << std::endl;
-
-  return 0;
 }
