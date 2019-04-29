@@ -91,7 +91,7 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
     tol = 1e10
     i = 0
     losses = []
-    while(tol > 1e-5): #num epochs?
+    while(i < 100): #num epochs
         i += 1
         prev_loss = 1e10
         for data in trainloader:
@@ -102,7 +102,7 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
             prev_loss = loss_fn
             loss_fn.backward()
             optimizer.step()
-        if plot_loss == True:
+        if plot_loss:
             losses.append(loss_fn)
             plt.clf()
             plt.plot(np.arange(i),np.array(losses))
@@ -110,9 +110,9 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
             plt.ylabel("Loss")
             plt.draw()
             plt.pause(0.001)
-        if verbose == True:
+        if verbose:
             print("Loss at epoch {}: {}".format(i,loss_fn))
-    if save_loss == True:
+    if save_loss:
         plt.plot(np.arange(i),np.array(losses))
         plt.xlabel("Epoch")
         plt.ylabel("Loss")

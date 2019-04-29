@@ -5,24 +5,12 @@ simulated genotype PCs as surrogates for genotype.
 import cit
 import csv
 import joblib
-import vae
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+import vae_torch as vt
 import data_model as dm
 import numpy as np
-import tensorflow as tf
 
 from itertools import product
-
-tf.enable_eager_execution()
-
-
-def train_vae(genotype, params):
-    model = vae.MMD_VAE(*params)
-    model.compile(loss=model.total_loss, optimizer=tf.train.AdamOptimizer(1e-4))
-    model.fit(genotype, genotype, epochs = 100, batch_size = 10, verbose=0)
-    return model
-
 
 def write_csv(results, filename):
     out_rows = []
@@ -54,7 +42,7 @@ def main():
     num_sim = 100
     num_subjects = 500
     num_genotypes = 50
-    depths = [1,3,5] # number of hidden layers
+    depths = [5] # number of hidden layers
     latent = [1,10] # number of latent variables
 
     # Generate datasets
@@ -67,38 +55,37 @@ def main():
     caus1_models = {}
     ind1_models = {}
     for param_set in product([num_genotypes], latent, depths):
-        null_models[param_set] = [train_vae(genotype, param_set) for (_, _, genotype) in null_datasets]
-        caus1_models[param_set] = [train_vae(genotype, param_set) for (_, _, genotype) in caus1_datasets]
-        ind1_models[param_set] = [train_vae(genotype, param_set) for (_, _, genotype) in ind1_datasets]
+        params = {'size': param_set[0],'num_latent': param_set[1],'depth': param_set[2]}
+        null_models[param_set] = joblib.Parallel(n_jobs=-1, verbose=0)(joblib.delayed(vt.train_mmd_vae)(genotype, params) for (_, _, genotype) in null_datasets)
+        caus1_models[param_set] = joblib.Parallel(n_jobs=-1, verbose=0)(joblib.delayed(vt.train_mmd_vae)(genotype, params) for (_, _, genotype) in caus1_datasets)
+        ind1_models[param_set] = joblib.Parallel(n_jobs=-1, verbose=0)(joblib.delayed(vt.train_mmd_vae)(genotype, params) for (_, _, genotype) in ind1_datasets)
 
     # Run causal inference test
     with joblib.parallel_backend('loky'):
         for param_set in product([num_genotypes], latent, depths):
             cur_null_models = null_models[param_set]
             Z_list = [cur_null_models[i].encode(genotype).numpy() for ((_,_,genotype), i) in zip(null_datasets, range(num_sim))]
-            print(len(Z_list), len(null_datasets))
-            print(Z_list)
-            null_results = joblib.Parallel(n_jobs=16, verbose=10)(
+            null_results = joblib.Parallel(n_jobs=-1, verbose=10)(
                 joblib.delayed(cit.cit)(trait, gene_exp, Z, 10000)
                 for ((trait, gene_exp, _), Z) in zip(null_datasets, Z_list)
             )
-            write_csv(null_results, "cit_null_mmdvae_{}_depth_{}_latent_{}_gen.csv".format(param_set[1], param_set[2],num_genotypes))
+            write_csv(null_results, "cit_null_mmdvae_{}_depth_{}_latent_{}_gen.csv".format(param_set[2], param_set[1],num_genotypes))
 
             cur_caus1_models = caus1_models[param_set]
             Z_list = [cur_caus1_models[i].encode(genotype).numpy() for ((_,_,genotype), i) in zip(caus1_datasets, range(num_sim))]
-            caus1_results = joblib.Parallel(n_jobs=16, verbose=10)(
+            caus1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
                 joblib.delayed(cit.cit)(trait, gene_exp, Z, 10000)
                 for ((trait, gene_exp, _), Z) in zip(caus1_datasets, Z_list)
             )
-            write_csv(caus1_results, "cit_caus1_mmdvae_{}_depth_{}_latent_{}_gen.csv".format(param_set[1], param_set[2],num_genotypes))
+            write_csv(caus1_results, "cit_caus1_mmdvae_{}_depth_{}_latent_{}_gen.csv".format(param_set[2], param_set[1],num_genotypes))
 
             cur_ind1_models = ind1_models[param_set]
             Z_list = [cur_ind1_models[i].encode(genotype).numpy() for ((_,_,genotype), i) in zip(ind1_datasets, range(num_sim))]
-            ind1_results = joblib.Parallel(n_jobs=16, verbose=10)(
+            ind1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
                 joblib.delayed(cit.cit)(trait, gene_exp, Z, 10000)
                 for ((trait, gene_exp, _), Z) in zip(ind1_datasets, Z_list)
             )
-            write_csv(ind1_results, "cit_ind1_mmdvae_{}_depth_{}_latent_{}_gen.csv".format(param_set[1], param_set[2],num_genotypes))
+            write_csv(ind1_results, "cit_ind1_mmdvae_{}_depth_{}_latent_{}_gen.csv".format(param_set[2], param_set[1],num_genotypes))
 
     return 0
 
