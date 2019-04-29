@@ -119,6 +119,6 @@ def main(**opts):
 
 
 if __name__ == '__main__':
-    torch.manual_seed(hash("William Casazza"))
-    np.random.seed(hash("William Casazza"))
+    torch.manual_seed(0)
+    np.random.seed(0)
     main()
