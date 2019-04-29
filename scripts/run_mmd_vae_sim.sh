@@ -9,3 +9,4 @@
 
 source $HOME/projects/def-saram/wcasazza/tensorflow/bin/activate
 python $HOME/projects/def-saram/wcasazza/vaecit/scripts/mmd_vae_sim.py
+

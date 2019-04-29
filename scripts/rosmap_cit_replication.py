@@ -6,16 +6,12 @@ import joblib
 import logging
 import os
 import time
-import vae
+import torch
 
 import data_model as dm
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-tf.enable_eager_execution()
-tf.set_random_seed(hash("William Casazza"))
 
 
 def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
@@ -42,6 +38,7 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
     (g_samples, cur_genotype) = (g_samples[g_idx], genotype[g_idx,:])
     # reduce genotype
     latent_genotype = dm.reduce_genotype(cur_genotype, opts['lv_method'], opts['num_latent'], opts['vae_depth'])
+
     if type(latent_genotype) != np.ndarray:
         latent_genotype = latent_genotype.numpy().astype(np.float64)
     # get probes and peaks
@@ -122,4 +119,5 @@ def main(**opts):
 
 
 if __name__ == '__main__':
+    torch.random.initial_seed(hash("William Casazza"))
     main()

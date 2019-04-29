@@ -10,8 +10,9 @@ import pandas as pd
 import os
 import re
 import random
-import tensorflow as tf
-import vae
+
+import vae_torch as vt
+
 
 from scipy import io,stats
 from scipy.sparse.linalg import svds
@@ -192,10 +193,10 @@ def reduce_genotype(genotype, lv_method, num_latent, vae_depth=None):
     num_latent = min(genotype.shape[1],num_latent)
     if lv_method == 'mmdvae':
         params = {
-            "output_size": genotype.shape[1],
-            "n_latent": num_latent,
-            "n_hidden": vae_depth}
-        model = vae.train_mmd_vae(stats.zscore(genotype), params)
+            "size": genotype.shape[1],
+            "num_latent": num_latent,
+            "depth": vae_depth}
+        model = vt.train_mmd_vae(stats.zscore(genotype), params)
         latent_genotype = model.encode(stats.zscore(genotype))
     elif lv_method == "pca":
         latent_genotype = compute_pcs(genotype)[:, 0:num_latent]
