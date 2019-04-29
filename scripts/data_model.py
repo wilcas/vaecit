@@ -189,7 +189,7 @@ def reduce_genotype(genotype, lv_method, num_latent, vae_depth=None):
     num_latent = min(genotype.shape[1],num_latent)
     if lv_method == 'mmdvae':
         params = {
-            "output_size": genotype.shape[1],
+            "size": genotype.shape[1],
             "num_latent": num_latent,
             "depth": vae_depth}
         model = vt.train_mmd_vae(stats.zscore(genotype), params)
