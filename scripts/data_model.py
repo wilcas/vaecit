@@ -10,7 +10,7 @@ import pandas as pd
 import os
 import re
 import random
-
+import torch 
 import vae_torch as vt
 
 
@@ -169,7 +169,7 @@ def compute_pcs(A):
         (U, D, vh) = np.linalg.svd(A_std, full_matrices=False, compute_uv=True)
     except np.linalg.LinAlgError:
         A2 = np.conj(A_std.T)@A_std
-        (U,D,vh) = np.linalg.svd(A_std, full_matrices=False, compute_uv=True) #@TODO check this
+        (U,D,vh) = np.linalg.svd(A_std, full_matrices=False, compute_uv=True) 
     return U@np.diag(D)
 
 
@@ -195,8 +195,8 @@ def reduce_genotype(genotype, lv_method, num_latent, vae_depth=None):
             "size": genotype.shape[1],
             "num_latent": num_latent,
             "depth": vae_depth}
-        model = vt.train_mmd_vae(stats.zscore(genotype), params)
-        latent_genotype = model.encode(stats.zscore(genotype))
+        model = vt.train_mmd_vae(torch.Tensor(stats.zscore(genotype)), params)
+        latent_genotype = model.encode(torch.Tensor(stats.zscore(genotype)))
     elif lv_method == "pca":
         latent_genotype = compute_pcs(genotype)[:, 0:num_latent]
     else:
