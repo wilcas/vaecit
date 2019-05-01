@@ -10,7 +10,7 @@ import pandas as pd
 import os
 import re
 import random
-import torch 
+import torch
 import vae_torch as vt
 
 
@@ -169,20 +169,20 @@ def compute_pcs(A):
         (U, D, vh) = np.linalg.svd(A_std, full_matrices=False, compute_uv=True)
     except np.linalg.LinAlgError:
         A2 = np.conj(A_std.T)@A_std
-        (U,D,vh) = np.linalg.svd(A_std, full_matrices=False, compute_uv=True) 
+        (U,D,vh) = np.linalg.svd(A_std, full_matrices=False, compute_uv=True)
     return U@np.diag(D)
 
 
 def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = None):
     feature_idx = np.isin(ids, which_ids)
     tmp_data = data[:,feature_idx]
-    if not np.isscalar(data2):
+    if not np.isscalar(data2) and data2 != None:
         feature_idx2 = np.isin(ids2, which_ids2)
         tmp_data2 = data2[:, feature_idx2]
         cur_data = np.concatenate((tmp_data, tmp_data2), axis=1)
         cur_data = compute_pcs(cur_data)[:, 0]
     else:
-        cur_data = compute_pcs(data[:, ids == which_ids])[:, 0]
+        cur_data = compute_pcs(tmp_data)[:, 0]
     return cur_data
 
 
@@ -196,7 +196,7 @@ def reduce_genotype(genotype, lv_method, num_latent, vae_depth=None):
             "num_latent": num_latent,
             "depth": vae_depth}
         model = vt.train_mmd_vae(torch.Tensor(stats.zscore(genotype)), params)
-        latent_genotype = model.encode(torch.Tensor(stats.zscore(genotype)))
+        latent_genotype = model.encode(torch.Tensor(stats.zscore(genotype))).detach()
     elif lv_method == "pca":
         latent_genotype = compute_pcs(genotype)[:, 0:num_latent]
     else:

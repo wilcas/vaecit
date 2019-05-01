@@ -211,6 +211,17 @@ class DataProcessingTests(unittest.TestCase):
                     self.assertAlmostEqual(testA,testB)
 
 
+    def test_write_csv_on_cit(self):
+        data = [dm.generate_null(p=5) for i in range(100)]
+        results = [cit.cit(*args) for args in data]
+        results2 = [cit.cit(*args) for args in data]
+        result_list =[results, results2]
+        fname = "tmp_test_csv.csv"
+        cit.write_csv([item for sublist in result_list for item in sublist], fname)
+        df = pd.read_csv(fname)
+        os.remove(fname)
+        self.assertEqual(len(df), 200)
+
 
     def test_match_samples(self):
         num = "1234567890"
@@ -237,7 +248,7 @@ class DataProcessingTests(unittest.TestCase):
             self.assertEqual(a,b)
         tests2 = zip(
             dm.get_mediator(test_data, ids, np.array(["B"])).flatten(),
-            test_data[:,1].flatten())
+            dm.compute_pcs(test_data[:,1].reshape(3,1))[:,0].flatten())
         for(a,b) in tests2:
             self.assertEqual(a,b)
 
