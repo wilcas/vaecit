@@ -117,4 +117,4 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
         plt.savefig("loss_fig.png")
-    return model
+    return model.cpu()

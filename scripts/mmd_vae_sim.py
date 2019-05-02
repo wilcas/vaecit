@@ -54,11 +54,21 @@ def main():
     null_models = {}
     caus1_models = {}
     ind1_models = {}
-    for param_set in product([num_genotypes], latent, depths):
-        params = {'size': param_set[0],'num_latent': param_set[1],'depth': param_set[2]}
-        null_models[param_set] = joblib.Parallel(n_jobs=-1, verbose=0)(joblib.delayed(vt.train_mmd_vae)(genotype, params) for (_, _, genotype) in null_datasets)
-        caus1_models[param_set] = joblib.Parallel(n_jobs=-1, verbose=0)(joblib.delayed(vt.train_mmd_vae)(genotype, params) for (_, _, genotype) in caus1_datasets)
-        ind1_models[param_set] = joblib.Parallel(n_jobs=-1, verbose=0)(joblib.delayed(vt.train_mmd_vae)(genotype, params) for (_, _, genotype) in ind1_datasets)
+    with joblib.parallel_backend('multiprocessing'):
+        for param_set in product([num_genotypes], latent, depths):
+            params = {
+                'size': param_set[0],
+                'num_latent': param_set[1],
+                'depth': param_set[2]}
+            null_models[param_set] = joblib.Parallel(n_jobs=-1, verbose=10)(
+                    joblib.delayed(vt.train_mmd_vae)(genotype, params)
+                    for (_, _, genotype) in null_datasets)
+            caus1_models[param_set] = joblib.Parallel(n_jobs=-1, verbose=10)(
+                    joblib.delayed(vt.train_mmd_vae)(genotype, params)
+                    for (_, _, genotype) in caus1_datasets)
+            ind1_models[param_set] = joblib.Parallel(n_jobs=-1, verbose=10)(
+                    joblib.delayed(vt.train_mmd_vae)(genotype, params)
+                    for (_, _, genotype) in ind1_datasets)
 
     # Run causal inference test
     with joblib.parallel_backend('loky'):
