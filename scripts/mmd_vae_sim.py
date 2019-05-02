@@ -51,49 +51,54 @@ def main():
     ind1_datasets = [dm.generate_ind1(n=num_subjects, p=num_genotypes) for i in range(num_sim)]
 
     # Train VAEs
-    null_models = {}
-    caus1_models = {}
-    ind1_models = {}
+    null_z = {}
+    caus1_z = {}
+    ind1_z = {}
     with joblib.parallel_backend('multiprocessing'):
         for param_set in product([num_genotypes], latent, depths):
             params = {
                 'size': param_set[0],
                 'num_latent': param_set[1],
                 'depth': param_set[2]}
-            null_models[param_set] = joblib.Parallel(n_jobs=-1, verbose=10)(
-                    joblib.delayed(vt.train_mmd_vae)(genotype, params)
-                    for (_, _, genotype) in null_datasets)
-            caus1_models[param_set] = joblib.Parallel(n_jobs=-1, verbose=10)(
-                    joblib.delayed(vt.train_mmd_vae)(genotype, params)
-                    for (_, _, genotype) in caus1_datasets)
-            ind1_models[param_set] = joblib.Parallel(n_jobs=-1, verbose=10)(
-                    joblib.delayed(vt.train_mmd_vae)(genotype, params)
-                    for (_, _, genotype) in ind1_datasets)
-
+            tmp_null = joblib.Parallel(n_jobs=-1, verbose=10)(
+                joblib.delayed(vt.train_mmd_vae)(genotype, params)
+                for (_, _, genotype) in null_datasets)
+            null_z[param_set] = [
+                model.encode(genotype).numpy() 
+                for ((_, _, genotype), model) in zip(null_datasets, tmp_null)]
+            del tmp_null
+            tmp_caus1 = joblib.Parallel(n_jobs=-1, verbose=10)(
+                joblib.delayed(vt.train_mmd_vae)(genotype, params)
+                for (_, _, genotype) in caus1_datasets)
+            caus1_z[param_set] = [
+                model.encode(genotype).numpy()
+                for ((_, _, genotype), model) in zip(caus1_datasets, tmp_caus1)]
+            del tmp_caus1
+            tmp_ind1 = joblib.Parallel(n_jobs=-1, verbose=10)(
+                joblib.delayed(vt.train_mmd_vae)(genotype, params)
+                for (_, _, genotype) in ind1_datasets)
+            ind1_z[param_set] = [
+                model.encode(genotype).numpy()
+                for ((_, _, genotype), model) in zip(ind1_datasets, tmp_ind1)]
+            del tmp_ind1
     # Run causal inference test
     with joblib.parallel_backend('loky'):
         for param_set in product([num_genotypes], latent, depths):
-            cur_null_models = null_models[param_set]
-            Z_list = [cur_null_models[i].encode(genotype).numpy() for ((_,_,genotype), i) in zip(null_datasets, range(num_sim))]
             null_results = joblib.Parallel(n_jobs=-1, verbose=10)(
                 joblib.delayed(cit.cit)(trait, gene_exp, Z, 10000)
-                for ((trait, gene_exp, _), Z) in zip(null_datasets, Z_list)
+                for ((trait, gene_exp, _), Z) in zip(null_datasets, null_z[param_set])
             )
             write_csv(null_results, "cit_null_mmdvae_{}_depth_{}_latent_{}_gen.csv".format(param_set[2], param_set[1],num_genotypes))
 
-            cur_caus1_models = caus1_models[param_set]
-            Z_list = [cur_caus1_models[i].encode(genotype).numpy() for ((_,_,genotype), i) in zip(caus1_datasets, range(num_sim))]
             caus1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
                 joblib.delayed(cit.cit)(trait, gene_exp, Z, 10000)
-                for ((trait, gene_exp, _), Z) in zip(caus1_datasets, Z_list)
+                for ((trait, gene_exp, _), Z) in zip(caus1_datasets, caus1_z[param_set])
             )
             write_csv(caus1_results, "cit_caus1_mmdvae_{}_depth_{}_latent_{}_gen.csv".format(param_set[2], param_set[1],num_genotypes))
 
-            cur_ind1_models = ind1_models[param_set]
-            Z_list = [cur_ind1_models[i].encode(genotype).numpy() for ((_,_,genotype), i) in zip(ind1_datasets, range(num_sim))]
             ind1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
                 joblib.delayed(cit.cit)(trait, gene_exp, Z, 10000)
-                for ((trait, gene_exp, _), Z) in zip(ind1_datasets, Z_list)
+                for ((trait, gene_exp, _), Z) in zip(ind1_datasets, ind1_z[param_set])
             )
             write_csv(ind1_results, "cit_ind1_mmdvae_{}_depth_{}_latent_{}_gen.csv".format(param_set[2], param_set[1],num_genotypes))
 
