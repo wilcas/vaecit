@@ -7,6 +7,7 @@ import csv
 import joblib
 
 import vae_torch as vt
+import torch
 import data_model as dm
 import numpy as np
 
@@ -46,9 +47,15 @@ def main():
     latent = [1,10] # number of latent variables
 
     # Generate datasets
-    null_datasets = [dm.generate_null(n=num_subjects, p=num_genotypes) for i in range(num_sim)]
-    caus1_datasets = [dm.generate_caus1(n=num_subjects, p=num_genotypes) for i in range(num_sim)]
-    ind1_datasets = [dm.generate_ind1(n=num_subjects, p=num_genotypes) for i in range(num_sim)]
+    null_datasets = [
+        dm.generate_null(n=num_subjects, p=num_genotypes)
+        for i in range(num_sim)]
+    caus1_datasets = [
+        dm.generate_caus1(n=num_subjects, p=num_genotypes)
+        for i in range(num_sim)]
+    ind1_datasets = [
+        dm.generate_ind1(n=num_subjects, p=num_genotypes)
+        for i in range(num_sim)]
 
     # Train VAEs
     null_z = {}
@@ -64,21 +71,21 @@ def main():
                 joblib.delayed(vt.train_mmd_vae)(genotype, params)
                 for (_, _, genotype) in null_datasets)
             null_z[param_set] = [
-                model.encode(genotype).numpy() 
+                model.encode(torch.Tensor(genotype)).detach().numpy()
                 for ((_, _, genotype), model) in zip(null_datasets, tmp_null)]
             del tmp_null
             tmp_caus1 = joblib.Parallel(n_jobs=-1, verbose=10)(
                 joblib.delayed(vt.train_mmd_vae)(genotype, params)
                 for (_, _, genotype) in caus1_datasets)
             caus1_z[param_set] = [
-                model.encode(genotype).numpy()
+                model.encode(torch.Tensor(genotype)).detach().numpy()
                 for ((_, _, genotype), model) in zip(caus1_datasets, tmp_caus1)]
             del tmp_caus1
             tmp_ind1 = joblib.Parallel(n_jobs=-1, verbose=10)(
                 joblib.delayed(vt.train_mmd_vae)(genotype, params)
                 for (_, _, genotype) in ind1_datasets)
             ind1_z[param_set] = [
-                model.encode(genotype).numpy()
+                model.encode(torch.Tensor(genotype)).detach().numpy()
                 for ((_, _, genotype), model) in zip(ind1_datasets, tmp_ind1)]
             del tmp_ind1
     # Run causal inference test
