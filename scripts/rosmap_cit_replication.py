@@ -37,7 +37,7 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
     (e_samples, cur_expression) = (e_samples[e_idx], expression[e_idx,:])
     (g_samples, cur_genotype) = (g_samples[g_idx], genotype[g_idx,:])
     # reduce genotype
-    latent_genotype = dm.reduce_genotype(cur_genotype, opts['lv_method'], opts['num_latent'], opts['vae_depth'])
+    latent_genotype = dm.reduce_genotype(cur_genotype, opts['lv_method'], opts['num_latent'], gene, opts['vae_depth'])
 
     if type(latent_genotype) != np.ndarray:
         latent_genotype = latent_genotype.numpy().astype(np.float64)

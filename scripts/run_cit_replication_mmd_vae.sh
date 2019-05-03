@@ -1,8 +1,8 @@
 #!/bin/bash
-#PBS -l walltime=30:00:00
+#PBS -l walltime=72:00:00
 #PBS -l mem=64GB
-#PBS -l nodes=1:ppn=6
-#PBS -q small
+#PBS -l nodes=1:ppn=8
+#PBS -q large
 #PBS -m be
 #PBS -M william.casazza@stat.ubc.ca
 
