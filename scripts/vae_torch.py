@@ -81,7 +81,7 @@ def loss(train_z,output,x):
 
 
 def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=False):
-    model = MMD_VAE(**params)
+    model = nn.DataParallel(MMD_VAE(**params))
     if torch.cuda.is_available():
         model = model.cuda()
         genotype = torch.Tensor(genotype).cuda()
@@ -97,7 +97,7 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
         for data in trainloader:
             optimizer.zero_grad()
             output = model(genotype)
-            loss_fn = loss(model.encode(genotype),output, genotype)
+            loss_fn = loss(model.module.encode(genotype),output, genotype)
             tol = abs(prev_loss - loss_fn)
             prev_loss = loss_fn
             loss_fn.backward()
@@ -118,4 +118,4 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
         plt.ylabel("Loss")
         plt.savefig("loss_fig.png")
     del genotype
-    return model.cpu()
+    return model.cpu().module
