@@ -18,24 +18,40 @@ from scipy import io,stats
 from scipy.sparse.linalg import svds
 from functools import reduce
 
+def block_genotype(n=100,p=200, perc=[0.5,0.5]):
+    """Generate 'blocky' correlation structured genotype"""
+    grps = len(perc)
+    base = np.random.binomial(n=2, p=0.25, size=(n,grps))
+    result = np.zeros((n,p))
+    j = 0
+    if sum(perc) != 1:
+        raise ValueError("perc must sum to 1!")
+    for (col,frac) in zip(base.T,perc):
+        for i in range(int(p * frac)):
+            result[:,j] = col + np.random.normal()
+            j += 1
+    return result
 
-def generate_null(n=100, p=200):
+def generate_null(n=100, p=200, genotype = None):
+    if genotype is None:
+        genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
     trait = np.random.normal(size=(n,))
-    genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
     gene_exp = np.random.normal(size=(n,))
     return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
-def generate_caus1(n=100, p=200):
-    genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
+def generate_caus1(n=100, p=200, genotype = None):
+    if genotype is None:
+        genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
     exp_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
     gene_exp = random.choice([-1,1])*np.random.uniform() + (genotype@exp_coeffs) + np.random.normal(size=(n,))
     trait = random.choice([-1,1])*np.random.uniform() + random.choice([-1,1])*np.random.uniform() * gene_exp + np.random.normal(size=(n,))
     return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
-def generate_ind1(n=100, p=200):
-    genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
+def generate_ind1(n=100, p=200, genotype = None):
+    if genotype is None:
+        genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
     exp_coeffs= np.array([random.choice([-1,1])*np.random.uniform() for i in range(p)])
     gene_exp = random.choice([-1,1])*np.random.uniform()+(genotype@exp_coeffs)  + np.random.normal(size=(n,))
     trait_coeffs= np.array([random.choice([-1,1])*np.random.uniform() for i in range(p)])

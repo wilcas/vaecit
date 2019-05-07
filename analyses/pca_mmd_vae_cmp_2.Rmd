@@ -34,39 +34,10 @@ Step 2 is pulling apart the data and plotting
 ```{r Plot PCA P Values, warning=FALSE}
 pca_df <- rbind_list(pca_test_list)
 pca_df <- pca_df %>% mutate(Model = plyr::mapvalues(model,from = c("caus1","ind1","null"), to = c("Full Mediation", "Independent Association", "Null"))) %>% rename(nPC = num_pc)
-(p <- ggplot(pca_df, aes(x=omni_p)) + 
-  geom_histogram() + 
-  facet_grid(model~nPC, scales = 'free_y', labeller = labeller(nPC=label_both)) + 
-  labs(x = "P Value", y = "") +
-  ggtitle("Omnibus Test Using Principal Components")+
-  scale_y_continuous(breaks=pretty_breaks())+
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), text = element_text(face = "bold")))
-ggsave("../figures/omnibus_test_pca.svg",p)
-
-ggplot(pca_df, aes(x=p1)) + 
-  geom_histogram() + 
-  facet_grid(model~nPC, scales = 'free_y', labeller = labeller(nPC=label_both))+ 
-  ggtitle("Test 1 P") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1))
-ggplot(pca_df, aes(x=p2)) + 
-  geom_histogram() + 
-  facet_grid(model~nPC, scales = 'free_y', labeller = labeller(nPC=label_both))+ 
-  ggtitle("Test 2 P") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1))
-ggplot(pca_df, aes(x=p3)) + 
-  geom_histogram() + 
-  facet_grid(model~nPC, scales = 'free_y', labeller = labeller(nPC=label_both))+ 
-  ggtitle("Test 3 P") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1)) 
-ggplot(pca_df, aes(x=p4)) + 
-  geom_histogram() + 
-  facet_grid(model~nPC, scales = 'free_y', labeller = labeller(nPC=label_both))+ 
-  ggtitle("Test 4 P") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1)) 
 ```
 
 ### Interesting Notes
-Caus1 Appears to work better in the way we constructed the data, but it's important to note that it's about a 50 50 shot to call independent association, as constructed, as causal mediation. In the case where there's no association between variables we don't call causal mediation at all, which is a good behavior.
+<!-- Caus1 Appears to work better in the way we constructed the data, but it's important to note that it's about a 50 50 shot to call independent association, as constructed, as causal mediation. In the case where there's no association between variables we don't call causal mediation at all, which is a good behavior. -->
 
 
 ## MMD VAE
@@ -75,11 +46,11 @@ Step 1: Load in the data
 
 ```{r Load MMD VAE Data}
 mmd_test_list <- list()
-for(f in dir("../data/mmd_vae_tests_3/")){
+for(f in dir("../data/mmd_vae_tests_4/")){
   model <- gsub("cit_(.*)_mmdvae_([0-9]*)_depth_([0-9]*)_latent.*.csv","\\1", f)
-  num_hidden <- as.numeric(gsub("cit_(.*)_mmdvae_([0-9]*)_depth_([0-9]*)_latent.*.csv","\\3", f))
-  num_latent <- as.numeric(gsub("cit_(.*)_mmdvae_([0-9]*)_depth_([0-9]*)_latent.*.csv","\\2", f))
-  tmp <- read.csv(sprintf("../data/mmd_vae_tests_3/%s", f))
+  num_hidden <- as.numeric(gsub("cit_(.*)_mmdvae_([0-9]*)_depth_([0-9]*)_latent.*.csv","\\2", f))
+  num_latent <- as.numeric(gsub("cit_(.*)_mmdvae_([0-9]*)_depth_([0-9]*)_latent.*.csv","\\3", f))
+  tmp <- read.csv(sprintf("../data/mmd_vae_tests_4/%s", f))
   tmp$model <- model
   tmp$num_hidden <- num_hidden
   tmp$num_latent <- num_latent
@@ -94,51 +65,6 @@ Step 2 is pulling apart the data and plotting
 
 mmd_df <- rbind_list(mmd_test_list)
 mmd_df <- mmd_df %>%  mutate(Model = plyr::mapvalues(model,from = c("caus1","ind1","null"), to = c("Full Mediation", "Independent Association", "Null"))) %>%rename(nLatent = num_latent, nHidden = num_hidden)
-(p <- ggplot(mmd_df, aes(x=omni_p)) + 
-  geom_histogram() + 
-  facet_grid(model~nHidden + nLatent, scales = 'free_y', labeller = labeller(nHidden=label_both, nLatent = label_both)) + 
-  labs(x = "P Value", y = "") +
-  ggtitle("Omnibus Test Using Latent Encodings")+
-  scale_y_continuous(breaks=pretty_breaks())+
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), text = element_text(face = "bold")))
-ggsave("../figures/omnibus_test_mmd.svg",p)
-
-
-ggplot(mmd_df, aes(x=p1)) +
-  geom_histogram() +
-  facet_grid(model~nHidden + nLatent, scales = 'free_y', labeller = labeller(nHidden=label_both, nLatent = label_both)) + 
-  ggtitle("Causal Inference Test Condition 1 Using Latent Encodings") +
-    labs(x = "P Value", y = "") +
-    scale_y_continuous(breaks=pretty_breaks())+
-
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), text = element_text(face = "bold"))
-
-
-ggplot(mmd_df, aes(x=p4)) +
-  geom_histogram() +
-  facet_grid(model~nHidden + nLatent, scales = 'free_y', labeller = labeller(nHidden=label_both, nLatent = label_both)) + 
-  ggtitle("Causal Inference Test Condition 4 Using Latent Encodings") +
-    labs(x = "P Value", y = "") +
-  scale_y_continuous(breaks=pretty_breaks())+
-
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), text = element_text(face = "bold"))
-
-
-ggplot(mmd_df, aes(x=p2)) +
-  geom_histogram() +
-  facet_grid(model~nHidden + nLatent, scales = 'free_y', labeller = labeller(nHidden=label_both, nLatent = label_both)) + 
-  ggtitle("Test 2 P") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1))
-ggplot(mmd_df, aes(x=p3)) +
-  geom_histogram() +
-  facet_grid(model~nHidden + nLatent, scales = 'free_y',labeller = labeller(nHidden=label_both, nLatent = label_both))+
-  ggtitle("Test 3 P") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1))
-# ggplot(mmd_df, aes(x=p4)) +
-#   geom_histogram() +
-#   facet_grid(model~nHidden + nLatent, scales = 'free_y')+
-#   ggtitle("Test 4 P") +
-#   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1))
 ```
 
 
@@ -146,7 +72,10 @@ ggplot(mmd_df, aes(x=p3)) +
 ## VanBUG Draft plots
 ```{r pca VanBUG}
 # condition 1 capture association
-ggplot(pca_df, aes(p1, fill = Model)) + geom_histogram(position = "identity", alpha = 0.6) + scale_fill_manual(values = c("blue", "red", "gold")) + labs(y = "Count (100 simulations per model)",x = "P Value Association PC->Expression") + ggtitle("Directed Association Using Genotype PC 1")+ theme_minimal(base_family = "Arial")
+ggplot(pca_df, aes(p1, fill = Model)) + geom_histogram(position = "identity", alpha = 0.6) + scale_fill_manual(values = c("blue", "red", "gold")) + labs(y = "Count (100 simulations per model)",x = "P Value") + ggtitle("Directed Association Using Genotype PC 1")+ theme_minimal(base_family = "Arial")+ scale_y_continuous(limits=c(0,100))
+ggplot(pca_df, aes(p2, fill = Model)) + geom_histogram(position = "identity", alpha = 0.6) + scale_fill_manual(values = c("blue", "red", "gold")) + labs(y = "Count (100 simulations per model)",x = "P Value") + ggtitle("Association PC 1 with Epigenetics Given Expression")+ theme_minimal(base_family = "Arial")+ scale_y_continuous(limits=c(0,100))
+ggplot(pca_df, aes(p3 , fill = Model)) + geom_histogram(position = "identity", alpha = 0.6) + scale_fill_manual(values = c("blue", "red", "gold"))+ labs(y = "Count (100 simulations per model)",x = "P Value ") + ggtitle("Association of Expression with Epigenetic Variable Given Genotype PC1")+ theme_minimal(base_family = "Arial") + scale_y_continuous(limits=c(0,100))
+ggplot(pca_df, aes(p4 , fill = Model)) + geom_histogram(position = "identity", alpha = 0.6) + scale_fill_manual(values = c("blue", "red", "gold"))+ labs(y = "Count (100 simulations per model)",x = "P Value") + ggtitle("Independence of Genotype PC1 and Expression Given Epigenetic Variable")+ theme_minimal(base_family = "Arial") + scale_y_continuous(limits=c(0,100))
 ggplot(pca_df, aes(omni_p , fill = Model)) + geom_histogram(position = "identity", alpha = 0.6) + scale_fill_manual(values = c("blue", "red", "gold"))+ labs(y = "Count (100 simulations per model)",x = "P Value Epigenetic Mediation") + ggtitle("Capturing Epigenetic Mediation of Genotype PC1")+ theme_minimal(base_family = "Arial") + scale_y_continuous(limits=c(0,100))
 ```
 ```{r pca debugging}
@@ -164,11 +93,13 @@ ggplot(to_plot_pca, aes(test_pvalue, fill = Model)) +
 
 ```{r mmdvae VanBUG}
 
-ggplot(mmd_df, aes(p1, fill = Model)) + geom_histogram(position = "identity", alpha = 0.6) + scale_fill_manual(values = c("blue", "red", "gold")) + labs(y = "Count (200 simulations per model)",x = "P Value Association LV->Expression") + ggtitle("Directed Association with 1 Autoencoder LV")+ theme_minimal(base_family = "Arial")
-ggplot(mmd_df, aes(omni_p , fill = Model)) + geom_histogram(position = "identity", alpha = 0.6) + scale_fill_manual(values = c("blue", "red", "gold")) + labs(y = "Count (200 simulations per model)",x = "P Value Epigenetic Mediation") + ggtitle("Capturing Epigenetic Mediation of 1 Autoencoder LV")+ theme_minimal(base_family = "Arial")
+ggplot(mmd_df, aes(p1, fill = Model)) + geom_histogram(position = "identity", alpha = 0.6) + scale_fill_manual(values = c("blue", "red", "gold")) + labs(y = "Count (100 simulations per model)",x = "P Value") + ggtitle("Directed Association 1 Autoencoder LV with Expression")+ theme_minimal(base_family = "Arial")+ scale_y_continuous(limits=c(0,100))
+ggplot(mmd_df, aes(p2, fill = Model)) + geom_histogram(position = "identity", alpha = 0.6) + scale_fill_manual(values = c("blue", "red", "gold")) + labs(y = "Count (100 simulations per model)",x = "P Value ") + ggtitle("Association 1 Autoencoder LV with Epigenetic Given Expression")+ theme_minimal(base_family = "Arial")+ scale_y_continuous(limits=c(0,100))
+ggplot(mmd_df, aes(p3, fill = Model)) + geom_histogram(position = "identity", alpha = 0.6) + scale_fill_manual(values = c("blue", "red", "gold")) + labs(y = "Count (100 simulations per model)",x = "P Value ") + ggtitle("Association of Epigenetic with Expression Given 1 Autoencoder LV")+ theme_minimal(base_family = "Arial")+ scale_y_continuous(limits=c(0,100))
+ggplot(mmd_df, aes(p4, fill = Model)) + geom_histogram(position = "identity", alpha = 0.6) + scale_fill_manual(values = c("blue", "red", "gold")) + labs(y = "Count (100 simulations per model)",x = "P Value ") + ggtitle("Independence of 1 Autoencoder LV and Expression Given Epigenetic")+ theme_minimal(base_family = "Arial")+ scale_y_continuous(limits=c(0,100))
+ggplot(mmd_df, aes(omni_p , fill = Model)) + geom_histogram(position = "identity", alpha = 0.6) + scale_fill_manual(values = c("blue", "red", "gold")) + labs(y = "Count (100 simulations per model)",x = "P Value Epigenetic Mediation") + ggtitle("Capturing Epigenetic Mediation of 1 Autoencoder LV")+ theme_minimal(base_family = "Arial")+ scale_y_continuous(limits=c(0,100))
 ```
 ```{r mmd vae debug}
-mmd_df <- mmd_df %>% mutate(p3 = 1 - p3) %>% mutate(omni_p = pmax(p1,p2,p3,p4))
 to_plot_mmd <- mmd_df %>% gather(key = "test", value = "test_pvalue",p1,p2,p3,p4,omni_p)
 ggplot(to_plot_mmd, aes(test_pvalue, fill = Model)) + 
   geom_histogram(position = "identity", alpha = 0.6) + 
