@@ -14,87 +14,112 @@ At this point I have run a bunch of experiments with "blocky"  genotype matrices
 
 First I need to aggregate these sensibly:
 ```{r}
-sanity_results <- list()
-for(f in dir("../data/sanity_check_perm/", full.names = TRUE)){
-  tmp_df <- read.csv(f)
-  tmp_df$scenario <- gsub(".*/cit_(.*)_([0-9]*)_PCs_([0-9]*)_gen_(.*)_split.csv", "\\1", f)
-  tmp_df$num_pc <- gsub(".*/cit_(.*)_([0-9]*)_PCs_([0-9]*)_gen_(.*)_split.csv", "\\2", f)
-  tmp_df$num_genotype <- gsub(".*/cit_(.*)_([0-9]*)_PCs_([0-9]*)_gen_(.*)_split.csv", "\\3", f)
-  tmp_df$split <- gsub(".*/cit_(.*)_([0-9]*)_PCs_([0-9]*)_gen_(.*)_split.csv", "\\4", f)
-  sanity_results[[f]] <- tmp_df
+get_sanity_results <- function(path){
+  sanity_results <- list()
+  for(f in dir(path, full.names = TRUE)){
+    tmp_df <- read.csv(f)
+    tmp_df$scenario <- gsub(".*/cit_(.*)_([0-9]*)_PCs_([0-9]*)_gen_(.*)_split.csv", "\\1", f)
+    tmp_df$num_pc <- gsub(".*/cit_(.*)_([0-9]*)_PCs_([0-9]*)_gen_(.*)_split.csv", "\\2", f)
+    tmp_df$num_genotype <- gsub(".*/cit_(.*)_([0-9]*)_PCs_([0-9]*)_gen_(.*)_split.csv", "\\3", f)
+    tmp_df$split <- gsub(".*/cit_(.*)_([0-9]*)_PCs_([0-9]*)_gen_(.*)_split.csv", "\\4", f)
+    sanity_results[[f]] <- tmp_df
+  }
+  sanity_df <- bind_rows(sanity_results) %>%
+    mutate(
+      Scenario = plyr::mapvalues(
+        scenario,
+        from = c("caus1","ind1","null"), 
+        to = c("Full Mediation", "Independent Association", "Null")))
+  
+  str(sanity_df)
+  return(sanity_df)
 }
-sanity_df <- bind_rows(sanity_results) %>%
-  mutate(
-    Scenario = plyr::mapvalues(
-      scenario,
-      from = c("caus1","ind1","null"), 
-      to = c("Full Mediation", "Independent Association", "Null")))
+sanity_df <- get_sanity_results("../data/sanity_check/")
+sanity_df_perm <- get_sanity_results("../data/sanity_check_perm/")
 
-str(sanity_df)
 ```
 Okay, just given this peek things are looking good, lets plot to get a nice overall view of the results we have here:
 ```{r}
-split_level <- c("100", "80-20", "50-50", "33-33-34", "all-25", "all-20", "all")
-ggplot(
-    sanity_df %>% 
-    filter(as.numeric(num_genotype) < 50,!(split %in% sm_split & num_genotype == 1)) %>% 
-    mutate(split = fct_relevel(split, split_level)), 
-    aes(omni_p , fill = Scenario)) + 
-  geom_histogram(position = "identity", alpha = 0.6) + 
-  scale_fill_manual(values = c("blue", "red", "gold")) + 
-  labs(y = "Count (100 simulations per model)",x = "P Value Epigenetic Mediation") + 
-  ggtitle("Capturing Epigenetic Mediation of Genotype PC1") +
-  theme_minimal(base_family = "Arial") +
-  theme(axis.text.x = element_text(hjust = 1,vjust =1,angle = 90)) +
-  scale_y_continuous(limits=c(0,100)) + 
-  facet_grid(num_genotype ~ split)
-ggplot(
-    sanity_df %>% 
-    filter(as.numeric(num_genotype) >= 50) %>% 
-    mutate(split = fct_relevel(split, split_level)),
-    aes(omni_p , fill = Scenario)) + 
-  geom_histogram(position = "identity", alpha = 0.6) + 
-  scale_fill_manual(values = c("blue", "red", "gold")) + 
-  labs(y = "Count (100 simulations per model)",x = "P Value Epigenetic Mediation") + 
-  ggtitle("Capturing Epigenetic Mediation of Genotype PC1") +
-  theme_minimal(base_family = "Arial") +
-  theme(axis.text.x = element_text(hjust = 1,vjust =1,angle = 90)) +
-  scale_y_continuous(limits=c(0,100)) + 
-  facet_grid(num_genotype ~ split)
+plot_pvals <- function(sanity_df){
+  split_level <- c("100", "80-20", "50-50", "33-33-34", "all-25", "all-20", "all")
+  sm_split <- c("80-20", "50-50", "33-33-34", "all-25", "all-20")
+
+  p1 <- ggplot(
+      sanity_df %>% 
+      filter(as.numeric(num_genotype) < 50,!(split %in% sm_split & num_genotype == 1)) %>% 
+      mutate(split = fct_relevel(split, split_level)), 
+      aes(omni_p , fill = Scenario)) + 
+    geom_histogram(position = "identity", alpha = 0.6) + 
+    scale_fill_manual(values = c("blue", "red", "gold")) + 
+    labs(y = "Count (100 simulations per model)",x = "P Value Epigenetic Mediation") + 
+    ggtitle("Capturing Epigenetic Mediation of Genotype PC1") +
+    theme_minimal(base_family = "Arial") +
+    theme(axis.text.x = element_text(hjust = 1,vjust =1,angle = 90)) +
+    scale_y_continuous(limits=c(0,100)) + 
+    facet_grid(num_genotype ~ split)
+  p2 <- ggplot(
+      sanity_df %>% 
+      filter(as.numeric(num_genotype) >= 50) %>% 
+      mutate(split = fct_relevel(split, split_level)),
+      aes(omni_p , fill = Scenario)) + 
+    geom_histogram(position = "identity", alpha = 0.6) + 
+    scale_fill_manual(values = c("blue", "red", "gold")) + 
+    labs(y = "Count (100 simulations per model)",x = "P Value Epigenetic Mediation") + 
+    ggtitle("Capturing Epigenetic Mediation of Genotype PC1") +
+    theme_minimal(base_family = "Arial") +
+    theme(axis.text.x = element_text(hjust = 1,vjust =1,angle = 90)) +
+    scale_y_continuous(limits=c(0,100)) + 
+    facet_grid(num_genotype ~ split)
+  print(p1)
+  print(p2)
+}
+plot_pvals(sanity_df)
 ```
 Great, we see that with more distinct groups we get a lower ability to detect a the full mediation scenario.
 Let's just see how well we capture variance in genotype in each scenario with their first PC:
 ```{r}
-split_level <- c("100", "80-20", "50-50", "33-33-34", "all-25", "all-20", "all")
-sm_split <- c("80-20", "50-50", "33-33-34", "all-25", "all-20")
-ggplot(
-    sanity_df %>% 
-    filter(as.numeric(num_genotype) < 50, !(split %in% sm_split & num_genotype == 1)) %>% 
-    mutate(split = fct_relevel(split, split_level),
-           var_explained_pcs = var_explained_pcs * 100),
-    aes(Scenario, var_explained_pcs, fill = Scenario)) + 
-  geom_boxplot() + 
-  scale_fill_manual(values = c("blue", "red", "gold")) + 
-  labs(y = "Percent Variance Explained PC1",x = "P Value Epigenetic Mediation") + 
-  ggtitle("Capturing Epigenetic Mediation of Genotype PC1") +
-  theme_minimal(base_family = "Arial") +
-  theme(axis.text.x = element_text(hjust = 1,vjust =1,angle = 90)) +
-  facet_grid(num_genotype ~ split, scales = "free_y")
-ggplot(
-    sanity_df %>% 
-    filter(as.numeric(num_genotype) >= 50) %>% 
-    mutate(split = fct_relevel(split, split_level),
-           var_explained_pcs = var_explained_pcs * 100),
-    aes(Scenario, var_explained_pcs, fill = Scenario)) + 
-  geom_boxplot() + 
-  scale_fill_manual(values = c("blue", "red", "gold")) + 
-  labs(y = "Percent Variance Explained PC1",x = "P Value Epigenetic Mediation") + 
-  ggtitle("Capturing Epigenetic Mediation of Genotype PC1") +
-  theme_minimal(base_family = "Arial") +
-  theme(axis.text.x = element_text(hjust = 1,vjust =1,angle = 90)) +
-  facet_grid(num_genotype ~ split)
+plot_var_explained <- function(sanity_df){
+  split_level <- c("100", "80-20", "50-50", "33-33-34", "all-25", "all-20", "all")
+  sm_split <- c("80-20", "50-50", "33-33-34", "all-25", "all-20")
+  p1 <- ggplot(
+      sanity_df %>% 
+      filter(as.numeric(num_genotype) < 50, !(split %in% sm_split & num_genotype == 1)) %>% 
+      mutate(split = fct_relevel(split, split_level),
+             var_explained_pcs = var_explained_pcs * 100),
+      aes(Scenario, var_explained_pcs, fill = Scenario)) + 
+    geom_boxplot() + 
+    scale_fill_manual(values = c("blue", "red", "gold")) + 
+    labs(y = "Percent Variance Explained PC1",x = "P Value Epigenetic Mediation") + 
+    ggtitle("Capturing Epigenetic Mediation of Genotype PC1") +
+    theme_minimal(base_family = "Arial") +
+    theme(axis.text.x = element_text(hjust = 1,vjust =1,angle = 90)) +
+    facet_grid(num_genotype ~ split, scales = "free_y")
+  p2 <- ggplot(
+      sanity_df %>% 
+      filter(as.numeric(num_genotype) >= 50) %>% 
+      mutate(split = fct_relevel(split, split_level),
+             var_explained_pcs = var_explained_pcs * 100),
+      aes(Scenario, var_explained_pcs, fill = Scenario)) + 
+    geom_boxplot() + 
+    scale_fill_manual(values = c("blue", "red", "gold")) + 
+    labs(y = "Percent Variance Explained PC1",x = "P Value Epigenetic Mediation") + 
+    ggtitle("Capturing Epigenetic Mediation of Genotype PC1") +
+    theme_minimal(base_family = "Arial") +
+    theme(axis.text.x = element_text(hjust = 1,vjust =1,angle = 90)) +
+    facet_grid(num_genotype ~ split)
+  print(p1)
+  print(p2)
+}
+plot_var_explained(sanity_df)
 ```
 Variance explained by the first PC goes down as we vary correlated groups, in the case that we just have independent binomials as genotype, we explain similar amount of variance in genotype with PC1 as we do with random noise + repeats of one genotype.
+
+We get inflated results for independent and full mediation scenarios if we use a semi-parametric test:
+```{r}
+plot_pvals(sanity_df_perm)
+plot_var_explained(sanity_df_perm)
+```
+
 
 # PCA CIT Comparison to xQTL Paper
 First we need to load in the data and match up results:
