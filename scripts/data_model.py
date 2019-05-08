@@ -20,6 +20,8 @@ from functools import reduce
 
 def block_genotype(n=100,p=200, perc=[0.5,0.5]):
     """Generate 'blocky' correlation structured genotype"""
+    if perc is None:
+        return None
     grps = len(perc)
     base = np.random.binomial(n=2, p=0.25, size=(n,grps))
     result = np.zeros((n,p))
@@ -28,7 +30,7 @@ def block_genotype(n=100,p=200, perc=[0.5,0.5]):
         raise ValueError("perc must sum to 1!")
     for (col,frac) in zip(base.T,perc):
         for i in range(int(p * frac)):
-            result[:,j] = col + np.random.normal()
+            result[:,j] = col + np.random.normal(size=(n,))
             j += 1
     return result
 

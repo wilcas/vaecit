@@ -8,7 +8,7 @@ import joblib
 
 import data_model as dm
 import numpy as np
-
+from itertools import product
 
 def compute_genotype_pcs(genotype):
     """
@@ -59,64 +59,68 @@ def main():
         "all": None
     }
 
-    null_datasets = [
-        dm.generate_null(
-            n=num_subjects,
-            p=num_genotypes,
-            genotype = dm.block_genotype(
-                n = num_sim,
-                p = num_genotype,
-                perc = block_strucure[key]))
-        ) for (i, key) in zip(range(num_sim), num_genotypes, block_structure.keys())]
-    null_PCs = [
-        compute_genotype_pcs(genotype)
-        for (_, _, genotype) in null_datasets]
-    ind1_datasets = [
-        dm.generate_null(
-            n=num_subjects,
-            p=num_genotypes,
-            genotype = dm.block_genotype(
-                n = num_sim,
-                p = num_genotype,
-                perc = block_strucure[key]))
-        ) for (i, key) in zip(range(num_sim), num_genotypes, block_structure.keys())]
-    ind1_PCs = [
-        compute_genotype_pcs(genotype)
-        for (_, _, genotype) in ind1_datasets]
-    ind1_datasets = [
-        dm.generate_null(
+    null_datasets = {
+        (i, num_genotype, key):
+        [dm.generate_null(
             n=num_subjects,
             p=num_genotype,
             genotype = dm.block_genotype(
-                n = num_sim,
-                p = num_genotypes,
-                perc = block_strucure[key]))
-        ) for (i, key) in zip(range(num_sim), num_genotypes, block_structure.keys())]
-    ind1_PCs = [
-        compute_genotype_pcs(genotype)
-        for (_, _, genotype) in ind1_datasets]
+                n = num_subjects,
+                p = num_genotype,
+                perc = block_structure[key])) for j in range(num_sim)]
+        for (i, num_genotype, key) in product(pcs_to_test,num_genotypes, block_structure.keys())}
+    null_PCs = {
+        k: [compute_genotype_pcs(null_datasets[k][j][2]) for j in range(num_sim)]
+        for k in null_datasets.keys()}
+    caus1_datasets ={
+        (i, num_genotype, key):
+        [dm.generate_caus1(
+            n=num_subjects,
+            p=num_genotype,
+            genotype = dm.block_genotype(
+                n = num_subjects,
+                p = num_genotype,
+                perc = block_structure[key]))  for j in range(num_sim)]
+        for (i, num_genotype, key) in product(pcs_to_test, num_genotypes, block_structure.keys())}
+    caus1_PCs = {
+        k: [compute_genotype_pcs(caus1_datasets[k][j][2]) for j in range(num_sim)]
+        for k in caus1_datasets.keys()}
+    ind1_datasets = {
+        (i, num_genotype, key):
+        [dm.generate_ind1(
+            n=num_subjects,
+            p=num_genotype,
+            genotype = dm.block_genotype(
+                n = num_subjects,
+                p = num_genotype,
+                perc = block_structure[key])) for j in range(num_sim)]
+        for (i,num_genotype, key) in product(pcs_to_test,num_genotypes, block_structure.keys())}
+    ind1_PCs = {
+        k: [compute_genotype_pcs(ind1_datasets[k][j][2]) for j in range(num_sim)]
+        for k in ind1_datasets.keys()}
 
 
-    with joblib.parallel_backend('multiprocessing'):
-        for (i,num_genotype,key) in zip(pcs_to_test,num_genotype,block_structure.keys()):
+    with joblib.parallel_backend('loky'):
+        for (i, num_genotype, key) in product(pcs_to_test, num_genotypes, block_structure.keys()):
+            data_key = (i, num_genotype, key)
             null_results = joblib.Parallel(n_jobs=-1, verbose=10)(
                     joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i],10000)
-                    for ((trait, gene_exp, _), (Z,_) in zip(null_datasets,null_PCs)
+                    for ((trait, gene_exp, _), (Z,_)) in zip(null_datasets[data_key],null_PCs[data_key])
             )
-            null_explained = [np.sum(D[0:i]) for (_,D) in null_PCs]
+            null_explained = [np.sum(D[0:i]) for (_,D) in null_PCs[data_key]]
             write_csv(null_results, null_explained, "cit_null_{}_PCs_{}_gen_{}_split.csv".format(i,num_genotype,key))
 
             caus1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
                     joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i], 10000)
-                    for ((trait, gene_exp, _), (Z,_) in zip(caus1_datasets,caus1_PCs)
+                    for ((trait, gene_exp, _), (Z,_)) in zip(caus1_datasets[data_key],caus1_PCs[data_key])
             )
-            caus1_explained = [np.sum(D[0:i]) for (_,D) in caus1_PCs]
+            caus1_explained = [np.sum(D[0:i]) for (_,D) in caus1_PCs[data_key]]
             write_csv(caus1_results, caus1_explained, "cit_caus1_{}_PCs_{}_gen_{}_split.csv".format(i,num_genotype,key))
             ind1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
                     joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i], 10000)
-                    for ((trait, gene_exp, _), (Z,_) in zip(ind1_datasets, ind1_PCs)
+                    for ((trait, gene_exp, _), (Z,_)) in zip(ind1_datasets[data_key], ind1_PCs[data_key])
             )
-            ind1_explained = [np.sum(D[0:i]) for (_,D) in ind1_PCs]
+            ind1_explained = [np.sum(D[0:i]) for (_,D) in ind1_PCs[data_key]]
             write_csv(ind1_results, ind1_explained, "cit_ind1_{}_PCs_{}_gen_{}_split.csv".format(i,num_genotype,key))
     return 0
 

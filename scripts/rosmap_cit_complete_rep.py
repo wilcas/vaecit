@@ -37,10 +37,6 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
     (e_samples, cur_expression) = (e_samples[e_idx], expression[e_idx,:])
     (g_samples, cur_genotype) = (g_samples[g_idx], genotype[g_idx,:])
     # reduce genotype
-    latent_genotype = dm.reduce_genotype(cur_genotype, opts['lv_method'], opts['num_latent'], gene, opts['vae_depth'])
-
-    if type(latent_genotype) != np.ndarray:
-        latent_genotype = latent_genotype.numpy().astype(np.float64)
     # get probes and peaks
     cur_exp = cur_expression[:, e_ids == gene]
 
@@ -58,10 +54,18 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
         # run CIT
         if opts['run_reverse']:
             mediation_results.append(
-                cit.cit(cur_epigenetic.reshape(n,1), cur_exp.reshape(n,1), latent_genotype.reshape(n,opts['num_latent'])))
+                cit.cit(
+                    cur_epigenetic.reshape(n,1),
+                    cur_exp.reshape(n,1),
+                    cur_genotype[:, g_ids == row.snp],
+                    num_bootstrap=100000))
         else:
             mediation_results.append(
-                cit.cit(cur_exp.reshape(n,1), cur_epigenetic.reshape(n,1), latent_genotype.reshape(n,opts['num_latent'])))
+                cit.cit(
+                    cur_exp.reshape(n,1),
+                    cur_epigenetic.reshape(n,1),
+                    cur_genotype[:, g_ids == row.snp],
+                    num_bootstrap=100000))
     return mediation_results
 
 
@@ -78,11 +82,8 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
     help="Filename of manifest containing rsids, probe/peak ids and genes to test for causal mediation.")
 @click.option('--snp-coords', type=str, required=True,
     help="Directory of csv files containing snp coordinates")
-@click.option('--lv-method', required=True, type=click.Choice(['pca', 'mmdvae']))
-@click.option('--num-latent', type=int, required=True)
 @click.option('--out-name', type=str, required=True,
     help="Suffix for output files, no path")
-@click.option('--vae-depth', type=int, default=None)
 @click.option('--run-reverse', default=False, is_flag=True)
 def main(**opts):
     logging.basicConfig(
@@ -111,7 +112,7 @@ def main(**opts):
     methyl = (m_samples, m_ids, methylation)
     acetyl = (ac_samples, ac_ids, acetylation)
     express = (e_samples, e_ids, expression)
-    with joblib.parallel_backend("multiprocessing"):
+    with joblib.parallel_backend("loky"):
        mediation_results = joblib.Parallel(n_jobs=-1, verbose=10)(
            joblib.delayed(cit_on_qtl_set)(df, gene, coord_df, methyl, acetyl, express, opts)
            for (gene, df) in tests_df.groupby('gene')
