@@ -96,11 +96,22 @@ def test_independence(T, G, L, num_bootstrap):
     beta, _, _,_,_ = fit
     test = np.concatenate((np.ones((n,1)),L), axis=1)@beta
     residual = G - (np.concatenate((np.ones((n,1)),L), axis=1)@beta).reshape((n,1))
-    bootstraps = run_bootstraps(T, residual, L, n, num_bootstrap)
-    f_list = [t**2 for t in bootstraps]
     fit1 = linreg_with_stats(T, np.concatenate((np.ones((n,1)), G, L),axis=1))
     fstat = fit1[-1][-1]**2
-    p = np.sum(f_list <= fstat) / num_bootstrap
+    if num_bootstrap is None:
+        fperm = run_bootstraps(T,residual,L,n,100) ** 2
+        v1 = 1
+        v2 = n - 2 - L.shape[1]
+        delta = np.mean(fperm)
+        pperm = stats.ncf.cdf(fperm,v1,v2,delta)
+        zperm = stats.norm.ppf(pperm)
+        porig = stats.ncf.cdf(fstat,v1,v2,delta)
+        zorig = stats.norm.ppf(porig)
+        p = stats.norm.cdf(zorig, scale = np.std(zperm))
+    else:
+        bootstraps = run_bootstraps(T, residual, L, n, num_bootstrap)
+        f_list = bootstraps ** 2
+        p = np.sum(f_list <= fstat) / num_bootstrap
     return fit1, p
 
 

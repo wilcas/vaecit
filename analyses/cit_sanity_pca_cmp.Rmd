@@ -1,0 +1,146 @@
+---
+title: "Sanity Check and PCA Comparison"
+author: "William Casazza"
+date: "May 8, 2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+knitr::opts_chunk$set(echo = TRUE)
+```
+# CIT sanity check
+At this point I have run a bunch of experiments with "blocky"  genotype matrices, with the goal that for PCA the first PC should the majority of variance in matrices I've designed to have correlated genotypes. What I did to generate these matrices was generate a number of random genotypes, and then make varied percentages of the remaining genotypes by adding random noises to the initial set and copying the result over new columns. 
+
+First I need to aggregate these sensibly:
+```{r}
+sanity_results <- list()
+for(f in dir("../data/sanity_check_perm/", full.names = TRUE)){
+  tmp_df <- read.csv(f)
+  tmp_df$scenario <- gsub(".*/cit_(.*)_([0-9]*)_PCs_([0-9]*)_gen_(.*)_split.csv", "\\1", f)
+  tmp_df$num_pc <- gsub(".*/cit_(.*)_([0-9]*)_PCs_([0-9]*)_gen_(.*)_split.csv", "\\2", f)
+  tmp_df$num_genotype <- gsub(".*/cit_(.*)_([0-9]*)_PCs_([0-9]*)_gen_(.*)_split.csv", "\\3", f)
+  tmp_df$split <- gsub(".*/cit_(.*)_([0-9]*)_PCs_([0-9]*)_gen_(.*)_split.csv", "\\4", f)
+  sanity_results[[f]] <- tmp_df
+}
+sanity_df <- bind_rows(sanity_results) %>%
+  mutate(
+    Scenario = plyr::mapvalues(
+      scenario,
+      from = c("caus1","ind1","null"), 
+      to = c("Full Mediation", "Independent Association", "Null")))
+
+str(sanity_df)
+```
+Okay, just given this peek things are looking good, lets plot to get a nice overall view of the results we have here:
+```{r}
+split_level <- c("100", "80-20", "50-50", "33-33-34", "all-25", "all-20", "all")
+ggplot(
+    sanity_df %>% 
+    filter(as.numeric(num_genotype) < 50,!(split %in% sm_split & num_genotype == 1)) %>% 
+    mutate(split = fct_relevel(split, split_level)), 
+    aes(omni_p , fill = Scenario)) + 
+  geom_histogram(position = "identity", alpha = 0.6) + 
+  scale_fill_manual(values = c("blue", "red", "gold")) + 
+  labs(y = "Count (100 simulations per model)",x = "P Value Epigenetic Mediation") + 
+  ggtitle("Capturing Epigenetic Mediation of Genotype PC1") +
+  theme_minimal(base_family = "Arial") +
+  theme(axis.text.x = element_text(hjust = 1,vjust =1,angle = 90)) +
+  scale_y_continuous(limits=c(0,100)) + 
+  facet_grid(num_genotype ~ split)
+ggplot(
+    sanity_df %>% 
+    filter(as.numeric(num_genotype) >= 50) %>% 
+    mutate(split = fct_relevel(split, split_level)),
+    aes(omni_p , fill = Scenario)) + 
+  geom_histogram(position = "identity", alpha = 0.6) + 
+  scale_fill_manual(values = c("blue", "red", "gold")) + 
+  labs(y = "Count (100 simulations per model)",x = "P Value Epigenetic Mediation") + 
+  ggtitle("Capturing Epigenetic Mediation of Genotype PC1") +
+  theme_minimal(base_family = "Arial") +
+  theme(axis.text.x = element_text(hjust = 1,vjust =1,angle = 90)) +
+  scale_y_continuous(limits=c(0,100)) + 
+  facet_grid(num_genotype ~ split)
+```
+Great, we see that with more distinct groups we get a lower ability to detect a the full mediation scenario.
+Let's just see how well we capture variance in genotype in each scenario with their first PC:
+```{r}
+split_level <- c("100", "80-20", "50-50", "33-33-34", "all-25", "all-20", "all")
+sm_split <- c("80-20", "50-50", "33-33-34", "all-25", "all-20")
+ggplot(
+    sanity_df %>% 
+    filter(as.numeric(num_genotype) < 50, !(split %in% sm_split & num_genotype == 1)) %>% 
+    mutate(split = fct_relevel(split, split_level),
+           var_explained_pcs = var_explained_pcs * 100),
+    aes(Scenario, var_explained_pcs, fill = Scenario)) + 
+  geom_boxplot() + 
+  scale_fill_manual(values = c("blue", "red", "gold")) + 
+  labs(y = "Percent Variance Explained PC1",x = "P Value Epigenetic Mediation") + 
+  ggtitle("Capturing Epigenetic Mediation of Genotype PC1") +
+  theme_minimal(base_family = "Arial") +
+  theme(axis.text.x = element_text(hjust = 1,vjust =1,angle = 90)) +
+  facet_grid(num_genotype ~ split, scales = "free_y")
+ggplot(
+    sanity_df %>% 
+    filter(as.numeric(num_genotype) >= 50) %>% 
+    mutate(split = fct_relevel(split, split_level),
+           var_explained_pcs = var_explained_pcs * 100),
+    aes(Scenario, var_explained_pcs, fill = Scenario)) + 
+  geom_boxplot() + 
+  scale_fill_manual(values = c("blue", "red", "gold")) + 
+  labs(y = "Percent Variance Explained PC1",x = "P Value Epigenetic Mediation") + 
+  ggtitle("Capturing Epigenetic Mediation of Genotype PC1") +
+  theme_minimal(base_family = "Arial") +
+  theme(axis.text.x = element_text(hjust = 1,vjust =1,angle = 90)) +
+  facet_grid(num_genotype ~ split)
+```
+Variance explained by the first PC goes down as we vary correlated groups, in the case that we just have independent binomials as genotype, we explain similar amount of variance in genotype with PC1 as we do with random noise + repeats of one genotype.
+
+# PCA CIT Comparison to xQTL Paper
+First we need to load in the data and match up results:
+```{r}
+cit_df <- read.table("../data/rosmap_cit_pca/CIT_groupby_order.txt", header = TRUE)
+dim(cit_df)
+head(cit_df)
+pca_cit_df <- read.csv("../data/rosmap_cit_pca/pca_1_latent_cit.csv")
+dim(pca_cit_df)
+head(pca_cit_df)
+
+merged_cit_df <- cbind(cit_df[c("snp", "probes","peaks", "pCausal","gene")], pca_cit_df[c("p1","p2","p3","p4","omni_p")])
+head(merged_cit_df)
+```
+Since I'm a nice person, I made these tables have the same order per test, so I just need to plot p values along the same axes for a nice comparison:
+```{r}
+summary(merged_cit_df$omni_p)
+summary(merged_cit_df$p1)
+summary(merged_cit_df$p2)
+summary(merged_cit_df$p3)
+summary(merged_cit_df$p4)
+summary(merged_cit_df$pCausal)
+```
+```{r}
+library(ggrepel)
+ggplot(merged_cit_df,aes(-log10(omni_p), -log10(pCausal))) +
+  geom_point() +
+  geom_label_repel(
+    aes(-log10(omni_p),-log10(pCausal),label=gene), 
+    data = merged_cit_df[-log10(merged_cit_df$omni_p) >0.3,],
+    alpha=0.5)+
+  geom_hline(yintercept = -log10(0.05 / nrow(merged_cit_df)), alpha = 0.5, color = "red")+
+  geom_vline(xintercept = -log10(0.05 / length(unique(merged_cit_df$omni_p))), alpha = 0.5, color = "red")
+ggplot(merged_cit_df,aes(-log10(p1), -log10(pCausal))) + geom_point()
+ggplot(merged_cit_df,aes(-log10(p2), -log10(pCausal))) + geom_point()
+ggplot(merged_cit_df,aes(-log10(p3), -log10(pCausal))) + geom_point()
+ggplot(merged_cit_df,aes(-log10(p4), -log10(pCausal))) + geom_point()
+
+```
+
+```{r}
+ggplot(merged_cit_df %>% select(p1) %>% unique(),aes(p1)) + geom_histogram()
+ggplot(merged_cit_df %>% select(p2) %>% unique(),aes(p2)) + geom_histogram()
+ggplot(merged_cit_df %>% select(p3) %>% unique(),aes(p3)) + geom_histogram()
+ggplot(merged_cit_df %>% select(p4) %>% unique(),aes(p4)) + geom_histogram()
+ggplot(merged_cit_df %>% select(omni_p) %>% unique(),aes(omni_p)) + geom_histogram()
+ggplot(merged_cit_df %>% select(pCausal) %>% unique(), aes(pCausal)) + geom_histogram()
+```
+ 

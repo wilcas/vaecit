@@ -58,10 +58,18 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
         # run CIT
         if opts['run_reverse']:
             mediation_results.append(
-                cit.cit(cur_epigenetic.reshape(n,1), cur_exp.reshape(n,1), latent_genotype.reshape(n,opts['num_latent'])))
+                cit.cit(
+                    cur_epigenetic.reshape(n,1),
+                    cur_exp.reshape(n,1),
+                    latent_genotype.reshape(n,opts['num_latent']),
+                    num_bootstrap=opts['num_bootstrap']))
         else:
             mediation_results.append(
-                cit.cit(cur_exp.reshape(n,1), cur_epigenetic.reshape(n,1), latent_genotype.reshape(n,opts['num_latent'])))
+                cit.cit(
+                    cur_exp.reshape(n,1),
+                    cur_epigenetic.reshape(n,1),
+                    latent_genotype.reshape(n,opts['num_latent']),
+                    num_bootstrap=opts['num_bootstrap']))
     return mediation_results
 
 
@@ -83,6 +91,7 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
 @click.option('--out-name', type=str, required=True,
     help="Suffix for output files, no path")
 @click.option('--vae-depth', type=int, default=None)
+@click.option('--num-bootsrap', type=int, default = 100000)
 @click.option('--run-reverse', default=False, is_flag=True)
 def main(**opts):
     logging.basicConfig(
@@ -121,6 +130,8 @@ def main(**opts):
     # generate output
     if opts['run_reverse']:
         opts['out_name'] = "rev_" + opts['out_name']
+        if opts['num_bootstrap'] is None:
+            opts['out_name'] = "perm_test_" + opts['out_name']
     cit.write_csv(merged_results, opts['out_name'])
     return 0
 

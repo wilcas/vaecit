@@ -44,6 +44,7 @@ def main():
     num_sim = 100
     num_subjects = 500
     num_genotypes = 50
+    num_bootstrap = None
     depths = [5] # number of hidden layers
     latent = [1] # number of latent variables
 
@@ -97,7 +98,7 @@ def main():
     with joblib.parallel_backend('loky'):
         for param_set in product([num_genotypes], latent, depths):
             null_results = joblib.Parallel(n_jobs=-1, verbose=10)(
-                joblib.delayed(cit.cit)(trait, gene_exp, Z, 10000)
+                joblib.delayed(cit.cit)(trait, gene_exp, Z, None)
                 for ((trait, gene_exp, _), Z) in zip(null_datasets, null_z[param_set])
             )
             write_csv(
@@ -108,7 +109,7 @@ def main():
                     num_genotypes))
 
             caus1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
-                joblib.delayed(cit.cit)(trait, gene_exp, Z, 10000)
+                joblib.delayed(cit.cit)(trait, gene_exp, Z, None)
                 for ((trait, gene_exp, _), Z) in zip(caus1_datasets, caus1_z[param_set])
             )
             write_csv(
@@ -119,7 +120,7 @@ def main():
                     num_genotypes))
 
             ind1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
-                joblib.delayed(cit.cit)(trait, gene_exp, Z, 10000)
+                joblib.delayed(cit.cit)(trait, gene_exp, Z, None)
                 for ((trait, gene_exp, _), Z) in zip(ind1_datasets, ind1_z[param_set])
             )
             write_csv(

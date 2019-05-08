@@ -47,8 +47,9 @@ def write_csv(results, vars_explained, filename):
 def main():
     num_sim = 100
     num_subjects = 500
-    num_genotypes = [1,10,50,100]
+    num_genotypes = [10,50,100]
     pcs_to_test = [1]
+    bootstraps = None
     block_structure = {
         "100": [1.0],
         "80-20": [0.8,0.2],
@@ -104,20 +105,20 @@ def main():
         for (i, num_genotype, key) in product(pcs_to_test, num_genotypes, block_structure.keys()):
             data_key = (i, num_genotype, key)
             null_results = joblib.Parallel(n_jobs=-1, verbose=10)(
-                    joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i],10000)
+                    joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i],bootstraps)
                     for ((trait, gene_exp, _), (Z,_)) in zip(null_datasets[data_key],null_PCs[data_key])
             )
             null_explained = [np.sum(D[0:i]) for (_,D) in null_PCs[data_key]]
             write_csv(null_results, null_explained, "cit_null_{}_PCs_{}_gen_{}_split.csv".format(i,num_genotype,key))
 
             caus1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
-                    joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i], 10000)
+                    joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i], bootstraps)
                     for ((trait, gene_exp, _), (Z,_)) in zip(caus1_datasets[data_key],caus1_PCs[data_key])
             )
             caus1_explained = [np.sum(D[0:i]) for (_,D) in caus1_PCs[data_key]]
             write_csv(caus1_results, caus1_explained, "cit_caus1_{}_PCs_{}_gen_{}_split.csv".format(i,num_genotype,key))
             ind1_results = joblib.Parallel(n_jobs=-1, verbose=10)(
-                    joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i], 10000)
+                    joblib.delayed(cit.cit)(trait, gene_exp, Z[:,0:i], bootstraps)
                     for ((trait, gene_exp, _), (Z,_)) in zip(ind1_datasets[data_key], ind1_PCs[data_key])
             )
             ind1_explained = [np.sum(D[0:i]) for (_,D) in ind1_PCs[data_key]]

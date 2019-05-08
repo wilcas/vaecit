@@ -58,14 +58,14 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
                     cur_epigenetic.reshape(n,1),
                     cur_exp.reshape(n,1),
                     cur_genotype[:, g_ids == row.snp],
-                    num_bootstrap=100000))
+                    num_bootstrap=opts['num_bootstrap']))
         else:
             mediation_results.append(
                 cit.cit(
                     cur_exp.reshape(n,1),
                     cur_epigenetic.reshape(n,1),
                     cur_genotype[:, g_ids == row.snp],
-                    num_bootstrap=100000))
+                    num_bootstrap=opts['num_bootstrap']))
     return mediation_results
 
 
@@ -84,6 +84,7 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
     help="Directory of csv files containing snp coordinates")
 @click.option('--out-name', type=str, required=True,
     help="Suffix for output files, no path")
+@click.option('--num-bootsrap', type=int, default = 100000)
 @click.option('--run-reverse', default=False, is_flag=True)
 def main(**opts):
     logging.basicConfig(
@@ -122,6 +123,8 @@ def main(**opts):
     # generate output
     if opts['run_reverse']:
         opts['out_name'] = "rev_" + opts['out_name']
+    if opts['num_bootstrap'] is None:
+        opts['out_name'] = "perm_test_" + opts['out_name']
     cit.write_csv(merged_results, opts['out_name'])
     return 0
 
