@@ -1,12 +1,13 @@
 #!/bin/bash
-#PBS -l walltime=20:00:00
-#PBS -l mem=44GB
-#PBS -l nodes=1:ppn=8
-#PBS -q small
+#PBS -l walltime=72:00:00
+#PBS -l mem=64GB
+#PBS -l nodes=1:ppn=6
+#PBS -q large
 #PBS -m be
 #PBS -M william.casazza@stat.ubc.ca
 
 source activate tf_vae
+
 cd /zfs3/users/william.casazza/william.casazza/vaecit/scripts
 python rosmap_cit_replication.py \
   --m-file="$HOME/methylationSNMnormpy.mat" \

@@ -13,7 +13,6 @@ import numpy as np
 import pandas as pd
 
 
-
 def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
     (m_samples, m_ids, methylation) = methyl
     (ac_samples, ac_ids, acetylation) = acetyl
@@ -91,7 +90,7 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
 @click.option('--out-name', type=str, required=True,
     help="Suffix for output files, no path")
 @click.option('--vae-depth', type=int, default=None)
-@click.option('--num-bootsrap', type=int, default = 100000)
+@click.option('--num-bootstrap', type=int, default = 100000)
 @click.option('--run-reverse', default=False, is_flag=True)
 def main(**opts):
     logging.basicConfig(
@@ -99,6 +98,8 @@ def main(**opts):
             opts['out_name'].split(".")[0],
             int(time.time())),
         level=logging.WARNING)
+    if opts['num_bootstrap'] < 1:
+        opts['num_bootstrap'] = None
     pcs_to_remove = 10
     # load known data
     (m_samples, m_ids, methylation) = dm.load_methylation(opts['m_file'])
@@ -120,7 +121,7 @@ def main(**opts):
     methyl = (m_samples, m_ids, methylation)
     acetyl = (ac_samples, ac_ids, acetylation)
     express = (e_samples, e_ids, expression)
-    with joblib.parallel_backend("multiprocessing"):
+    with joblib.parallel_backend("loky"):
        mediation_results = joblib.Parallel(n_jobs=-1, verbose=10)(
            joblib.delayed(cit_on_qtl_set)(df, gene, coord_df, methyl, acetyl, express, opts)
            for (gene, df) in tests_df.groupby('gene')

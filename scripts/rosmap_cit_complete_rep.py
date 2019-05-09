@@ -18,6 +18,7 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
     (m_samples, m_ids, methylation) = methyl
     (ac_samples, ac_ids, acetylation) = acetyl
     (e_samples, e_ids, expression) = express
+    gc.collect()
     # get load in genotypes associated with gene
     snp_files = dm.get_snp_groups(df.snp.values, coord_df, opts['genotype_dir'])
     df['fname'] = snp_files
@@ -84,7 +85,7 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
     help="Directory of csv files containing snp coordinates")
 @click.option('--out-name', type=str, required=True,
     help="Suffix for output files, no path")
-@click.option('--num-bootsrap', type=int, default = 100000)
+@click.option('--num-bootstrap', type=int, default = 100000)
 @click.option('--run-reverse', default=False, is_flag=True)
 def main(**opts):
     logging.basicConfig(
@@ -92,6 +93,8 @@ def main(**opts):
             opts['out_name'].split(".")[0],
             int(time.time())),
         level=logging.WARNING)
+    if opts['num_bootstrap'] < 1:
+        opts['num_bootstrap'] = None
     pcs_to_remove = 10
     # load known data
     (m_samples, m_ids, methylation) = dm.load_methylation(opts['m_file'])
@@ -114,7 +117,7 @@ def main(**opts):
     acetyl = (ac_samples, ac_ids, acetylation)
     express = (e_samples, e_ids, expression)
     with joblib.parallel_backend("loky"):
-       mediation_results = joblib.Parallel(n_jobs=-1, verbose=10)(
+       mediation_results = joblib.Parallel(n_jobs=2, verbose=10)(
            joblib.delayed(cit_on_qtl_set)(df, gene, coord_df, methyl, acetyl, express, opts)
            for (gene, df) in tests_df.groupby('gene')
        )
