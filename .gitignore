@@ -10,3 +10,7 @@ vaecit.Rproj
 *.e*
 *.RData
 *.log*
+CIT_groupby_order.txt
+cit_genotypes.csv
+cit_genotypes_hrc.csv
+

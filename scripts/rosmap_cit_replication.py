@@ -13,44 +13,49 @@ import numpy as np
 import pandas as pd
 
 
-def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
+def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts, geno=None):
     (m_samples, m_ids, methylation) = methyl
     (ac_samples, ac_ids, acetylation) = acetyl
     (e_samples, e_ids, expression) = express
-    # get load in genotypes associated with gene
-    snp_files = dm.get_snp_groups(df.snp.values, coord_df, opts['genotype_dir'])
-    df['fname'] = snp_files
-    groups = iter(df.groupby('fname'))
-    # grab from first file
-    (snp_file, snp_df) = next(groups)
-    g_samples, g_ids, genotype = dm.load_genotype(snp_file,snp_df.snp.values)
-    # grab from remaining files
-    for (snp_file, snp_df) in groups:
-        _, g_ids_cur, genotype_cur = dm.load_genotype(snp_file,snp_df.snp.values)
-        genotype = np.concatenate((genotype,genotype_cur),axis = 1)
-        g_ids = np.concatenate((g_ids, g_ids_cur), axis = 0)
-    # match samples
-    (m_idx, ac_idx, e_idx, g_idx) =  dm.match_samples(m_samples, ac_samples, e_samples, g_samples)
-    (m_samples, cur_methylation) = (m_samples[m_idx], methylation[m_idx,:])
-    (ac_samples, cur_acetylation) = (ac_samples[ac_idx], acetylation[ac_idx,:])
-    (e_samples, cur_expression) = (e_samples[e_idx], expression[e_idx,:])
-    (g_samples, cur_genotype) = (g_samples[g_idx], genotype[g_idx,:])
+    if geno is None:
+        # get load in genotypes associated with gene
+        snp_files = dm.get_snp_groups(df.snp.values, coord_df, opts['genotype_dir'])
+        df['fname'] = snp_files
+        groups = iter(df.groupby('fname'))
+        # grab from first file
+        (snp_file, snp_df) = next(groups)
+        g_samples, g_ids, genotype = dm.load_genotype(snp_file,snp_df.snp.values)
+        # grab from remaining files
+        for (snp_file, snp_df) in groups:
+            _, g_ids_cur, genotype_cur = dm.load_genotype(snp_file,snp_df.snp.values)
+            genotype = np.concatenate((genotype,genotype_cur),axis = 1)
+            g_ids = np.concatenate((g_ids, g_ids_cur), axis = 0)
+        # match samples
+        (m_idx, ac_idx, e_idx, g_idx) =  dm.match_samples(m_samples, ac_samples, e_samples, g_samples)
+        (m_samples, methylation) = (m_samples[m_idx], methylation[m_idx,:])
+        (ac_samples, acetylation) = (ac_samples[ac_idx], acetylation[ac_idx,:])
+        (e_samples, expression) = (e_samples[e_idx], expression[e_idx,:])
+        (g_samples, genotype) = (g_samples[g_idx], genotype[g_idx,:])
+    else:
+        (g_samples, g_ids, genotype) = geno
+        cur_genotype = genotype[:,np.isin(g_ids, df.snp.to_numpy())]
+
     # reduce genotype
     latent_genotype = dm.reduce_genotype(cur_genotype, opts['lv_method'], opts['num_latent'], gene, opts['vae_depth'])
 
     if type(latent_genotype) != np.ndarray:
         latent_genotype = latent_genotype.numpy().astype(np.float64)
     # get probes and peaks
-    cur_exp = cur_expression[:, e_ids == gene]
+    cur_exp = expression[:, e_ids == gene]
 
-    n = cur_expression.shape[0]
+    n = expression.shape[0]
     mediation_results = []
     for (_, row) in df.iterrows():
         cur_epigenetic = dm.get_mediator(
-            cur_methylation,
+            methylation,
             m_ids,
             row.probes.split(","),
-            data2=cur_acetylation,
+            data2=acetylation,
             ids2=ac_ids,
             which_ids2=row.peaks.split(",")
         )
@@ -81,6 +86,7 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts):
     help="Expression MATLAB data filename")
 @click.option('--genotype-dir', type=str, required=True,
     help="Directory containing genotype CSVs")
+@click.option('--genotype-file', type=str, default=None)
 @click.option('--cit-tests', type=str, required=True,
     help="Filename of manifest containing rsids, probe/peak ids and genes to test for causal mediation.")
 @click.option('--snp-coords', type=str, required=True,
@@ -116,23 +122,39 @@ def main(**opts):
     coord_files = [os.path.join(opts['snp_coords'],f) for f in os.listdir(opts['snp_coords']) if f.endswith('.csv')]
     coord_df = pd.concat([pd.read_csv(f, header=None, names=["snp", "chr", "pos"]) for f in  coord_files], axis=0, ignore_index = True)
 
-    # parse out tests by qtl Gene
+    # run tests by qtl Gene
     tests_df = pd.read_csv(opts['cit_tests'], sep='\t')
-    methyl = (m_samples, m_ids, methylation)
-    acetyl = (ac_samples, ac_ids, acetylation)
-    express = (e_samples, e_ids, expression)
+    if opts['genotype_file'] is not None:
+        genotype_df = pd.read_csv(opts['genotype_file'], index_col=0)
+        genotype = genotype_df.to_numpy().T
+        g_samples = genotype_df.columns.to_numpy()
+        g_ids = genotype_df.index.to_numpy()
+        (m_idx, ac_idx, e_idx, g_idx) =  dm.match_samples(m_samples, ac_samples, e_samples, g_samples)
+        (g_samples, genotype) = (g_samples[g_idx], genotype[g_idx,:])
+        (m_samples, methylation) = (m_samples[m_idx], methylation[m_idx,:])
+        (ac_samples, acetylation) = (ac_samples[ac_idx], acetylation[ac_idx,:])
+        (e_samples, expression) = (e_samples[e_idx], expression[e_idx,:])
+        geno = (g_samples, g_ids, genotype)
+        methyl = (m_samples, m_ids, methylation)
+        acetyl = (ac_samples, ac_ids, acetylation)
+        express = (e_samples, e_ids, expression)
+    else:
+        methyl = (m_samples, m_ids, methylation)
+        acetyl = (ac_samples, ac_ids, acetylation)
+        express = (e_samples, e_ids, expression)
+        geno = None
     with joblib.parallel_backend("loky"):
        mediation_results = joblib.Parallel(n_jobs=-1, verbose=10)(
-           joblib.delayed(cit_on_qtl_set)(df, gene, coord_df, methyl, acetyl, express, opts)
+           joblib.delayed(cit_on_qtl_set)(df, gene, coord_df, methyl, acetyl, express, opts, geno)
            for (gene, df) in tests_df.groupby('gene')
        )
-    # mediation_results = [cit_on_qtl_set(df,gene,coord_df,methyl,acetyl,express,opts) for (gene,df) in tests_df.groupby('gene')] # SEQUENTIAL VERSION
+    # mediation_results = [cit_on_qtl_set(df,gene,coord_df,methyl,acetyl,express,opts,geno) for (gene,df) in tests_df.groupby('gene')] # SEQUENTIAL VERSION
     merged_results = [item for sublist in mediation_results for item in sublist]
     # generate output
     if opts['run_reverse']:
         opts['out_name'] = "rev_" + opts['out_name']
-        if opts['num_bootstrap'] is None:
-            opts['out_name'] = "perm_test_" + opts['out_name']
+    if opts['num_bootstrap'] is None:
+        opts['out_name'] = "perm_test_" + opts['out_name']
     cit.write_csv(merged_results, opts['out_name'])
     return 0
 

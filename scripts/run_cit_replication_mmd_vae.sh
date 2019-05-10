@@ -1,14 +1,14 @@
 #!/bin/bash
 #PBS -l walltime=20:00:00
-#PBS -l mem=44GB
-#PBS -l nodes=1:ppn=8
+#PBS -l mem=22gb
+#PBS -l select=2:ncpus=4
 #PBS -q small
 #PBS -m be
 #PBS -M william.casazza@stat.ubc.ca
 
 source activate tf_vae
 cd /zfs3/users/william.casazza/william.casazza/vaecit/scripts
-python rosmap_cit_replication.py \
+mpiexec -npernode 4 --oversubscribe python rosmap_cit_replication.py \
   --m-file="$HOME/methylationSNMnormpy.mat" \
   --ac-file="/zfs3/scratch/saram_lab/ROSMAP/data/acetylationNorm.mat" \
   --exp-file="/zfs3/scratch/saram_lab/ROSMAP/data/expressionAndPhenotype.mat" \
