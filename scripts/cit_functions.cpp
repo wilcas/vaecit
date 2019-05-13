@@ -40,11 +40,15 @@ extern "C" {
   }
 
 
-  void run_bootstraps(int n, int num_bootstrap, double *T,
+  void run_bootstraps(int n, int num_bootstrap, double *T, double *Me,
     double *residual, double *L, double *tstats){
     arma::mat tmp_residual = arma::join_rows(
       arma::ones<arma::mat>(n,1),
       arma::mat(residual,n,1,false,true)
+    );
+    arma::mat tmp_me = arma::join_rows(
+      arma::zeros<arma::mat>(n,1),
+      arma::mat(Me,n,1,false,true)
     );
     arma::mat tmp_L = arma::mat(L,n,1,false,true);
     //initialize regression results
@@ -54,7 +58,7 @@ extern "C" {
         //residual includes intercept
         tmp_residual = arma::shuffle(tmp_residual, 0);
         design = arma::join_rows(
-          tmp_residual,
+          tmp_me + tmp_residual,
           tmp_L
         );
         resid = design.memptr();

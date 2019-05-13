@@ -76,17 +76,18 @@ def test_association(y,design_null,design_full):
     return fit1, p
 
 
-def run_bootstraps(T, residual, L, n, num_bootstrap):
+def run_bootstraps(T, Me, residual, L, n, num_bootstrap):
     lib = CDLL('./cit_functions.so')
     lib.run_bootstraps.argtypes = [
         c_int, c_int, np.ctypeslib.ndpointer(dtype=np.float),
+        np.ctypeslib.ndpointer(dtype=np.float),
         np.ctypeslib.ndpointer(dtype=np.float),
         np.ctypeslib.ndpointer(dtype=np.float),
         np.ctypeslib.ndpointer(dtype=np.float)
     ]
     lib.run_bootstraps.restype = c_void_p
     tstats = np.empty(num_bootstrap, np.float)
-    lib.run_bootstraps(n, num_bootstrap,T,residual,L,tstats)
+    lib.run_bootstraps(n, num_bootstrap,T, Me,residual,L,tstats)
     return tstats
 
 
@@ -98,18 +99,20 @@ def test_independence(T, G, L, num_bootstrap):
     residual = G - (np.concatenate((np.ones((n,1)),L), axis=1)@beta).reshape((n,1))
     fit1 = linreg_with_stats(T, np.concatenate((np.ones((n,1)), G, L),axis=1))
     fstat = fit1[-1][-1]**2
+    Me = (np.concatenate((np.ones((n,1)),L), axis=1)@beta).reshape((n,1))
     if num_bootstrap is None:
-        fperm = run_bootstraps(T,residual,L,n,100) ** 2
+        fperm = run_bootstraps(T,Me,residual,L,n,100) ** 2
         v1 = 1
-        v2 = n - 2 - L.shape[1]
-        delta = np.mean(fperm)
+        v2 = n - 3
+        delta = ((np.mean(fperm)*v1 * (v2 - 2)) / v2) - v1
         pperm = stats.ncf.cdf(fperm,v1,v2,delta)
         zperm = stats.norm.ppf(pperm)
         porig = stats.ncf.cdf(fstat,v1,v2,delta)
         zorig = stats.norm.ppf(porig)
         p = stats.norm.cdf(zorig, scale = np.std(zperm))
+        print(np.mean(fperm))
     else:
-        bootstraps = run_bootstraps(T, residual, L, n, num_bootstrap)
+        bootstraps = run_bootstraps(T, Me, residual, L, n, num_bootstrap)
         f_list = bootstraps ** 2
         p = np.sum(f_list <= fstat) / num_bootstrap
     return fit1, p

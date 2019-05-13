@@ -50,9 +50,9 @@ def write_csv(results, vars_explained, filename):
 def main():
     num_sim = 100
     num_subjects = 500
-    num_genotypes = [10,50,100]
+    num_genotypes = [10]
     pcs_to_test = [1]
-    bootstraps = 10000
+    bootstraps = None
     block_structure = {
         "100": [1.0],
         "80-20": [0.8,0.2],
