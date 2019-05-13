@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -l walltime=30:00:00
+#PBS -l walltime=5:00:00
 #PBS -l mem=22GB
 #PBS -l nodes=1:ppn=4
 #PBS -q small
@@ -19,5 +19,5 @@ python rosmap_cit_replication.py \
   --lv-method="pca" \
   --num-latent=1 \
   --num-bootstrap=0 \
-  --out-name="pca_1_latent_cit.csv"
+  --out-name="pca_1_latent_pca_fix_cit.csv"
 

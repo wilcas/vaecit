@@ -9,10 +9,11 @@ import joblib
 import data_model as dm
 import numpy as np
 
+from scipy.stats import zscore
 
 def compute_genotype_pcs(genotype):
-    (U, D, vh) = np.linalg.svd(genotype, full_matrices=False, compute_uv=True)
-    return (vh.T)@np.diag(D)
+    (U, D, vh) = np.linalg.svd(zscore(genotype), full_matrices=False, compute_uv=True)
+    return tmp@vh.T
 
 
 def write_csv(results, filename):

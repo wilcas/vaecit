@@ -16,4 +16,4 @@ python rosmap_cit_complete_rep.py \
   --genotype-dir="/zfs3/scratch/saram_lab/ROSMAP/data/genotypeImputed/1kg/snpMatrix/" \
   --snp-coords="/zfs3/scratch/saram_lab/ROSMAP/data/genotypeImputed/1kg/snpPos/" \
   --cit-tests="$HOME/vaecit/CIT.txt" \
-  --out-name="cit_sanity_check.csv"
+  --out-name="cit_pca_fix_sanity_check.csv"

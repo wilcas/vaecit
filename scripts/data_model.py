@@ -188,7 +188,7 @@ def compute_pcs(A):
     except np.linalg.LinAlgError:
         A2 = np.conj(A_std.T)@A_std
         (U,D,vh) = np.linalg.svd(A_std, full_matrices=False, compute_uv=True)
-    return (vh.T)@np.diag(D)
+    return A_std@vh.T
 
 
 def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = None):

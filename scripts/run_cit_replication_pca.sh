@@ -1,7 +1,7 @@
 #!/bin/bash
-#PBS -l walltime=30:00:00
+#PBS -l walltime=5:00:00
 #PBS -l mem=64GB
-#PBS -l nodes=1:ppn=6
+#PBS -l nodes=1:ppn=4
 #PBS -q small
 #PBS -m be
 #PBS -M william.casazza@stat.ubc.ca
@@ -18,4 +18,4 @@ python rosmap_cit_replication.py \
   --cit-tests="$HOME/vaecit/CIT.txt" \
   --lv-method="pca" \
   --num-latent=1 \
-  --out-name="pca_1_latent_cit.csv"
+  --out-name="pca_1_latent__pca_fix_cit.csv"
