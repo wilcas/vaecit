@@ -12,8 +12,9 @@ import numpy as np
 from scipy.stats import zscore
 
 def compute_genotype_pcs(genotype):
-    (U, D, vh) = np.linalg.svd(zscore(genotype), full_matrices=False, compute_uv=True)
-    return tmp@vh.T
+    A = zscore(genotype)
+    (U, D, vh) = np.linalg.svd(A, full_matrices=False, compute_uv=True)
+    return A@vh.T
 
 
 def write_csv(results, filename):
