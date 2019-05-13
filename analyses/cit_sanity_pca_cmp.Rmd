@@ -130,42 +130,156 @@ head(cit_df)
 pca_cit_df <- read.csv("../data/rosmap_cit_pca/pca_1_latent_cit.csv")
 dim(pca_cit_df)
 head(pca_cit_df)
-
-merged_cit_df <- cbind(cit_df[c("snp", "probes","peaks", "pCausal","gene")], pca_cit_df[c("p1","p2","p3","p4","omni_p")])
+pca_cit_rev_df <- read.csv("../data/rosmap_cit_pca/rev_pca_1_latent_cit.csv") %>%
+  rename(rev_p1=p1,rev_p2=p2,rev_p3=p3,rev_p4=p4,rev_omni_p=omni_p)
+pca_cit_approx_df <- read.csv("../data/rosmap_cit_pca/perm_test_pca_1_latent_cit.csv") %>% 
+  rename(approx_p1=p1,approx_p2=p2,approx_p3=p3,approx_p4=p4,approx_omni_p=omni_p)
+merged_cit_df <- cbind(
+  cit_df[c("snp", "probes","peaks", "pCausal","pReact","gene")],
+  pca_cit_df[c("p1","p2","p3","p4","omni_p")],
+  pca_cit_rev_df[c("rev_p1","rev_p2","rev_p3","rev_p4","rev_omni_p")],
+  pca_cit_approx_df[c("approx_p1","approx_p2","approx_p3","approx_p4","approx_omni_p")])
 head(merged_cit_df)
+merged_cit_df %>% group_by(probes,peaks,gene) %>% summarize(count = n()) %>%
+  ggplot(aes(x = "Number of epigenetic terms shared per gene", y = count)) + geom_violin(width = 0.5)
 ```
+Okay, that last plot means that I made an incorrect assumption in how to go about plotting these tests. Really, for each p value I have in the PCA version, I actually have multiple snp-relative p values I am comparing in the single version (for the case where i have shared epigenetic sets). I can/should change my script later to also group on sets of epigenetic marks, but to get a sense of how the rest of my pipeline worked let's group things properly before plotting:
+```{r}
+grouped_cit_df <- merged_cit_df %>% 
+  group_by(probes,peaks) %>% 
+  summarize(
+    omni_p = max(omni_p),
+    rev_omni_p = max(rev_omni_p),
+    approx_omni_p = max(approx_omni_p),
+    maxpCausal = max(pCausal),
+    minpCausal = min(pCausal),
+    meanpCausal = mean(pCausal),
+    maxpReact = max(pReact),
+    minpReact = min(pReact),
+    meanpReact = mean(pReact)
+  )
+head(grouped_cit_df)
+```
+
+
 Since I'm a nice person, I made these tables have the same order per test, so I just need to plot p values along the same axes for a nice comparison:
 ```{r}
-summary(merged_cit_df$omni_p)
-summary(merged_cit_df$p1)
-summary(merged_cit_df$p2)
-summary(merged_cit_df$p3)
-summary(merged_cit_df$p4)
-summary(merged_cit_df$pCausal)
-```
-```{r}
 library(ggrepel)
-ggplot(merged_cit_df,aes(-log10(omni_p), -log10(pCausal))) +
-  geom_point() +
-  geom_label_repel(
-    aes(-log10(omni_p),-log10(pCausal),label=gene), 
-    data = merged_cit_df[-log10(merged_cit_df$omni_p) >0.3,],
-    alpha=0.5)+
-  geom_hline(yintercept = -log10(0.05 / nrow(merged_cit_df)), alpha = 0.5, color = "red")+
-  geom_vline(xintercept = -log10(0.05 / length(unique(merged_cit_df$omni_p))), alpha = 0.5, color = "red")
-ggplot(merged_cit_df,aes(-log10(p1), -log10(pCausal))) + geom_point()
-ggplot(merged_cit_df,aes(-log10(p2), -log10(pCausal))) + geom_point()
-ggplot(merged_cit_df,aes(-log10(p3), -log10(pCausal))) + geom_point()
-ggplot(merged_cit_df,aes(-log10(p4), -log10(pCausal))) + geom_point()
+library(cowplot)
+p1 <- ggplot(grouped_cit_df, aes(x = -log10(omni_p), y = -log10(meanpCausal))) +
+  geom_point()+
+  scale_y_continuous(limits = c(0,30)) + 
+  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$omni_p,grouped_cit_df$meanpCausal)))
 
+p2 <-ggplot(grouped_cit_df, aes(x = -log10(omni_p), y = -log10(maxpCausal))) +
+  geom_point()+
+  scale_y_continuous(limits = c(0,30)) + 
+  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$omni_p,grouped_cit_df$maxpCausal)))
+
+p3 <-ggplot(grouped_cit_df, aes(x = -log10(omni_p), y = -log10(minpCausal))) +
+  geom_point()+
+  scale_y_continuous(limits = c(0,30)) + 
+  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$omni_p,grouped_cit_df$minpCausal)))
+
+p4 <-ggplot(grouped_cit_df, aes(x = -log10(approx_omni_p), y = -log10(meanpCausal))) +
+  geom_point()+
+  scale_y_continuous(limits = c(0,30)) + 
+  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$approx_omni_p,grouped_cit_df$meanpCausal)))
+
+p5 <-ggplot(grouped_cit_df, aes(x = -log10(approx_omni_p), y = -log10(maxpCausal))) +
+  geom_point()+
+  scale_y_continuous(limits = c(0,30)) + 
+  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$approx_omni_p,grouped_cit_df$maxpCausal)))
+
+p6 <-ggplot(grouped_cit_df, aes(x = -log10(approx_omni_p), y = -log10(minpCausal))) +
+  geom_point()+
+  scale_y_continuous(limits = c(0,30)) + 
+  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$approx_omni_p,grouped_cit_df$minpCausal)))
+plot_grid(p1,p2,p3,p4,p5,p6,labels="auto")
 ```
 
+Pretty discouraging, lets see how my individual results compare to what's published, note that I don't use any approximation for test 4 of the CIT, so this is a preliminary comparison, not a definitive result:
 ```{r}
-ggplot(merged_cit_df %>% select(p1) %>% unique(),aes(p1)) + geom_histogram()
-ggplot(merged_cit_df %>% select(p2) %>% unique(),aes(p2)) + geom_histogram()
-ggplot(merged_cit_df %>% select(p3) %>% unique(),aes(p3)) + geom_histogram()
-ggplot(merged_cit_df %>% select(p4) %>% unique(),aes(p4)) + geom_histogram()
-ggplot(merged_cit_df %>% select(omni_p) %>% unique(),aes(omni_p)) + geom_histogram()
-ggplot(merged_cit_df %>% select(pCausal) %>% unique(), aes(pCausal)) + geom_histogram()
+library(cowplot)
+cit_rep_df <- read.csv("../data/rosmap_complete_rep/rev_cit_sanity_check.csv")
+cit_rep_approx_df <- read.csv("../data/rosmap_complete_rep/perm_test_cit_sanity_check.csv") %>%
+  rename(approx_p1 = p1,approx_p2 = p2,approx_p3 = p3,approx_p4 = p4,approx_omni_p = omni_p)
+cit_rep_approx_fix_df <- read.csv("../data/rosmap_complete_rep/perm_test_cit_pca_fix_sanity_check.csv") %>%
+    rename(approx_fix_p1 = p1,approx_fix_p2 = p2,approx_fix_p3 = p3,approx_fix_p4 = p4,approx_fix_omni_p = omni_p)
+
+rep_merged_df <- cbind(
+  cit_df[c("snp", "probes","peaks", "pCausal","pReact","gene")],
+  cit_rep_df[c("p1","p2","p3","p4","omni_p")],
+  cit_rep_approx_df[c("approx_p1","approx_p2","approx_p3","approx_p4","approx_omni_p")],
+  cit_rep_approx_fix_df[c("approx_fix_p1","approx_fix_p2","approx_fix_p3","approx_fix_p4","approx_fix_omni_p")] )
+
+head(rep_merged_df)
+rep_merged_df
+p1 <- ggplot(rep_merged_df, aes(-log10(pmax(approx_fix_p3, approx_fix_p4)),-log10(pCausal))) + geom_point() +
+  labs(caption = sprintf(
+    "Correlation: %f", 
+    cor(
+      -log10(pmax(rep_merged_df$approx_fix_p3, rep_merged_df$approx_fix_p4)),
+      -log10(rep_merged_df$pCausal))))
+
+p2 <- ggplot(rep_merged_df, aes(-log10(approx_fix_omni_p),-log10(pCausal))) + geom_point() +
+  labs(caption = sprintf(
+    "Correlation: %f", 
+    cor(
+      -log10(rep_merged_df$approx_fix_omni_p),
+      -log10(rep_merged_df$pCausal))))
+gather(rep_merged_df,key = "test",value = "pvalue", approx_fix_p1, approx_fix_p2, approx_fix_p3, approx_fix_p4, approx_fix_omni_p) %>%
+  ggplot(aes(pvalue)) + geom_histogram() + facet_wrap(~ test)
+plot_grid(p1,p2)
 ```
- 
+No clue how well its working here, time to plot:
+```{r}
+ggplot(rep_merged_df,aes(-log10(omni_p),-log10(pReact))) + 
+  geom_point() + 
+  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$omni_p,rep_merged_df$pReact)))
+ggplot(rep_merged_df,aes(-log10(p1),-log10(pReact))) + 
+  geom_point() + 
+  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$p1,rep_merged_df$pReact)))
+ggplot(rep_merged_df,aes(-log10(p2),-log10(pReact))) + 
+  geom_point() + 
+  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$p2,rep_merged_df$pReact)))
+ggplot(rep_merged_df,aes(-log10(p3),-log10(pReact))) + 
+  geom_point() + 
+  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$p3,rep_merged_df$pReact)))
+ggplot(rep_merged_df,aes(-log10(p4),-log10(pReact))) + 
+  geom_point() + 
+  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$p4,rep_merged_df$pReact)))
+```
+
+Okay, so I should be looking to my pipeline code for possible bugs. I am positive that my code to match up samples works correctly, however here are the things I think are most likely incorrect:
+* Data processing pipeline (normalization, removal of principal components etc)
+* possibly the datasets I'm using (unlikely for genotype, could be what I'm using for methylation and acetylation, although I did check this twice at separate points with Bernard, I still may be confused)
+* How I'm computing epigenome PCs `--checked this, was using scaled left singular vectors instead of projection of data into pc space`
+* The semi-parametric test in condition 4 of CIT `possible memory leak, but seem to be correct in solving`
+* some sort of truncation of floating point numbers
+**found bugs**
+Those shown addressed above and:
+* error with CIT test 2 that went unnoticed in simulation data
+
+Here's the final proof that I do or don't have a bug in the pipeline (attempt at exact replication):
+```{r}
+ggplot(rep_merged_df,aes(-log10(approx_omni_p),-log10(pCausal))) + 
+  geom_point() + 
+  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$approx_omni_p,rep_merged_df$pCausal)))
+ggplot(rep_merged_df,aes(-log10(approx_p1),-log10(pCausal))) + 
+  geom_point() + 
+  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$approx_p1,rep_merged_df$pCausal)))
+ggplot(rep_merged_df,aes(-log10(approx_p2),-log10(pCausal))) + 
+  geom_point() + 
+  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$approx_p2,rep_merged_df$pCausal)))
+ggplot(rep_merged_df,aes(-log10(approx_p3),-log10(pCausal))) + 
+  geom_point() + 
+  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$approx_p3,rep_merged_df$pCausal)))
+ggplot(rep_merged_df,aes(-log10(approx_p4),-log10(pCausal))) + 
+  geom_point() + 
+  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$approx_p4,rep_merged_df$pCausal)))
+ggplot(rep_merged_df,aes(-log10(pmax(approx_p3,approx_p4)),-log10(pCausal))) + 
+geom_point() +
+  labs(caption = sprintf("Correlation = %f", cor(pmax(rep_merged_df$approx_p3,rep_merged_df$approx_p4), rep_merged_df$pCausal)))
+```
+
