@@ -14,10 +14,11 @@ python rosmap_cit_replication.py \
   --ac-file="/zfs3/scratch/saram_lab/ROSMAP/data/acetylationNorm.mat" \
   --exp-file="/zfs3/scratch/saram_lab/ROSMAP/data/expressionAndPhenotype.mat" \
   --genotype-dir="/zfs3/scratch/saram_lab/ROSMAP/data/genotypeImputed/1kg/snpMatrix/" \
+  --genotype-file="/zfs3/users/william.casazza/william.casazza/vaecit/scripts/cit_genotypes.csv" \
   --snp-coords="/zfs3/scratch/saram_lab/ROSMAP/data/genotypeImputed/1kg/snpPos/" \
   --cit-tests="$HOME/vaecit/CIT.txt" \
   --lv-method="pca" \
   --num-latent=1 \
   --num-bootstrap=0 \
-  --out-name="pca_1_latent_pca_fix_cit.csv"
+  --out-name="pca_1_latent_fix_2_cit.csv"
 

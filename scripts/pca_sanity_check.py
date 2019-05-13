@@ -8,14 +8,17 @@ import joblib
 
 import data_model as dm
 import numpy as np
+
+from scipy.stats import zscore
 from itertools import product
 
 def compute_genotype_pcs(genotype):
     """
     Run PCA on genotype and return PCs and their percent variance explained
     """
-    (U, D, vh) = np.linalg.svd(genotype, full_matrices=False, compute_uv=True)
-    return U@np.diag(D), D / np.sum(D)
+    A = zscore(genotype)
+    (U, D, vh) = np.linalg.svd(A, full_matrices=False, compute_uv=True)
+    return A@vh.T, D / np.sum(D)
 
 
 def write_csv(results, vars_explained, filename):
