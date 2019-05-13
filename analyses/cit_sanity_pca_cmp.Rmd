@@ -37,6 +37,7 @@ get_sanity_results <- function(path){
 sanity_df <- get_sanity_results("../data/sanity_check/")
 sanity_df_perm <- get_sanity_results("../data/sanity_check_perm/")
 
+
 ```
 Okay, just given this peek things are looking good, lets plot to get a nice overall view of the results we have here:
 ```{r}
@@ -206,12 +207,16 @@ cit_rep_approx_df <- read.csv("../data/rosmap_complete_rep/perm_test_cit_sanity_
   rename(approx_p1 = p1,approx_p2 = p2,approx_p3 = p3,approx_p4 = p4,approx_omni_p = omni_p)
 cit_rep_approx_fix_df <- read.csv("../data/rosmap_complete_rep/perm_test_cit_pca_fix_sanity_check.csv") %>%
     rename(approx_fix_p1 = p1,approx_fix_p2 = p2,approx_fix_p3 = p3,approx_fix_p4 = p4,approx_fix_omni_p = omni_p)
+cit_rep_approx_fix_2_df <- read.csv("../data/rosmap_complete_rep/perm_test_cit_fix_2_sanity_check.csv") %>%
+  rename(approx_fix_2_p1 = p1,approx_fix_2_p2 = p2,approx_fix_2_p3 = p3,approx_fix_2_p4 = p4,approx_fix_2_omni_p = omni_p)
 
 rep_merged_df <- cbind(
   cit_df[c("snp", "probes","peaks", "pCausal","pReact","gene")],
   cit_rep_df[c("p1","p2","p3","p4","omni_p")],
   cit_rep_approx_df[c("approx_p1","approx_p2","approx_p3","approx_p4","approx_omni_p")],
-  cit_rep_approx_fix_df[c("approx_fix_p1","approx_fix_p2","approx_fix_p3","approx_fix_p4","approx_fix_omni_p")] )
+  cit_rep_approx_fix_df[c("approx_fix_p1","approx_fix_p2","approx_fix_p3","approx_fix_p4","approx_fix_omni_p")],
+  cit_rep_approx_fix_2_df[c("approx_fix_2_p1","approx_fix_2_p2","approx_fix_2_p3","approx_fix_2_p4","approx_fix_2_omni_p")])
+  
 
 head(rep_merged_df)
 rep_merged_df
@@ -229,6 +234,22 @@ p2 <- ggplot(rep_merged_df, aes(-log10(approx_fix_omni_p),-log10(pCausal))) + ge
       -log10(rep_merged_df$approx_fix_omni_p),
       -log10(rep_merged_df$pCausal))))
 gather(rep_merged_df,key = "test",value = "pvalue", approx_fix_p1, approx_fix_p2, approx_fix_p3, approx_fix_p4, approx_fix_omni_p) %>%
+  ggplot(aes(pvalue)) + geom_histogram() + facet_wrap(~ test)
+plot_grid(p1,p2)
+p1 <- ggplot(rep_merged_df, aes(-log10(pmax(approx_fix_2_p1,approx_fix_2_p3, approx_fix_2_p4)),-log10(pCausal))) + geom_point() +
+  labs(caption = sprintf(
+    "Correlation: %f", 
+    cor(
+      -log10(pmax(rep_merged_df$approx_fix_2_p1,rep_merged_df$approx_fix_2_p3, rep_merged_df$approx_fix_2_p4)),
+      -log10(rep_merged_df$pCausal))))
+
+p2 <- ggplot(rep_merged_df, aes(-log10(approx_fix_2_omni_p),-log10(pCausal))) + geom_point() +
+  labs(caption = sprintf(
+    "Correlation: %f", 
+    cor(
+      -log10(rep_merged_df$approx_fix_2_omni_p),
+      -log10(rep_merged_df$pCausal))))
+gather(rep_merged_df,key = "test",value = "pvalue", approx_fix_2_p1, approx_fix_2_p2, approx_fix_2_p3, approx_fix_2_p4, approx_fix_2_omni_p) %>%
   ggplot(aes(pvalue)) + geom_histogram() + facet_wrap(~ test)
 plot_grid(p1,p2)
 ```

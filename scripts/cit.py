@@ -130,7 +130,7 @@ def cit(target, mediator, instrument, num_bootstrap=10000):
     )
     stats3, p3 = test_association(
         target,
-        np.c_[np.ones((n, 1)), instrument],
+        np.c_[np.ones((n, 1)), mediator],
         np.c_[np.ones((n, 1)), mediator, instrument]
     )
     stats4, p4 = test_independence(target, mediator, instrument, num_bootstrap)

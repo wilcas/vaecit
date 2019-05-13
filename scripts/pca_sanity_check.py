@@ -16,9 +16,9 @@ def compute_genotype_pcs(genotype):
     """
     Run PCA on genotype and return PCs and their percent variance explained
     """
-    A = zscore(genotype)
-    (U, D, vh) = np.linalg.svd(A, full_matrices=False, compute_uv=True)
-    return A@vh.T, D / np.sum(D)
+    # A = zscore(genotype)
+    (U, D, vh) = np.linalg.svd(genotype, full_matrices=False, compute_uv=True)
+    return genotype@vh.T, D / np.sum(D)
 
 
 def write_csv(results, vars_explained, filename):
@@ -52,7 +52,7 @@ def main():
     num_subjects = 500
     num_genotypes = [10,50,100]
     pcs_to_test = [1]
-    bootstraps = None
+    bootstraps = 10000
     block_structure = {
         "100": [1.0],
         "80-20": [0.8,0.2],
