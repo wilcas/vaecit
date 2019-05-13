@@ -12,6 +12,30 @@ import data_model as dm
 import numpy as np
 import pandas as pd
 
+def write_csv(results, filename):
+    out_rows = []
+    for res in results:
+        cur_row = {}
+        for j in range(1,5):
+            cur_test = 'test{}'.format(j)
+            cur_p = 'p{}'.format(j)
+            for key in res[cur_test]:
+                if key in ['rss', 'r2']: #single value for test
+                    cur_key = '{}_{}'.format(cur_test,key)
+                    cur_row[cur_key] = res[cur_test][key]
+                else:
+                    for k in range(len(res[cur_test][key])):
+                        cur_key = '{}_{}{}'.format(cur_test,key,k)
+                        cur_row[cur_key] = res[cur_test][key][k]
+            cur_row[cur_p] = res[cur_p]
+        cur_row['omni_p'] = res['omni_p']
+        cur_row['rsid'] = res['rsid']
+        out_rows.append(cur_row)
+    with open(filename, 'w') as f:
+        names = out_rows[0].keys()
+        writer = csv.DictWriter(f, names)
+        writer.writeheader()
+        writer.writerows(out_rows)
 
 def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts, geno=None):
     (m_samples, m_ids, methylation) = methyl
@@ -54,19 +78,19 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts, geno=None)
         )
         # run CIT
         if opts['run_reverse']:
-            mediation_results.append(
-                cit.cit(
-                    cur_epigenetic.reshape(n,1),
-                    cur_exp.reshape(n,1),
-                    genotype[:, g_ids == row.snp],
-                    num_bootstrap=opts['num_bootstrap']))
+            res = cit.cit(
+                cur_epigenetic.reshape(n,1),
+                cur_exp.reshape(n,1),
+                genotype[:, g_ids == row.snp],
+                num_bootstrap=opts['num_bootstrap'])
         else:
-            mediation_results.append(
-                cit.cit(
-                    cur_exp.reshape(n,1),
-                    cur_epigenetic.reshape(n,1),
-                    genotype[:, g_ids == row.snp],
-                    num_bootstrap=opts['num_bootstrap']))
+            res = cit.cit(
+                cur_exp.reshape(n,1),
+                cur_epigenetic.reshape(n,1),
+                genotype[:, g_ids == row.snp],
+                num_bootstrap=opts['num_bootstrap'])
+        res['rsid'] = row.snp
+        mediation_results.append(res)
     return mediation_results
 
 
@@ -86,6 +110,7 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts, geno=None)
     help="Directory of csv files containing snp coordinates")
 @click.option('--out-name', type=str, required=True,
     help="Suffix for output files, no path")
+@click.option('--no-norm-epi', default=False, is_flag=True)
 @click.option('--num-bootstrap', type=int, default = 100000)
 @click.option('--run-reverse', default=False, is_flag=True)
 def main(**opts):
@@ -102,8 +127,9 @@ def main(**opts):
     (ac_samples, ac_ids, acetylation) = dm.load_acetylation(opts['ac_file'])
     (e_samples, e_ids, expression) = dm.load_expression(opts['exp_file'])
     # remove 'hidden' cell-type specific effects
-    methylation = dm.standardize_remove_pcs(methylation, pcs_to_remove)
-    acetylation = dm.standardize_remove_pcs(acetylation, pcs_to_remove)
+    if not opts['no_norm_epi']:
+        methylation = dm.standardize_remove_pcs(methylation, pcs_to_remove)
+        acetylation = dm.standardize_remove_pcs(acetylation, pcs_to_remove)
     mask = ~np.all(np.isnan(acetylation),axis=0)
     acetylation = acetylation[:, mask]
     ac_ids = ac_ids[mask]
@@ -145,6 +171,8 @@ def main(**opts):
         opts['out_name'] = "rev_" + opts['out_name']
     if opts['num_bootstrap'] is None:
         opts['out_name'] = "perm_test_" + opts['out_name']
+    if opts['no_norm_epi']:
+        opts['out_name'] = "no_norm_epi" + opts['out_name']
     cit.write_csv(merged_results, opts['out_name'])
     return 0
 

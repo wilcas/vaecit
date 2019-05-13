@@ -12,7 +12,7 @@ import numpy as np
 
 def compute_genotype_pcs(genotype):
     (U, D, vh) = np.linalg.svd(genotype, full_matrices=False, compute_uv=True)
-    return U@np.diag(D)
+    return (vh.T)@np.diag(D)
 
 
 def write_csv(results, filename):
