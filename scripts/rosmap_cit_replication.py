@@ -1,3 +1,5 @@
+import cit_sm as cit
+import data_model as dm
 
 import click
 import csv
@@ -8,10 +10,9 @@ import os
 import time
 import torch
 
-import data_model as dm
 import numpy as np
 import pandas as pd
-import cit_sm as cit
+
 
 def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts, geno=None):
     (m_samples, m_ids, methylation) = methyl
