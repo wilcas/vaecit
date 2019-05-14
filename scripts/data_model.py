@@ -6,7 +6,6 @@ import csv
 import h5py
 import logging
 import numpy as np
-import statsmodels.api as sm
 import pandas as pd
 import os
 import re
