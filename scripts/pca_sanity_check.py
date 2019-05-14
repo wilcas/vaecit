@@ -2,7 +2,7 @@
 The goal is to generate a series of regression results under different causal scenarios, using
 simulated genotype PCs as surrogates for genotype.
 """
-import cit
+import cit_sm as cit
 import csv
 import joblib
 
@@ -22,29 +22,9 @@ def compute_genotype_pcs(genotype):
 
 
 def write_csv(results, vars_explained, filename):
-    out_rows = []
-    for (res,var_explained) in zip(results,vars_explained):
-        cur_row = {}
-        for j in range(1,5):
-            cur_test = 'test{}'.format(j)
-            cur_p = 'p{}'.format(j)
-            for key in res[cur_test]:
-                if key in ['rss', 'r2']: #single value for test
-                    cur_key = '{}_{}'.format(cur_test,key)
-                    cur_row[cur_key] = res[cur_test][key]
-                else:
-                    for k in range(len(res[cur_test][key])):
-                        cur_key = '{}_{}{}'.format(cur_test,key,k)
-                        cur_row[cur_key] = res[cur_test][key][k]
-            cur_row[cur_p] = res[cur_p]
-        cur_row['var_explained_pcs'] = var_explained
-        cur_row['omni_p'] = res['omni_p']
-        out_rows.append(cur_row)
-    with open(filename, 'w') as f:
-        names = out_rows[0].keys()
-        writer = csv.DictWriter(f, names)
-        writer.writeheader()
-        writer.writerows(out_rows)
+    for (i,res) in enumerate(results):
+        res['var_explained_pcs'] = vars_explained[i]
+    cit.write_csv(results,filename)
 
 
 def main():

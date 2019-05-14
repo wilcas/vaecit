@@ -110,7 +110,6 @@ def test_independence(T, G, L, num_bootstrap):
         porig = stats.ncf.cdf(fstat,v1,v2,delta)
         zorig = stats.norm.ppf(porig)
         p = stats.norm.cdf(zorig, scale = np.std(zperm))
-        print(np.mean(fperm))
     else:
         bootstraps = run_bootstraps(T, Me, residual, L, n, num_bootstrap)
         f_list = bootstraps ** 2

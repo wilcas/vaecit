@@ -1,4 +1,4 @@
-import cit
+
 import click
 import csv
 import gc
@@ -8,34 +8,11 @@ import os
 import time
 import torch
 
+import cit_sm as cit
 import data_model as dm
 import numpy as np
 import pandas as pd
 
-def write_csv(results, filename):
-    out_rows = []
-    for res in results:
-        cur_row = {}
-        for j in range(1,5):
-            cur_test = 'test{}'.format(j)
-            cur_p = 'p{}'.format(j)
-            for key in res[cur_test]:
-                if key in ['rss', 'r2']: #single value for test
-                    cur_key = '{}_{}'.format(cur_test,key)
-                    cur_row[cur_key] = res[cur_test][key]
-                else:
-                    for k in range(len(res[cur_test][key])):
-                        cur_key = '{}_{}{}'.format(cur_test,key,k)
-                        cur_row[cur_key] = res[cur_test][key][k]
-            cur_row[cur_p] = res[cur_p]
-        cur_row['omni_p'] = res['omni_p']
-        cur_row['rsid'] = res['rsid']
-        out_rows.append(cur_row)
-    with open(filename, 'w') as f:
-        names = out_rows[0].keys()
-        writer = csv.DictWriter(f, names)
-        writer.writeheader()
-        writer.writerows(out_rows)
 
 def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts, geno=None):
     (m_samples, m_ids, methylation) = methyl
