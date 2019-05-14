@@ -1,3 +1,6 @@
+import cit_sm as cit
+import data_model as dm
+
 
 import click
 import csv
@@ -8,8 +11,7 @@ import os
 import time
 import torch
 
-import cit_sm as cit
-import data_model as dm
+
 import numpy as np
 import pandas as pd
 
