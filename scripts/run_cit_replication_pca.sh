@@ -19,4 +19,4 @@ python rosmap_cit_replication.py \
   --cit-tests="$HOME/vaecit/CIT.txt" \
   --lv-method="pca" \
   --num-latent=1 \
-  --out-name="pca_1_latent_fix_2_cit.csv"
+  --out-name="pca_1_latent_fix_3_cit.csv"

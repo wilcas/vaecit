@@ -26,7 +26,21 @@ def select_genotypes_plink(path, snps, fname):
             rsid_idx = [i for (i,rsid) in enumerate(rsids) if rsid in snps]
         tmp_df = pd.read_csv(os.path.join(path,f),sep=" ", usecols=rsid_idx)
         dfs.append(tmp_df)
-    pd.concat(dfs,axis=1).T.to_csv(fname)
+    # get samples
+    with open(os.path.join(path,f),"r") as reader:
+        reader.readline()
+        sample_names = []
+        rosmap_samples = []
+        for (i,row) in enumerate(reader):
+            sample = row.split(" ")[0]
+            if re.match("ROS|MAP|11AD",sample):
+                rosmap_samples.append(i)
+                sample = re.sub("ROS|MAP|11AD","",sample)
+            sample_names.append(sample)
+    df = pd.concat(dfs,axis=1).T
+    df.columns = sample_names
+    df.index =df.index.str.replace("_[A-Z]","")
+    df.iloc[:,rosmap_samples].to_csv(fname)
 
 if __name__ == "__main__":
     cit_table = pd.read_csv("/zfs3/users/william.casazza/william.casazza/vaecit/CIT.txt", sep = '\t')

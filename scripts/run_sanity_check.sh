@@ -17,4 +17,4 @@ python rosmap_cit_complete_rep.py \
   --genotype-file="/zfs3/users/william.casazza/william.casazza/vaecit/scripts/cit_genotypes.csv" \
   --snp-coords="/zfs3/scratch/saram_lab/ROSMAP/data/genotypeImputed/1kg/snpPos/" \
   --cit-tests="$HOME/vaecit/CIT.txt" \
-  --out-name="cit_fix_2_sanity_check.csv"
+  --out-name="cit_fix_4_sanity_check.csv"

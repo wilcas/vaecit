@@ -20,6 +20,5 @@ python rosmap_cit_replication.py \
   --lv-method="mmdvae" \
   --num-latent=1 \
   --vae-depth=10 \
-  --run-reverse \
   --num-bootstrap=0 \
   --out-name="mmdvae_1_latent_depth_10_cit.csv"

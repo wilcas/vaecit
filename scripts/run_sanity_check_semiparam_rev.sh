@@ -14,6 +14,7 @@ python rosmap_cit_complete_rep.py \
   --ac-file="/zfs3/scratch/saram_lab/ROSMAP/data/acetylationNorm.mat" \
   --exp-file="/zfs3/scratch/saram_lab/ROSMAP/data/expressionAndPhenotype.mat" \
   --genotype-dir="/zfs3/scratch/saram_lab/ROSMAP/data/genotypeImputed/1kg/snpMatrix/" \
+  --genotype-file="/zfs3/users/william.casazza/william.casazza/vaecit/scripts/cit_genotypes.csv" \
   --snp-coords="/zfs3/scratch/saram_lab/ROSMAP/data/genotypeImputed/1kg/snpPos/" \
   --cit-tests="$HOME/vaecit/CIT.txt" \
   --run-reverse \
