@@ -1,11 +1,11 @@
 #!/bin/bash
-#PBS -l walltime=5:00:00
+#PBS -l walltime=10:00:00
 #PBS -l mem=22GB
 #PBS -l nodes=1:ppn=4
 #PBS -q small
 #PBS -m be
 #PBS -M william.casazza@stat.ubc.ca
-
+#PBS -t 2-3
 source activate tf_vae
 
 cd /zfs3/users/william.casazza/william.casazza/vaecit/scripts
@@ -20,5 +20,5 @@ python rosmap_cit_replication.py \
   --lv-method="pca" \
   --num-latent=1 \
   --num-bootstrap=0 \
-  --out-name="pca_1_latent_cit.csv"
+  --out-name="pca_1_latent_cit_rep_${PBS_ARRAYID}.csv"
 
