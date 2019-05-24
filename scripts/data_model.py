@@ -18,6 +18,15 @@ from scipy import io,stats
 from scipy.sparse.linalg import svds
 from functools import reduce
 
+
+def write_csv(results, filename):
+    with open(filename, 'w') as f:
+        names = results[0].keys()
+        writer = csv.DictWriter(f, names)
+        writer.writeheader()
+        writer.writerows(results)
+
+
 def block_genotype(n=100,p=200, perc=[0.5,0.5]):
     """Generate 'blocky' correlation structured genotype"""
     if perc is None:
@@ -135,6 +144,14 @@ def load_acetylation(fname):
     samples = np.array([tmp[0][0] for tmp in acetyl_obj["acetyList"]])
     peak_ids = np.array([tmp[0][0] for tmp in acetyl_obj["peakNames"]])
     return samples.flatten(), peak_ids.flatten(), acetylation
+
+
+def load_mapping(f):
+    data = io.loadmat(f)
+    features = np.array([elem[0][0] for elem in data['xSet']])
+    genes = np.array([elem[0][0] for elem in data['ySet']])
+    mapping = data['XtoY']
+    return (features,genes,mapping.tolil())
 
 
 def standardize_remove_pcs(data, k):
