@@ -1,4 +1,4 @@
- """PyTorch implementation of MMD-VAE described in Info-VAE paper."""
+"""PyTorch implementation of MMD-VAE described in Info-VAE paper."""
 import pandas as pd
 import matplotlib.pyplot as plt
 import torch
