@@ -1,4 +1,4 @@
-"""PyTorch implementation of MMD-VAE described in Info-VAE paper."""
+ """PyTorch implementation of MMD-VAE described in Info-VAE paper."""
 import pandas as pd
 import matplotlib.pyplot as plt
 import torch
@@ -90,10 +90,10 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
     trainloader = torch.utils.data.DataLoader(traindata, batch_size=10, shuffle=True)
     tol = 1e10
     i = 0
+    prev_loss = 1e10
     losses = []
     while(i < 100): #num epochs
         i += 1
-        prev_loss = 1e10
         for data in trainloader:
             optimizer.zero_grad()
             output = model(genotype)

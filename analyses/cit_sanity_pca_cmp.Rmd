@@ -136,30 +136,49 @@ First we need to load in the data and match up results:
 cit_df <- read.table("../data/rosmap_cit_pca/CIT_groupby_order.txt", header = TRUE)
 dim(cit_df)
 head(cit_df)
-pca_cit_df <- read.csv("../data/rosmap_cit_pca/pca_1_latent_cit.csv")
-dim(pca_cit_df)
-head(pca_cit_df)
-pca_cit_rev_df <- read.csv("../data/rosmap_cit_pca/rev_pca_1_latent_cit.csv") %>%
-  rename(rev_p1=p1,rev_p2=p2,rev_p3=p3,rev_p4=p4,rev_omni_p=omni_p)
-pca_cit_approx_df <- read.csv("../data/rosmap_cit_pca/perm_test_pca_1_latent_cit.csv") %>% 
-  rename(approx_p1=p1,approx_p2=p2,approx_p3=p3,approx_p4=p4,approx_omni_p=omni_p)
+
+pca_cit_df <- read.csv("../data/rosmap_cit_pca/perm_test_pca_1_latent_cit.csv") %>%
+    rename(pca_p1 = p1,pca_p2 = p2,pca_p3 = p3,pca_p4= p4,pca_omni_p = omni_p )
+pca_cit_rev_df <- read.csv("../data/rosmap_cit_pca/perm_test_rev_pca_1_latent_cit.csv") %>%
+    rename(pca_rev_p1 = p1,pca_rev_p2 = p2,pca_rev_p3 = p3,pca_rev_p4= p4,pca_rev_omni_p = omni_p )
+pca_cit_rep_1_df <- read.csv("../data/rosmap_cit_pca/perm_test_pca_1_latent_cit_rep_1.csv") %>%
+    rename(pca_rep_1_p1 = p1,pca_rep_1_p2 = p2,pca_rep_1_p3 = p3,pca_rep_1_p4= p4,pca_rep_1_omni_p = omni_p )
+pca_cit_rev_rep_1_df <- read.csv("../data/rosmap_cit_pca/perm_test_rev_pca_1_latent_cit_rep_1.csv") %>%
+    rename(pca_rev_rep_1_p1 = p1,pca_rev_rep_1_p2 = p2,pca_rev_rep_1_p3 = p3,pca_rev_rep_1_p4= p4,pca_rev_rep_1_omni_p = omni_p )
+
+
+mmd_cit_df <- read.csv("../data/rosmap_cit_mmdvae/perm_test_mmdvae_1_latent_depth_10_cit.csv") %>%
+  rename(mmd_p1 = p1,mmd_p2 = p2,mmd_p3 = p3,mmd_p4= p4,mmd_omni_p = omni_p )
+mmd_cit_rev_df <- read.csv("../data/rosmap_cit_mmdvae/perm_test_rev_mmdvae_1_latent_depth_10_cit.csv") %>%
+  rename(mmd_rev_p1 = p1,mmd_rev_p2 = p2,mmd_rev_p3 = p3,mmd_rev_p4= p4,mmd_rev_omni_p = omni_p )
+mmd_cit_rep_1_df <- read.csv("../data/rosmap_cit_mmdvae/perm_test_mmdvae_1_latent_depth_10_cit_rep_1.csv") %>%
+  rename(mmd_rep_1_p1 = p1,mmd_rep_1_p2 = p2,mmd_rep_1_p3 = p3,mmd_rep_1_p4= p4,mmd_rep_1_omni_p = omni_p )
+mmd_cit_rev_rep_1_df <- read.csv("../data/rosmap_cit_mmdvae/perm_test_rev_mmdvae_1_latent_depth_10_cit_rep1.csv") %>%
+  rename(mmd_rev_rep_1_p1 = p1,mmd_rev_rep_1_p2 = p2,mmd_rev_rep_1_p3 = p3,mmd_rev_rep_1_p4= p4,mmd_rev_rep_1_omni_p = omni_p )
+
+
 merged_cit_df <- cbind(
   cit_df[c("snp", "probes","peaks", "pCausal","pReact","gene")],
-  pca_cit_df[c("p1","p2","p3","p4","omni_p")],
-  pca_cit_rev_df[c("rev_p1","rev_p2","rev_p3","rev_p4","rev_omni_p")],
-  pca_cit_approx_df[c("approx_p1","approx_p2","approx_p3","approx_p4","approx_omni_p")])
+  pca_cit_df[c("pca_p1","pca_p2","pca_p3","pca_p4","pca_omni_p")],
+  pca_cit_rev_df,
+  pca_cit_rep_1_df,
+  pca_cit_rev_rep_1_df,
+  mmd_cit_df,
+  mmd_cit_rev_df,
+  mmd_cit_rep_1_df,
+  mmd_cit_rev_rep_1_df
+)
 head(merged_cit_df)
 merged_cit_df %>% group_by(probes,peaks,gene) %>% summarize(count = n()) %>%
   ggplot(aes(x = "Number of epigenetic terms shared per gene", y = count)) + geom_violin(width = 0.5)
 ```
-Okay, that last plot means that I made an incorrect assumption in how to go about plotting these tests. Really, for each p value I have in the PCA version, I actually have multiple snp-relative p values I am comparing in the single version (for the case where i have shared epigenetic sets). I can/should change my script later to also group on sets of epigenetic marks, but to get a sense of how the rest of my pipeline worked let's group things properly before plotting:
+Okay, that last plot means that I made an incorrect assumption in how to go about plotting these tests. Really, for each p value I have in the PCA version, I actually have multiple snp-relative p values I am comparing in the single version (for the case where I have shared epigenetic sets). I can/should change my script later to also group on sets of epigenetic marks, but to get a sense of how the rest of my pipeline worked let's group things properly before plotting:
 ```{r}
 grouped_cit_df <- merged_cit_df %>% 
-  group_by(probes,peaks) %>% 
+  group_by(probes,peaks,gene) %>% 
   summarize(
-    omni_p = max(omni_p),
-    rev_omni_p = max(rev_omni_p),
-    approx_omni_p = max(approx_omni_p),
+    pca_omni_p = max(pca_omni_p),
+    mmd_omni_p = max(mmd_omni_p),
     maxpCausal = max(pCausal),
     minpCausal = min(pCausal),
     meanpCausal = mean(pCausal),
@@ -175,141 +194,514 @@ Since I'm a nice person, I made these tables have the same order per test, so I 
 ```{r}
 library(ggrepel)
 library(cowplot)
-p1 <- ggplot(grouped_cit_df, aes(x = -log10(omni_p), y = -log10(meanpCausal))) +
+p1 <- ggplot(grouped_cit_df, aes(x = -log10(pca_omni_p), y = -log10(meanpCausal))) +
   geom_point()+
   scale_y_continuous(limits = c(0,30)) + 
-  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$omni_p,grouped_cit_df$meanpCausal)))
+  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$pca_omni_p,grouped_cit_df$meanpCausal)))
 
-p2 <-ggplot(grouped_cit_df, aes(x = -log10(omni_p), y = -log10(maxpCausal))) +
+p2 <-ggplot(grouped_cit_df, aes(x = -log10(pca_omni_p), y = -log10(maxpCausal))) +
   geom_point()+
   scale_y_continuous(limits = c(0,30)) + 
-  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$omni_p,grouped_cit_df$maxpCausal)))
+  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$pca_omni_p,grouped_cit_df$maxpCausal)))
 
-p3 <-ggplot(grouped_cit_df, aes(x = -log10(omni_p), y = -log10(minpCausal))) +
+p3 <-ggplot(grouped_cit_df, aes(x = -log10(pca_omni_p), y = -log10(minpCausal))) +
   geom_point()+
   scale_y_continuous(limits = c(0,30)) + 
-  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$omni_p,grouped_cit_df$minpCausal)))
+  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$pca_omni_p,grouped_cit_df$minpCausal)))
 
-p4 <-ggplot(grouped_cit_df, aes(x = -log10(approx_omni_p), y = -log10(meanpCausal))) +
+p4 <-ggplot(grouped_cit_df, aes(x = -log10(mmd_omni_p), y = -log10(meanpCausal))) +
   geom_point()+
-  scale_y_continuous(limits = c(0,30)) + 
-  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$approx_omni_p,grouped_cit_df$meanpCausal)))
+  scale_y_continuous(limits = c(0,30)) +
+  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$mmd_omni_p,grouped_cit_df$meanpCausal)))
 
-p5 <-ggplot(grouped_cit_df, aes(x = -log10(approx_omni_p), y = -log10(maxpCausal))) +
+p5 <-ggplot(grouped_cit_df, aes(x = -log10(mmd_omni_p), y = -log10(maxpCausal))) +
   geom_point()+
-  scale_y_continuous(limits = c(0,30)) + 
-  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$approx_omni_p,grouped_cit_df$maxpCausal)))
+  scale_y_continuous(limits = c(0,30)) +
+  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$mmd_omni_p,grouped_cit_df$maxpCausal)))
 
-p6 <-ggplot(grouped_cit_df, aes(x = -log10(approx_omni_p), y = -log10(minpCausal))) +
+p6 <-ggplot(grouped_cit_df, aes(x = -log10(mmd_omni_p), y = -log10(minpCausal))) +
   geom_point()+
-  scale_y_continuous(limits = c(0,30)) + 
-  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$approx_omni_p,grouped_cit_df$minpCausal)))
+  scale_y_continuous(limits = c(0,30)) +
+  labs(caption = sprintf("Correlation = %f", cor(grouped_cit_df$mmd_omni_p,grouped_cit_df$minpCausal)))
 plot_grid(p1,p2,p3,p4,p5,p6,labels="auto")
+
+box1 <- ggplot(merged_cit_df, aes(y= pCausal)) + geom_boxplot()
+box2 <- ggplot(grouped_cit_df, aes(y = pca_omni_p)) + geom_boxplot()
+box3 <- ggplot(grouped_cit_df, aes(y = mmd_omni_p)) + geom_boxplot()
+plot_grid(box1,box2,box3,labels ="auto")
+plot_data <- grouped_cit_df %>% gather(key= "type",value = "causP", minpCausal,meanpCausal, maxpCausal)
+ggplot(plot_data,aes(gene,-log10(pca_omni_p))) +
+  geom_point(plot_data,mapping = aes(y=-log10(causP), color = type)) +
+  geom_point() + 
+  geom_hline(yintercept = -log10(0.05 / nrow(plot_data)), color = "blue") +
+  geom_hline(yintercept = -log10(0.05 / nrow(cit_df)), color="red")
+
+ggplot(plot_data %>% mutate(gene=as.character(gene)) %>% filter(gene %in% unique(plot_data$gene)[1:50]),aes(gene,-log10(mmd_omni_p))) + 
+  geom_jitter(plot_data %>% mutate(gene=as.character(gene)) %>% filter(gene %in% unique(plot_data$gene)[1:50]),mapping = aes(y=-log10(causP), color = type), size = 0.2) +
+  geom_jitter(alpha = 0.25, size = 0.2) + 
+  geom_hline(yintercept = -log10(0.05 / nrow(plot_data)), color="blue") +
+  geom_hline(yintercept = -log10(0.05 / nrow(cit_df)), color="red") + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 4,hjust=1.4, vjust = 0.2, angle = 90))
+
+nrow(plot_data)
+ggplot(merged_cit_df %>% gather("test","pvalues",pca_rev_p1,pca_rev_p2,pca_rev_p3,pca_rev_p4,pca_rev_omni_p), aes(x = pvalues)) + geom_histogram() + facet_grid(~test)
+ggplot(merged_cit_df %>% gather("test","pvalues",pca_p1,pca_p2,pca_p3,pca_p4,pca_omni_p), aes(x = pvalues)) + geom_histogram() + facet_grid(~test)
+
+
 ```
 
-Pretty discouraging, lets see how my individual results compare to what's published, note that I don't use any approximation for test 4 of the CIT, so this is a preliminary comparison, not a definitive result:
+Pretty encouraging, lets see how my individual results compare to what's published:
 ```{r}
 library(cowplot)
-cit_rep_df <- read.csv("../data/rosmap_complete_rep/rev_cit_sanity_check.csv")
-cit_rep_approx_df <- read.csv("../data/rosmap_complete_rep/perm_test_cit_sanity_check.csv") %>%
-  rename(approx_p1 = p1,approx_p2 = p2,approx_p3 = p3,approx_p4 = p4,approx_omni_p = omni_p)
-cit_rep_approx_fix_df <- read.csv("../data/rosmap_complete_rep/perm_test_cit_pca_fix_sanity_check.csv") %>%
-    rename(approx_fix_p1 = p1,approx_fix_p2 = p2,approx_fix_p3 = p3,approx_fix_p4 = p4,approx_fix_omni_p = omni_p)
-cit_rep_approx_fix_3_df <- read.csv("../data/rosmap_complete_rep/perm_test_cit_fix_3_sanity_check.csv") %>%
-  rename(approx_fix_3_p1 = p1,approx_fix_3_p2 = p2,approx_fix_3_p3 = p3,approx_fix_3_p4 = p4,approx_fix_3_omni_p = omni_p)
+cit_rep_df <- read.csv("../data/rosmap_complete_rep/perm_test_cit_fix_4_sanity_check.csv") %>%
+  rename(p1 = p1,p2 = p2, p3 = p3,p4 = p4,omni_p = omni_p)
+cit_rev_df <- read.csv("../data/rosmap_complete_rep/perm_test_rev_cit_sanity_check.csv") %>%
+  rename(rev_p1=p1,rev_p2=p2,rev_p3=p3,rev_p4=p4, rev_omni_p=omni_p)
+cit_rep_1_df <- read.csv("../data/rosmap_complete_rep/perm_test_cit_sanity_check_rep_1.csv") %>%
+  rename(rep_1_p1 = p1, rep_1_p2 = p2, rep_1_p3 = p3, rep_1_p4 = p4, rep_1_omni_p = omni_p)
+cit_rev_rep_1_df <- read.csv("../data/rosmap_complete_rep/perm_test_rev_cit_sanity_check_rep_1.csv") %>%
+  rename(
+    rev_rep_1_p1=p1,
+    rev_rep_1_p2=p2,
+    rev_rep_1_p3=p3,
+    rev_rep_1_p4=p4, 
+    rev_rep_1_omni_p=omni_p) 
 
 rep_merged_df <- cbind(
   cit_df[c("snp", "probes","peaks", "pCausal","pReact","gene")],
   cit_rep_df[c("p1","p2","p3","p4","omni_p")],
-  cit_rep_approx_df[c("approx_p1","approx_p2","approx_p3","approx_p4","approx_omni_p")],
-  cit_rep_approx_fix_df[c("approx_fix_p1","approx_fix_p2","approx_fix_p3","approx_fix_p4","approx_fix_omni_p")])#,
-#  cit_rep_approx_fix_3_df[c("approx_fix_3_p1","approx_fix_3_p2","approx_fix_3_p3","approx_fix_3_p4","approx_fix_3_omni_p")])
-rep_merged_df <- merge(rep_merged_df,cit_rep_approx_fix_3_df[c("approx_fix_3_p1","approx_fix_3_p2","approx_fix_3_p3","approx_fix_3_p4","approx_fix_3_omni_p")])
+  cit_rep_1_df[c("rep_1_p1","rep_1_p2","rep_1_p3","rep_1_p4","rep_1_omni_p")],
+  cit_rev_df %>% select(-one_of("rsid")),
+  cit_rev_rep_1_df %>% select(-one_of("rsid"))
+
+)
 
 head(rep_merged_df)
-rep_merged_df
-p1 <- ggplot(rep_merged_df, aes(-log10(pmax(approx_fix_p3, approx_fix_p4)),-log10(pCausal))) + geom_point() +
+
+p1 <- ggplot(rep_merged_df, aes(-log10(pmax(p2,p3, p4)),-log10(pCausal))) + geom_point() +
   labs(caption = sprintf(
     "Correlation: %f", 
     cor(
-      -log10(pmax(rep_merged_df$approx_fix_p3, rep_merged_df$approx_fix_p4)),
+      -log10(pmax(rep_merged_df$p2,rep_merged_df$p3, rep_merged_df$p4)),
       -log10(rep_merged_df$pCausal))))
 
-p2 <- ggplot(rep_merged_df, aes(-log10(approx_fix_omni_p),-log10(pCausal))) + geom_point() +
+p2 <- ggplot(rep_merged_df, aes(-log10(omni_p),-log10(pCausal))) + geom_point() +
   labs(caption = sprintf(
     "Correlation: %f", 
     cor(
-      -log10(rep_merged_df$approx_fix_omni_p),
+      -log10(rep_merged_df$omni_p),
       -log10(rep_merged_df$pCausal))))
-gather(rep_merged_df,key = "test",value = "pvalue", approx_fix_p1, approx_fix_p2, approx_fix_p3, approx_fix_p4, approx_fix_omni_p) %>%
+plot_grid(p1,p2)
+ggplot(rep_merged_df, aes(p2)) + geom_histogram()
+print(p2 +  ggtitle("Replication of CIT ROSMAP, Causal model") +labs( y = "-log10(xQTL P)", x = "-log10(my pipeline P)"))
+p1 <- ggplot(rep_merged_df, aes(-log10(pmax(rev_p2,rev_p3, rev_p4)),-log10(pReact))) + geom_point() +
+  labs(caption = sprintf(
+    "Correlation: %f", 
+    cor(
+      -log10(pmax(rep_merged_df$rev_p2,rep_merged_df$rev_p3, rep_merged_df$rev_p4)),
+      -log10(rep_merged_df$pReact))))
+
+p2 <- ggplot(rep_merged_df, aes(-log10(rev_omni_p),-log10(pReact))) + geom_point() +
+  labs(caption = sprintf(
+    "Correlation: %f", 
+    cor(
+      -log10(rep_merged_df$rev_omni_p),
+      -log10(rep_merged_df$pReact))))
+gather(rep_merged_df,key = "test",value = "pvalue", rev_p1, rev_p2, rev_p3, rev_p4, rev_omni_p) %>%
   ggplot(aes(pvalue)) + geom_histogram() + facet_wrap(~ test)
 plot_grid(p1,p2)
-p1 <- ggplot(rep_merged_df, aes(-log10(pmax(approx_fix_3_p1,approx_fix_3_p3, approx_fix_3_p4)),-log10(pCausal))) + geom_point() +
-  labs(caption = sprintf(
-    "Correlation: %f", 
-    cor(
-      -log10(pmax(rep_merged_df$approx_fix_3_p1,rep_merged_df$approx_fix_3_p3, rep_merged_df$approx_fix_3_p4)),
-      -log10(rep_merged_df$pCausal))))
-
-p2 <- ggplot(rep_merged_df, aes(-log10(approx_fix_3_omni_p),-log10(pCausal))) + geom_point() +
-  labs(caption = sprintf(
-    "Correlation: %f", 
-    cor(
-      -log10(rep_merged_df$approx_fix_3_omni_p),
-      -log10(rep_merged_df$pCausal))))
-gather(rep_merged_df,key = "test",value = "pvalue", approx_fix_3_p1, approx_fix_3_p2, approx_fix_3_p3, approx_fix_3_p4, approx_fix_3_omni_p) %>%
-  ggplot(aes(pvalue)) + geom_histogram() + facet_wrap(~ test)
-plot_grid(p1,p2)
-ggplot(rep_merged_df, aes(approx_fix_3_p2)) + geom_histogram()
+ggplot(rep_merged_df, aes(rev_p2)) + geom_histogram()
+print(p2 + ggtitle("Replication of CIT ROSMAP, Reactive model") + labs(y = "-log10(xQTL P)", x = "-log10(my pipeline P)"))
 ```
-No clue how well its working here, time to plot:
+## Log of my thoughts before debugging
+> Okay, so I should be looking to my pipeline code for possible bugs. I am positive that my code to match up samples  works correctly, however here are the things I think are most likely incorrect:
+> * Data processing pipeline (normalization, removal of principal components etc)
+> * possibly the data sets I'm using (unlikely for genotype, could be what I'm using for methylation and  acetylation, although I did check this twice at separate points with Bernard, I still may be confused)
+> * How I'm computing epigenome PCs `--checked this, was using scaled left singular vectors instead of projection of > data into pc space`
+> * The semi-parametric test in condition 4 of CIT `possible memory leak, but seem to be correct in solving`
+> * some sort of truncation of floating point numbers
+> **found bugs**
+> Those shown addressed above and:
+> * error with CIT test 2 that went unnoticed in simulation data
+
+**UPDATE**
+Bugs above seem to be resolved, last stretch was due to an error in merging.
+
+The next thing to do involves calling out mediation and independent, and unclassified models in my replication:
 ```{r}
-ggplot(rep_merged_df,aes(-log10(omni_p),-log10(pReact))) + 
-  geom_point() + 
-  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$omni_p,rep_merged_df$pReact)))
-ggplot(rep_merged_df,aes(-log10(p1),-log10(pReact))) + 
-  geom_point() + 
-  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$p1,rep_merged_df$pReact)))
-ggplot(rep_merged_df,aes(-log10(p2),-log10(pReact))) + 
-  geom_point() + 
-  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$p2,rep_merged_df$pReact)))
-ggplot(rep_merged_df,aes(-log10(p3),-log10(pReact))) + 
-  geom_point() + 
-  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$p3,rep_merged_df$pReact)))
-ggplot(rep_merged_df,aes(-log10(p4),-log10(pReact))) + 
-  geom_point() + 
-  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$p4,rep_merged_df$pReact)))
+library(scales)
+to_plot <- rep_merged_df %>% 
+  mutate(
+    model = ifelse(
+      omni_p < (0.05 / n()) & rev_omni_p > (0.05 / n()),
+      "Epigenetic Mediation",
+      ifelse(
+        omni_p > (0.05) / n() & rev_omni_p < (0.05/ n()),
+        "Transcriptional Mediation",
+        ifelse(
+          omni_p > (0.05) / n() & rev_omni_p > (0.05/ n()),
+          "Independent Association",
+          "Unclassified"
+        )
+      )
+    )
+  ) %>%
+  group_by(model) %>%
+  summarize(quant = n())
+head(to_plot)
+total <- sum(to_plot$quant)
+ggplot(to_plot,aes(x = "", y = quant /total * 100  , fill = model,label = percent(quant/total))) +
+  geom_bar(stat="identity", position = position_dodge()) + 
+  labs(x=NULL)+ 
+  geom_text(position = position_dodge(0.9), vjust = 0)+ 
+  theme_minimal()
+to_plot <- rep_merged_df %>% 
+  mutate(
+    model = ifelse(
+      pCausal < (0.05 / n()) & pReact > (0.05 / n()),
+      "Epigenetic Mediation",
+      ifelse(
+        pCausal > (0.05) / n() & pReact < (0.05/ n()),
+        "Transcriptional Mediation",
+        ifelse(
+          pCausal > (0.05) / n() & pReact > (0.05/ n()),
+          "Independent Association",
+          "Unclassified"
+        )
+      )
+    )
+  ) %>%
+  group_by(model) %>%
+  summarize(quant = n())
+head(to_plot)
+total <- sum(to_plot$quant)
+ggplot(to_plot,aes(x = "", y = quant /total * 100  , fill = model,label = percent(quant/total))) +
+  geom_bar(stat="identity", position = position_dodge()) + 
+  labs(x=NULL)+ 
+  geom_text(position = position_dodge(0.9), vjust = 0)+ 
+  theme_minimal()
 ```
 
-Okay, so I should be looking to my pipeline code for possible bugs. I am positive that my code to match up samples works correctly, however here are the things I think are most likely incorrect:
-* Data processing pipeline (normalization, removal of principal components etc)
-* possibly the datasets I'm using (unlikely for genotype, could be what I'm using for methylation and acetylation, although I did check this twice at separate points with Bernard, I still may be confused)
-* How I'm computing epigenome PCs `--checked this, was using scaled left singular vectors instead of projection of data into pc space`
-* The semi-parametric test in condition 4 of CIT `possible memory leak, but seem to be correct in solving`
-* some sort of truncation of floating point numbers
-**found bugs**
-Those shown addressed above and:
-* error with CIT test 2 that went unnoticed in simulation data
 
-Here's the final proof that I do or don't have a bug in the pipeline (attempt at exact replication):
+let's see these stats for the mmdvae and pca models:
 ```{r}
-ggplot(rep_merged_df,aes(-log10(approx_omni_p),-log10(pCausal))) + 
-  geom_point() + 
-  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$approx_omni_p,rep_merged_df$pCausal)))
-ggplot(rep_merged_df,aes(-log10(approx_p1),-log10(pCausal))) + 
-  geom_point() + 
-  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$approx_p1,rep_merged_df$pCausal)))
-ggplot(rep_merged_df,aes(-log10(approx_p2),-log10(pCausal))) + 
-  geom_point() + 
-  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$approx_p2,rep_merged_df$pCausal)))
-ggplot(rep_merged_df,aes(-log10(approx_p3),-log10(pCausal))) + 
-  geom_point() + 
-  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$approx_p3,rep_merged_df$pCausal)))
-ggplot(rep_merged_df,aes(-log10(approx_p4),-log10(pCausal))) + 
-  geom_point() + 
-  labs(caption = sprintf("Correlation = %f", cor(rep_merged_df$approx_p4,rep_merged_df$pCausal)))
-ggplot(rep_merged_df,aes(-log10(pmax(approx_p3,approx_p4)),-log10(pCausal))) + 
-geom_point() +
-  labs(caption = sprintf("Correlation = %f", cor(pmax(rep_merged_df$approx_p3,rep_merged_df$approx_p4), rep_merged_df$pCausal)))
+to_plot <- merged_cit_df %>% 
+  mutate(
+    model = ifelse(
+      mmd_omni_p < (0.05 / nrow(plot_data)) & mmd_rev_omni_p > (0.05 / nrow(plot_data)),
+      "Epigenetic Mediation",
+      ifelse(
+        mmd_omni_p > (0.05) / nrow(plot_data) & mmd_rev_omni_p < (0.05/ nrow(plot_data)),
+        "Transcriptional Mediation",
+        ifelse(
+          mmd_omni_p > (0.05) / nrow(plot_data) & mmd_rev_omni_p > (0.05/ nrow(plot_data)),
+          "Independent Association",
+          "Unclassified"
+        )
+      )
+    )
+  ) %>%
+  group_by(model) %>%
+  summarize(quant = n())
+total <- sum(to_plot$quant)
+ggplot(to_plot,aes(x = "", y = quant /total * 100  , fill = model,label = percent(quant/total))) +
+  geom_bar(stat="identity", position = position_dodge()) + 
+  labs(x=NULL)+ 
+  geom_text(position = position_dodge(0.9), vjust = 0)+ 
+  theme_minimal()
+```
+```{r}
+to_plot <- merged_cit_df %>% 
+  mutate(
+    model = ifelse(
+      pca_omni_p < (0.05 / nrow(plot_data)) & pca_rev_omni_p > (0.05 / nrow(plot_data)),
+      "Epigenetic Mediation",
+      ifelse(
+        pca_omni_p > (0.05) / nrow(plot_data) & pca_rev_omni_p < (0.05/ nrow(plot_data)),
+        "Transcriptional Mediation",
+        ifelse(
+          pca_omni_p > (0.05) / nrow(plot_data) & pca_rev_omni_p > (0.05/ nrow(plot_data)),
+          "Independent Association",
+          "Unclassified"
+        )
+      )
+    )
+  ) %>%
+  group_by(model) %>%
+  summarize(quant = n())
+total <- sum(to_plot$quant)
+ggplot(to_plot,aes(x = "", y = quant /total * 100  , fill = model,label = percent(quant/total))) +
+  geom_bar(stat="identity", position = position_dodge()) + 
+  labs(x=NULL)+ 
+  geom_text(position = position_dodge(0.9), vjust = 0)+ 
+  theme_minimal()
+ggplot(merged_cit_df, aes(pca_omni_p)) + geom_histogram()
+ggplot(merged_cit_df,aes(pca_rev_omni_p)) + geom_histogram()
+```
+## Assessing variability between runs of cit
+I currently have 1 replication with more to come (I had an error with an array job where it was held indefinitely). Here I compare replication for each genotype reduction model's CIT results:
+```{r}
+# load replications
+rep_results <- list()
+for(f in dir("../data/mass_replication/", full.names = TRUE)){
+  col_var <- ""
+  if(grepl("_rev_",f)){
+    col_var <- paste0("rev_", col_var)
+  }
+  if(grepl("_mmdvae_", f)){
+    col_var <- paste0("mmd_vae_",col_var)
+  }
+  if(grepl("_pca_", f)){
+    col_var <- paste0("pca_",col_var)
+  }
+  which_rep <- gsub(".*_rep(_|)([0-9]*).*.csv", "\\2", f)
+  col_var <-  paste0(col_var,"rep_",which_rep, "_omni_p")
+  tmp_df <- read_csv(f) %>% select("omni_p") %>% setNames(c(col_var))
+  rep_results[[f]] <- tmp_df
+}
+rep_results_df <- bind_cols(rep_results)
+classify_p_value <- function(x,y,n){
+      ifelse(x < (0.05 / n) & y > (0.05 / n),
+        "Epigenetic Mediation",
+        ifelse(x > (0.05) / n & y < (0.05/ n),
+          "Transcriptional Mediation",
+          ifelse(x > (0.05) / n & y > (0.05/ n),
+            "Independent Association",
+            "Unclassified")))
+    
+}
+# all_cit_df <- cbind(
+#   rep_merged_df %>% select(contains("omni_p")),
+#   merged_cit_df
+# )
+
+
+n <- nrow(plot_data)
+n2 <- nrow(cit_df)
+mediation_df <- cbind(cit_df, rep_results_df) %>%
+  mutate(
+    pca_rep_1_model = classify_p_value(pca_rep_1_omni_p,pca_rev_rep_1_omni_p,n),
+    ae_rep_1_model = classify_p_value(mmd_vae_rep_1_omni_p, mmd_vae_rev_rep_1_omni_p,n),
+    rep_rep_1_model = classify_p_value(rep_1_omni_p,rev_rep_1_omni_p,n2),
+    pca_rep_2_model = classify_p_value(pca_rep_2_omni_p,pca_rev_rep_2_omni_p,n),
+    ae_rep_2_model = classify_p_value(mmd_vae_rep_2_omni_p, mmd_vae_rev_rep_2_omni_p,n),
+    rep_rep_2_model = classify_p_value(rep_2_omni_p,rev_rep_2_omni_p,n2),
+    pca_rep_3_model = classify_p_value(pca_rep_3_omni_p,pca_rev_rep_3_omni_p,n),
+    ae_rep_3_model = classify_p_value(mmd_vae_rep_3_omni_p, mmd_vae_rev_rep_3_omni_p,n),
+    rep_rep_3_model = classify_p_value(rep_3_omni_p,rev_rep_3_omni_p,n2),
+    pub_model = classify_p_value(pCausal, pReact, n2),
+    probe_peak = paste0(probes,peaks)
+  ) %>%
+  select(
+    gene,
+    probe_peak,
+    pCausal,
+    pReact,
+    ends_with("model"),
+    ends_with("omni_p")
+  ) 
+mediation_df %>% 
+  gather("test","mediation_model",ends_with("model")) %>%
+  group_by(test, mediation_model) %>% 
+  summarize(perc = n()/ nrow(mediation_df)) %>%
+  ggplot(aes(x = mediation_model,y=perc,label=percent(perc,accuracy = 0.001),fill=mediation_model)) +
+    geom_bar(stat="identity", position = position_dodge()) +
+    geom_text(position = position_dodge(), vjust=0.5, hjust = 0.6, size = 3) + 
+    facet_wrap(~test,ncol = 3) + 
+    labs(x= NULL) + 
+    theme_minimal() + 
+    theme(axis.text.x=element_blank())
+
+```
+## Assessing overlap in "hits" between LV methods
+* probes transcriptionally mediated
+* genes epigenetically mediated
+```{r}
+  # group_by(gene) %>%
+  # summarize(
+  #   pca_eq_ae = sum(pca_model == ae_model),
+  #   pca_neq_ae = sum(pca_model != ae_model),
+  #   rep_eq_pca = sum(rep_model == pca_model),
+  #   rep_neq_pca = sum(rep_model != pca_model),
+  #   rep_eq_ae = sum(rep_model == ae_model),
+  #   rep_neq_ae = sum(rep_model != ae_model)
+  # )
+
+med_all <- mediation_df %>% gather("test","mediation_scenario",pca_rep_1_model,ae_rep_1_model,rep_rep_1_model,pub_model) 
+plot_mediation_gene <- function(df){
+  p <- df %>% ggplot(aes(x= gene,y=mediation_scenario)) +
+    geom_bin2d() + 
+    scale_fill_gradient(low="dodgerblue", high="red") +
+    facet_wrap(~test, ncol= 1) +
+    labs(fill = "# of Epigenome Vars")+
+    theme_minimal() + 
+    theme(axis.text.x = element_text(size=1, angle = 90, hjust = 1, vjust = 1)) 
+  print(p)
+}
+plot_mediation_probe <- function(df){  
+  p <- df %>% ggplot(aes(x= probe_peak,y=mediation_scenario)) +
+    geom_bin2d() + 
+    scale_fill_gradient(low="dodgerblue", high="red") +
+    facet_wrap(~test, ncol= 1) +
+    labs(fill = "# of genes")+
+    theme_minimal() + 
+    theme(axis.text.x = element_blank()) 
+  print(p)
+}
+plot_mediation_gene(med_all)
+plot_mediation_probe(med_all)
+
+plot_mediation_gene(med_all %>% filter(mediation_scenario == "Epigenetic Mediation"))
+plot_mediation_gene(med_all %>% filter(mediation_scenario == "Transcriptional Mediation"))
+plot_mediation_gene(med_all %>% filter(mediation_scenario == "Independent Association"))
+plot_mediation_gene(med_all %>% filter(mediation_scenario == "Unclassified"))
+
+```
+### Comparison of P-Values where I don't call anything
+
+#### Correlation between p values
+```{r}
+library(GGally)
+head(mediation_df)
+unclassified_df <- mediation_df %>% filter_at(vars(ends_with("model")), function(x){x == "Unclassified"})
+
+unclassified_df %>%
+  select(matches("(mmd_vae|pca).*rep_1.*omni_p")) %>%
+  rename_all(function(x) gsub("_rep_1_omni_p","",x)) %>%
+  mutate_all(function(x) -log10(x)) %>%
+  ggpairs(progress = F)
+
+unclassified_df %>% 
+  select(matches("(mmd_vae).*rep_1.*omni_p"), rep_1_omni_p,rev_rep_1_omni_p) %>% 
+  rename_all(function(x) gsub("_rep_1_omni_p","",x)) %>%
+  mutate_all(function(x) -log10(x)) %>% 
+  ggpairs(progress = F)
+
+unclassified_df %>%
+  select(matches("(pca).*rep_1.*omni_p"), rep_1_omni_p,rev_rep_1_omni_p) %>% 
+  rename_all(function(x) gsub("_rep_1_omni_p","",x)) %>%
+  mutate_all(function(x) -log10(x)) %>%
+  ggpairs(progress = F)
+
+unclassified_df %>%
+  select(rep_1_omni_p,rev_rep_1_omni_p,rep_2_omni_p,rev_rep_2_omni_p,rep_3_omni_p,rev_rep_3_omni_p) %>% 
+  rename_all(function(x) gsub("_rep_1_omni_p","",x)) %>%
+  mutate_all(function(x) -log10(x)) %>%
+  ggpairs(progress = F)
+
+unclassified_df %>%
+  select(pca_rep_1_omni_p,pca_rev_rep_1_omni_p,pca_rep_2_omni_p,pca_rev_rep_2_omni_p,pca_rep_3_omni_p,pca_rev_rep_3_omni_p) %>% 
+  rename_all(function(x) gsub("_rep_1_omni_p","",x)) %>%
+  mutate_all(function(x) -log10(x)) %>%
+  ggpairs(progress = F)
+
+unclassified_df %>%
+  select(mmd_vae_rep_1_omni_p,mmd_vae_rev_rep_1_omni_p,mmd_vae_rep_2_omni_p,mmd_vae_rev_rep_2_omni_p,mmd_vae_rep_3_omni_p,mmd_vae_rev_rep_3_omni_p) %>% 
+  rename_all(function(x) gsub("_rep_1_omni_p","",x)) %>%
+  mutate_all(function(x) -log10(x)) %>%
+  ggpairs(progress = F)
+```
+Notes:
+* it looks like with the exception of the autoencoder and univariate case, the p values for tests that are classified as unknown show modest correlation (0.4-0.69, Pearson's $R^2$) 
+* for those values unclassifed by the autoencoder, the reverse and forward models show negative correlation, whereas the other models show low correlation (~0.05, Pearson's $R^2$)
+
+#### Percent overlaps in genes and probes
+```{r}
+mediation_df %>%
+  select(-ends_with("omni_p"),-pCausal,-pReact, -matches("rep_[2-3]_model")) %>%
+  summarize(
+    pca_ae_sim = sum(pca_rep_1_model == ae_rep_1_model) / n(),
+    pca_rep_sim =  sum(pca_rep_1_model == rep_rep_1_model) / n(),
+    ae_rep_sim = sum(ae_rep_1_model == rep_rep_1_model) / n(),
+    case = "Any Match"
+  )
+mediation_df %>%
+  select(-ends_with("omni_p"),-pCausal,-pReact, -matches("rep_[2-3]_model")) %>%
+  summarize(
+    pca_ae_sim = sum((pca_rep_1_model == "Unclassified") == (ae_rep_1_model == "Unclassified")) / n(),
+    pca_rep_sim = sum((pca_rep_1_model == "Unclassified") == (rep_rep_1_model == "Unclassified")) / n(),
+    ae_rep_sim = sum((ae_rep_1_model == "Unclassified") == (rep_rep_1_model == "Unclassified")) / n(),
+    case = "Unclassified"
+  )
+
+mediation_df %>%
+  select(-ends_with("omni_p"),-pCausal,-pReact, -matches("rep_[2-3]_model")) %>%
+  summarize(
+    pca_ae_sim = sum((pca_rep_1_model == "Transcriptional Mediation") == (ae_rep_1_model == "Transcriptional Mediation")) / n(),
+    pca_rep_sim = sum((pca_rep_1_model == "Transcriptional Mediation") == (rep_rep_1_model == "Transcriptional Mediation")) / n(),
+    ae_rep_sim = sum((ae_rep_1_model == "Transcriptional Mediation") == (rep_rep_1_model == "Transcriptional Mediation")) / n(),
+    case = "Transcriptional Mediation"
+  )
+
+mediation_df %>%
+  select(-ends_with("omni_p"),-pCausal,-pReact, -matches("rep_[2-3]_model")) %>%
+  summarize(
+    pca_ae_sim = sum((pca_rep_1_model == "Epigenetic Mediation") == (ae_rep_1_model == "Epigenetic Mediation")) / n(),
+    pca_rep_sim = sum((pca_rep_1_model == "Epigenetic Mediation") == (rep_rep_1_model == "Epigenetic Mediation")) / n(),
+    ae_rep_sim = sum((ae_rep_1_model == "Epigenetic Mediation") == (rep_rep_1_model == "Epigenetic Mediation")) / n(),
+    case = "Epigenetic Mediation"
+  )
+mediation_df %>%
+  select(-ends_with("omni_p"),-pCausal,-pReact, -matches("rep_[2-3]_model")) %>%
+  summarize(
+    pca_ae_sim = sum((pca_rep_1_model == "Independent Association") == (ae_rep_1_model == "Independent Association")) / n(),
+    pca_rep_sim = sum((pca_rep_1_model == "Independent Association") == (rep_rep_1_model == "Independent Association")) / n(),
+    ae_rep_sim = sum((ae_rep_1_model == "Independent Association") == (rep_rep_1_model == "Independent Association")) / n(),
+    case = "Independent Association"
+  )
+mediation_df %>% filter(pca_rep_1_model != ae_rep_1_model,pca_rep_1_model == "Independent Association" | ae_rep_1_model == "Independent Association")%>% select(gene,probe_peak, contains("pca"), contains("ae"), -matches("rep_[2-3]"), -pCausal) %>% unique()
+mediation_df %>% filter(pca_rep_1_model == "Transcriptional Mediation" & ae_rep_1_model == "Epigenetic Medation") 
+mediation_df %>% filter(pca_rep_1_model == "Epigenetic Mediation" & ae_rep_1_model == "Transcriptional Medation")
+
+mediation_df %>% filter(rep_rep_1_model != ae_rep_1_model,rep_rep_1_model == "Independent Association" | ae_rep_1_model == "Independent Association")
+mediation_df %>% filter(rep_rep_1_model == "Transcriptional Mediation" & ae_rep_1_model == "Epigenetic Medation")
+mediation_df %>% filter(rep_rep_1_model == "Epigenetic Mediation" & ae_rep_1_model == "Transcriptional Medation")
+
+mediation_df %>% filter(rep_rep_1_model != pca_rep_1_model,rep_rep_1_model == "Independent Association" | pca_rep_1_model == "Independent Association")
+mediation_df %>% filter(rep_rep_1_model == "Transcriptional Mediation" & pca_rep_1_model == "Epigenetic Medation")
+mediation_df %>% filter(rep_rep_1_model == "Epigenetic Mediation" & pca_rep_1_model == "Transcriptional Medation")
+
+
+```
+Where does AE find mediation where PCA doesn't?
+```{r}
+mediation_df %>% filter(pca_rep_1_model != ae_rep_1_model,pca_rep_1_model == "Independent Association" | ae_rep_1_model == "Independent Association")%>% select(gene,probe_peak, contains("pca"), contains("ae"), -matches("rep_[2-3]"), -pCausal) %>% unique()
+mediation_df %>% filter(pca_rep_1_model != ae_rep_1_model,pca_rep_1_model == "Independent Association" | ae_rep_1_model == "Independent Association")%>% select(gene,probe_peak, contains("pca"), contains("ae"), -matches("rep_[2-3]"), -pCausal) %>% unique() %>% select(gene) %>% unique()
+mediation_df %>% filter(pca_rep_1_model != ae_rep_1_model,pca_rep_1_model == "Independent Association" | ae_rep_1_model == "Independent Association")%>% select(gene,probe_peak, contains("pca"), contains("ae"), -matches("rep_[2-3]"), -pCausal) %>% unique() %>% select(probe_peak) %>% unique()
+
+```
+
+### PC LV correlation
+```{r}
+pcs_df <- read.csv("../data/latent_vars/pca_lvs_1kg_cit_replication.csv")
+mmd_vae_df <- read.csv("../data/latent_vars/mmdvae_lvs_1kg_cit_replication.csv")
+```
+```{r}
+library(pheatmap)
+all(pcs_df$X == mmd_vae_df$X)
+test <- cor(pcs_df[-c(1)],mmd_vae_df[-c(1)])
+res <- pheatmap(test,show_rownames = F, show_colnames = F)
+pheatmap(test,show_rownames = F, show_colnames = F,cluster_rows = F, cluster_cols = F)
+```
+See some small scattered clusters that may or may not be the same genes. Other than that what I can do is just rank high correlations and see those that aren't the same genes. I also need to check whether or not it's just a result of the number of snps being summarized
+```{r}
+snp_per_gene <- cit_df %>% select(snp,gene) %>% unique() %>% group_by(gene) %>% summarize(num_snp = n()) %>% column_to_rownames(var="gene")
+(diff_gene <- test %>% melt() %>% filter(Var1 != Var2) %>% mutate(nsnp1 = snp_per_gene[Var1,],nsnp2 = snp_per_gene[Var2,]))
+diff_gene %>% mutate(diff_snp = abs(nsnp1-nsnp2)) %>%
+  ggplot(aes(x=value,y=diff_snp)) +
+  geom_smooth() +
+  geom_point(alpha=0.5)
+ggplot(diff_gene, aes(x=value)) +
+  geom_smooth(aes(y=nsnp1,color="SNPs in gene 1")) +
+  geom_smooth(aes(y = nsnp2, color="SNPs in gene 2")) 
+ggplot(diff_gene, aes(x=value, y= nsnp1)) +
+  geom_point(alpha=0.5)
+(same_gene <- test %>% melt() %>% filter(Var1 == Var2) %>% mutate(nsnp1 = snp_per_gene[Var1,],nsnp2 = snp_per_gene[Var2,]))
+same_gene %>%
+  ggplot(aes(x=value, y=nsnp1)) +
+    geom_smooth() +
+    geom_point(alpha=0.5) + 
+    ggrepel::geom_text_repel(label=ifelse(same_gene$nsnp1 > 300, as.character(same_gene$Var1),""))
 ```
 

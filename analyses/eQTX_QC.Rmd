@@ -1,0 +1,72 @@
+---
+title: "eQTX Quality Control"
+author: "William Casazza"
+date: "May 22, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+knitr::opts_chunk$set(echo = TRUE)
+```
+# QC on eQTX (X=methylation or h3k9 acetylation) analysis
+```{r}
+acetyl_df <- read.csv("../data/eQTX/acetylchr22_eQTX.csv") %>% 
+  mutate(p_adj = p.adjust(pval,method="bonf"))
+methyl_df <- read.csv("../data/eQTX/methyl_chr22_eQTX.csv") %>% 
+  mutate(p_adj = p.adjust(pval,method="bonf"))
+```
+
+```{r}
+acetyl_df %>% filter(p_adj < 0.05) %>% nrow()
+acetyl_df %>% filter(p_adj < 0.05) %>%
+  ggplot(aes(dist)) + 
+    geom_histogram(bins = 50) + 
+    ggtitle("H3K9ac to Gene Expression Association Chr22") + 
+    theme_minimal() +
+    theme(text = element_text(family = "Arial")) +
+    theme(text = element_text(family = "Arial"), axis.text.x = element_text(vjust=1,hjust=1,angle=45)) + 
+    scale_x_continuous(breaks=c(-1e6,-5e5,-1e5,0,1e5,5e5,1e6))
+acetyl_df %>% filter(p_adj < 0.05) %>%
+  ggplot(aes(ifelse(dist < 0, -log10(abs(dist)),ifelse(dist == 0,0,log10(abs(dist)))))) + 
+    geom_histogram(bins=50) + 
+    ggtitle("H3K9ac to Gene Expression Association Chr22") +
+    theme(text = element_text(family = "Arial"), axis.text.x = element_text(vjust=1,hjust=1,angle=45))+
+    scale_x_continuous(breaks = -6:6) 
+
+methyl_df %>% filter(p_adj < 0.05) %>% nrow()
+methyl_df %>% filter(p_adj < 0.05) %>%
+  ggplot(aes(dist)) + 
+    geom_histogram(bins=500) + 
+    ggtitle("DNAm to Gene Expression Association Chr22") +
+    theme(text = element_text(family = "Arial"), axis.text.x = element_text(vjust=1,hjust=1,angle=45)) + 
+    scale_x_continuous(breaks=c(-1e6,-5e5,-1e5,0,1e5,5e5,1e6))
+
+methyl_df %>% filter(p_adj < 0.05) %>%
+  ggplot(aes(ifelse(dist < 0, -log10(abs(dist)),ifelse(dist == 0,0,log10(abs(dist)))))) + 
+    geom_histogram(bins=500) + 
+    ggtitle("DNAm to Gene Expression Association Chr22") +
+    theme(text = element_text(family = "Arial"), axis.text.x = element_text(vjust=1,hjust=1,angle=45))+
+    scale_x_continuous(breaks = -6:6)
+
+```
+## Genome wide
+Let's see what we have genome wide:
+```{r}
+library(data.table)
+genome_wide <- fread("../data/eQTX/eQTX_1MB_results.csv")[,-c(1)]
+```
+
+```{r}
+w_hits <- genome_wide[,.(p_adj = pval *.N, dist), by=dataset]
+ggplot(w_hits[p_adj < 0.05],aes(x = dist)) + 
+  geom_histogram(bins=200) + 
+  facet_wrap(~dataset)
+w_hits[p_adj < 0.05]
+w_hits_improved <- genome_wide[abs(dist) <= 1e5, .(p_adj = pval * .N,dist), by=dataset]
+ggplot(w_hits_improved[p_adj < 0.05],aes(x = dist)) + 
+  geom_histogram(bins=200) + 
+  facet_wrap(~dataset)
+w_hits_improved[p_adj < 0.05]
+w_hits[p_adj  < 0.05]
+```
