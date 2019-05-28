@@ -155,7 +155,14 @@ mmd_cit_rep_1_df <- read.csv("../data/rosmap_cit_mmdvae/perm_test_mmdvae_1_laten
   rename(mmd_rep_1_p1 = p1,mmd_rep_1_p2 = p2,mmd_rep_1_p3 = p3,mmd_rep_1_p4= p4,mmd_rep_1_omni_p = omni_p )
 mmd_cit_rev_rep_1_df <- read.csv("../data/rosmap_cit_mmdvae/perm_test_rev_mmdvae_1_latent_depth_10_cit_rep1.csv") %>%
   rename(mmd_rev_rep_1_p1 = p1,mmd_rev_rep_1_p2 = p2,mmd_rev_rep_1_p3 = p3,mmd_rev_rep_1_p4= p4,mmd_rev_rep_1_omni_p = omni_p )
-
+mmd_cit_train2_df <- read.csv("../data/mmd_vae_new_train/perm_test_mmdvae_1_latent_depth_10_cit.csv") %>%
+  rename(mmd_train_p1 = p1,mmd_train_p2 = p2, mmd_train_p3 = p3,mmd_train_p4 = p4,mmd_train_omni_p = omni_p)
+mmd_cit_rev_train2_df <- read.csv("../data/mmd_vae_new_train/perm_test_rev_mmdvae_1_latent_depth_10_cit.csv") %>%
+  rename(mmd_rev_train_p1 = p1,mmd_rev_train_p2 = p2, mmd_rev_train_p3 = p3,mmd_rev_train_p4 = p4,mmd_rev_train_omni_p = omni_p)
+mmd_cit_train_100_df <- read.csv("../data/mmd_vae_new_train/perm_test_mmdvae_1_latent_depth_10_cit_100_epochs.csv") %>%
+  rename(mmd_train_100_p1 = p1,mmd_train_100_p2 = p2, mmd_train_100_p3 = p3,mmd_train_100_p4 = p4,mmd_train_100_omni_p = omni_p)
+mmd_cit_rev_train_100_df <- read.csv("../data/mmd_vae_new_train/perm_test_rev_mmdvae_1_latent_depth_10_cit_100_epochs.csv") %>%
+  rename(mmd_rev_train_100_p1 = p1,mmd_rev_train_100_p2 = p2, mmd_rev_train_100_p3 = p3,mmd_rev_train_100_p4 = p4,mmd_rev_train_100_omni_p = omni_p)
 
 merged_cit_df <- cbind(
   cit_df[c("snp", "probes","peaks", "pCausal","pReact","gene")],
@@ -166,7 +173,11 @@ merged_cit_df <- cbind(
   mmd_cit_df,
   mmd_cit_rev_df,
   mmd_cit_rep_1_df,
-  mmd_cit_rev_rep_1_df
+  mmd_cit_rev_rep_1_df,
+  mmd_cit_train2_df,
+  mmd_cit_rev_train2_df,
+  mmd_cit_train_100_df,
+  mmd_cit_rev_train_100_df
 )
 head(merged_cit_df)
 merged_cit_df %>% group_by(probes,peaks,gene) %>% summarize(count = n()) %>%
@@ -479,7 +490,7 @@ classify_p_value <- function(x,y,n){
 
 n <- nrow(plot_data)
 n2 <- nrow(cit_df)
-mediation_df <- cbind(cit_df, rep_results_df) %>%
+mediation_df <- cbind(cit_df, rep_results_df, mmd_cit_train2_df,mmd_cit_rev_train2_df, mmd_cit_train_100_df, mmd_cit_rev_train_100_df) %>%
   mutate(
     pca_rep_1_model = classify_p_value(pca_rep_1_omni_p,pca_rev_rep_1_omni_p,n),
     ae_rep_1_model = classify_p_value(mmd_vae_rep_1_omni_p, mmd_vae_rev_rep_1_omni_p,n),
@@ -490,6 +501,8 @@ mediation_df <- cbind(cit_df, rep_results_df) %>%
     pca_rep_3_model = classify_p_value(pca_rep_3_omni_p,pca_rev_rep_3_omni_p,n),
     ae_rep_3_model = classify_p_value(mmd_vae_rep_3_omni_p, mmd_vae_rev_rep_3_omni_p,n),
     rep_rep_3_model = classify_p_value(rep_3_omni_p,rev_rep_3_omni_p,n2),
+    ae_new_train_model = classify_p_value(mmd_train_omni_p,mmd_rev_train_omni_p,n2),
+    ae_new_train_100_model = classify_p_value(mmd_train_100_omni_p, mmd_rev_train_100_omni_p,n2),
     pub_model = classify_p_value(pCausal, pReact, n2),
     probe_peak = paste0(probes,peaks)
   ) %>%
@@ -512,7 +525,22 @@ mediation_df %>%
     labs(x= NULL) + 
     theme_minimal() + 
     theme(axis.text.x=element_blank())
+# test that new train model is similar to the others: 
+cbind(rep_results_df, mmd_cit_train2_df,mmd_cit_rev_train2_df) %>% 
+ggplot(aes(-log10(mmd_vae_rep_1_omni_p),-log10(mmd_train_omni_p))) + geom_point() +
+  labs(caption = sprintf(
+    "Correlation: %f", 
+    cor(
+      -log10(rep_results_df$mmd_vae_rep_1_omni_p),
+      -log10(mmd_cit_train2_df$mmd_train_omni_p))))
 
+cbind(rep_results_df, mmd_cit_train2_df,mmd_cit_rev_train2_df) %>% 
+ggplot(aes(-log10(mmd_vae_rev_rep_1_omni_p),-log10(mmd_rev_train_omni_p))) + geom_point() +
+  labs(caption = sprintf(
+    "Correlation: %f", 
+    cor(
+      -log10(rep_results_df$mmd_vae_rev_rep_1_omni_p),
+      -log10(mmd_cit_rev_train2_df$mmd_rev_train_omni_p))))
 ```
 ## Assessing overlap in "hits" between LV methods
 * probes transcriptionally mediated
@@ -670,6 +698,9 @@ mediation_df %>% filter(pca_rep_1_model != ae_rep_1_model,pca_rep_1_model == "In
 mediation_df %>% filter(pca_rep_1_model != ae_rep_1_model,pca_rep_1_model == "Independent Association" | ae_rep_1_model == "Independent Association")%>% select(gene,probe_peak, contains("pca"), contains("ae"), -matches("rep_[2-3]"), -pCausal) %>% unique() %>% select(gene) %>% unique()
 mediation_df %>% filter(pca_rep_1_model != ae_rep_1_model,pca_rep_1_model == "Independent Association" | ae_rep_1_model == "Independent Association")%>% select(gene,probe_peak, contains("pca"), contains("ae"), -matches("rep_[2-3]"), -pCausal) %>% unique() %>% select(probe_peak) %>% unique()
 
+
+unique_df <- mediation_df %>% filter(pca_rep_1_model == "Unclassified",rep_rep_1_model=="Unclassified", ae_rep_1_model != "Unclassified") %>% select(-matches("rep_[2-3]"), -pCausal, -pReact)
+  ggplot(unique_df, aes(ae_rep_1_model)) + geom_bar()
 ```
 
 ### PC LV correlation
@@ -697,11 +728,25 @@ ggplot(diff_gene, aes(x=value)) +
   geom_smooth(aes(y = nsnp2, color="SNPs in gene 2")) 
 ggplot(diff_gene, aes(x=value, y= nsnp1)) +
   geom_point(alpha=0.5)
+ggplot(diff_gene, aes(x=value, y= nsnp2)) +
+  geom_point(alpha=0.5)
+
 (same_gene <- test %>% melt() %>% filter(Var1 == Var2) %>% mutate(nsnp1 = snp_per_gene[Var1,],nsnp2 = snp_per_gene[Var2,]))
 same_gene %>%
   ggplot(aes(x=value, y=nsnp1)) +
     geom_smooth() +
     geom_point(alpha=0.5) + 
     ggrepel::geom_text_repel(label=ifelse(same_gene$nsnp1 > 300, as.character(same_gene$Var1),""))
+```
+```{r}
+summary_1 <- mediation_df %>% filter(pca_rep_1_model != ae_rep_1_model)%>% select(gene,probe_peak, contains("pca"), contains("ae"), -matches("rep_[2-3]"), -pCausal) %>% unique() %>% mutate(corr = unlist(lapply(gene, function(x){test[x,x]})))
+summary_1 %>% ggplot(aes(x=corr)) + geom_histogram()
+
+summary_2 <- mediation_df %>% filter(pca_rep_1_model == ae_rep_1_model)%>% select(gene,probe_peak, contains("pca"), contains("ae"), -matches("rep_[2-3]"), -pCausal) %>% unique() %>% mutate(corr = unlist(lapply(gene, function(x){test[x,x]})))
+summary_2 %>% ggplot(aes(x=corr)) + geom_histogram()
+library(Matrix)
+library(CCA)
+cc_res <- cc(as.matrix(pcs_df[,-c(1)]), as.matrix(mmd_vae_df[,-c(1)]))
+
 ```
 

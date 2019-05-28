@@ -58,15 +58,15 @@ genome_wide <- fread("../data/eQTX/eQTX_1MB_results.csv")[,-c(1)]
 ```
 
 ```{r}
-w_hits <- genome_wide[,.(p_adj = pval *.N, dist), by=dataset]
+w_hits <- genome_wide[,p_adj := pval *.N, by=dataset]
 ggplot(w_hits[p_adj < 0.05],aes(x = dist)) + 
   geom_histogram(bins=200) + 
   facet_wrap(~dataset)
-w_hits[p_adj < 0.05]
-w_hits_improved <- genome_wide[abs(dist) <= 1e5, .(p_adj = pval * .N,dist), by=dataset]
+w_hits[p_adj < 0.05,.N,by=.(gene,dataset)]
+w_hits_improved <- genome_wide[abs(dist) <= 1e5][, p_adj := pval * .N, by=dataset]
 ggplot(w_hits_improved[p_adj < 0.05],aes(x = dist)) + 
   geom_histogram(bins=200) + 
   facet_wrap(~dataset)
-w_hits_improved[p_adj < 0.05]
-w_hits[p_adj  < 0.05]
+w_hits_improved[p_adj < 0.05,.N,by=.(gene,dataset)]
+w_hits_improved[p_adj < 0.05,.N,by=.(gene)]
 ```

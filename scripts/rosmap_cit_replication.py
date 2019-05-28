@@ -92,7 +92,7 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts, geno=None)
     help="Filename of manifest containing rsids, probe/peak ids and genes to test for causal mediation.")
 @click.option('--snp-coords', type=str, required=True,
     help="Directory of csv files containing snp coordinates")
-@click.option('--lv-method', required=True, type=click.Choice(['pca', 'mmdvae']))
+@click.option('--lv-method', required=True, type=click.Choice(['pca', 'mmdvae','lfa']))
 @click.option('--num-latent', type=int, required=True)
 @click.option('--out-name', type=str, required=True,
     help="Suffix for output files, no path")

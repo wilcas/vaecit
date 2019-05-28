@@ -16,6 +16,7 @@ import vae_torch as vt
 
 from scipy import io,stats
 from scipy.sparse.linalg import svds
+from sklearn.decomposition import FactorAnalysis
 from functools import reduce
 
 
@@ -246,6 +247,9 @@ def reduce_genotype(genotype, lv_method, num_latent, state_name, vae_depth=None)
         latent_genotype = model.encode(torch.Tensor(stats.zscore(genotype))).detach()
     elif lv_method == "pca":
         latent_genotype = compute_pcs(genotype)[:, 0:num_latent]
+    elif lv_method == "lfa":
+        lfa = FactorAnalysis(n_components=1)
+        latent_genotype = lfa.fit_transform(genotype)
     else:
         raise NotImplemented
     return latent_genotype
