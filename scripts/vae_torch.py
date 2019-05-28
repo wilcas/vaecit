@@ -12,15 +12,14 @@ class AEData(torch.utils.data.Dataset):
     def __init__(self,x):
         super(AEData, self).__init__()
         self.x = x
-        self.y = x
 
 
     def __len__(self):
-        return self.y.shape[0]
+        return self.x.shape[0]
 
 
     def __getitem__(self, index):
-        return self.x[index], self.y[index]
+        return self.x[index,:]
 
 
 class MMD_VAE(nn.Module):
@@ -55,29 +54,31 @@ class MMD_VAE(nn.Module):
         return self.decode(self.encode(x))
 
 
-def compute_kernel(x,y):
-    x_size, dim = x.size()
-    y_size = y.size()[0]
-    tiled_x = x.reshape(x_size,1,dim).repeat([1,y_size,1])
-    tiled_y = y.reshape(1,y_size,dim).repeat([x_size,1,1])
-    if torch.cuda.is_available():
-        tiled_x = tiled_x.cuda()
-        tiled_y = tiled_y.cuda()
-    return torch.exp(-torch.mean((tiled_x - tiled_y)**2,2) / float(dim))
+def compute_kernel(x, y):
+    x_size = x.size(0)
+    y_size = y.size(0)
+    dim = x.size(1)
+    x = x.unsqueeze(1) # (x_size, 1, dim)
+    y = y.unsqueeze(0) # (1, y_size, dim)
+    tiled_x = x.expand(x_size, y_size, dim)
+    tiled_y = y.expand(x_size, y_size, dim)
+    kernel_input = (tiled_x - tiled_y).pow(2).mean(2)/float(dim)
+    return torch.exp(-kernel_input) # (x_size, y_size)
 
 
-def compute_mmd(x,y):
-    x_kernel = compute_kernel(x,x)
-    y_kernel = compute_kernel(y,y)
-    xy_kernel = compute_kernel(x,y)
-    return torch.mean(x_kernel) + torch.mean(y_kernel) - 2*torch.mean(xy_kernel)
+def compute_mmd(x, y):
+    x_kernel = compute_kernel(x, x)
+    y_kernel = compute_kernel(y, y)
+    xy_kernel = compute_kernel(x, y)
+    mmd = x_kernel.mean() + y_kernel.mean() - 2*xy_kernel.mean()
+    return mmd
 
 
-def loss(train_z,output,x):
+def loss_mmd_nll(train_z,output,x):
     samples = torch.randn([200,train_z.size()[1]])
     loss_mmd = compute_mmd(samples, train_z)
-    loss_nll = torch.mean((output - x)**2)
-    return loss_mmd + loss_nll
+    loss_nll = (output - x).pow(2).mean()
+    return loss_mmd, loss_nll
 
 
 def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=False):
@@ -92,18 +93,23 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
     i = 0
     prev_loss = 1e10
     losses = []
-    while(i < 100): #num epochs
+    loss_value = None
+    while(i < 20): #num epochs
         i += 1
-        for data in trainloader:
+        tmp_losses = []
+        for (j,gen_batch) in enumerate(trainloader):
             optimizer.zero_grad()
-            output = model(genotype)
-            loss_fn = loss(model.module.encode(genotype),output, genotype)
-            tol = abs(prev_loss - loss_fn)
-            prev_loss = loss_fn
-            loss_fn.backward()
+            output = model(gen_batch)
+            loss_mmd,loss_nll = loss_mmd_nll(model.module.encode(gen_batch),output,gen_batch)
+            loss = loss_mmd + loss_nll
+            loss.backward()
             optimizer.step()
+            if verbose:
+                print("Loss at batch {}, epoch {}: nll: {}, mmd: {}".format(j,i,loss_nll, loss_mmd))
         if plot_loss:
-            losses.append(loss_fn)
+            loss_mmd,loss_nll = loss_mmd_nll(model.module.encode(gen_batch),output,gen_batch)
+            loss = loss_mmd + loss_nll
+            losses.append(loss.item())
             plt.clf()
             plt.plot(np.arange(i),np.array(losses))
             plt.xlabel("Epoch")
@@ -111,7 +117,7 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
             plt.draw()
             plt.pause(0.001)
         if verbose:
-            print("Loss at epoch {}: {}".format(i,loss_fn))
+            print("Loss at epoch {}: {}".format(i,loss.item()))
     if save_loss:
         plt.plot(np.arange(i),np.array(losses))
         plt.xlabel("Epoch")
