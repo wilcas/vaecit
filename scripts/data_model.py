@@ -209,7 +209,7 @@ def compute_pcs(A):
     return A_std@vh.T
 
 
-def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = None):
+def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = None, lv_method="pca", vae_depth=None):
     n = data.shape[0]
     feature_idx = np.isin(ids, which_ids)
     tmp_data = data[:,feature_idx]
@@ -217,9 +217,35 @@ def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = No
         feature_idx2 = np.isin(ids2, which_ids2)
         tmp_data2 = data2[:, feature_idx2]
         cur_data = np.concatenate((tmp_data, tmp_data2), axis=1)
-        cur_data = compute_pcs(cur_data)
     else:
-        cur_data = compute_pcs(tmp_data)
+        cur_data = tmp_data
+    if lv_method == 'mmdvae':
+        params = {
+            "size": cur_data.shape[1],
+            "num_latent": num_latent,
+            "depth": vae_depth}
+        fname = "/zfs3/users/william.casazza/william.casazza/vaecit/data/{}_model.pt".format(state_name)
+        if os.path.isfile(fname):
+            model = vt.MMD_VAE(**params)
+            model.load_state_dict(torch.load(fname))
+            model.eval()
+        else:
+            model = vt.train_mmd_vae(torch.Tensor(stats.zscore(cur_data)), params)
+            torch.save(model.state_dict(), fname)
+        cur_data = model.encode(torch.Tensor(stats.zscore(cur_data))).detach()
+    elif lv_method == "pca":
+        cur_data = compute_pcs(cur_data)[:, 0:num_latent]
+    elif lv_method == "lfa":
+        lfa = FactorAnalysis(n_components=1)
+        cur_data = lfa.fit_transform(stats.zscore(cur_data))
+    elif lv_method == "kernelpca":
+        kpca = KernelPCA(n_components=1, kernel="rbf")
+        cur_data = kpca.fit_transform(stats.zscore(cur_data))
+    elif lv_method == "fastica":
+        ica = FastICA(n_components=1)
+        cur_data = ica.fit_transform(stats.zscore(cur_data))
+    else:
+        raise NotImplemented
     if len(cur_data.shape) == 1:
         cur_data = cur_data.reshape((n,1))
     else:
@@ -250,10 +276,10 @@ def reduce_genotype(genotype, lv_method, num_latent, state_name, vae_depth=None)
     elif lv_method == "lfa":
         lfa = FactorAnalysis(n_components=1)
         latent_genotype = lfa.fit_transform(stats.zscore(genotype))
-    elif method == "kernelpca":
+    elif lv_method == "kernelpca":
         kpca = KernelPCA(n_components=1, kernel="rbf")
         latent_genotype = kpca.fit_transform(stats.zscore(genotype))
-    elif method == "fastica":
+    elif lv_method == "fastica":
         ica = FastICA(n_components=1)
         latent_genotype = ica.fit_transform(stats.zscore(genotype))
     else:

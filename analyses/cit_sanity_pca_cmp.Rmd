@@ -744,9 +744,9 @@ summary_1 %>% ggplot(aes(x=corr)) + geom_histogram()
 
 summary_2 <- mediation_df %>% filter(pca_rep_1_model == ae_rep_1_model)%>% select(gene,probe_peak, contains("pca"), contains("ae"), -matches("rep_[2-3]"), -pCausal) %>% unique() %>% mutate(corr = unlist(lapply(gene, function(x){test[x,x]})))
 summary_2 %>% ggplot(aes(x=corr)) + geom_histogram()
-library(Matrix)
-library(CCA)
-cc_res <- cc(as.matrix(pcs_df[,-c(1)]), as.matrix(mmd_vae_df[,-c(1)]))
+# library(Matrix)
+# library(CCA)
+# cc_res <- estim.regul(as.matrix(pcs_df[,-c(1)]), as.matrix(mmd_vae_df[,-c(1)]),plt = TRUE) 
 
 ```
 

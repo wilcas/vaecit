@@ -70,3 +70,29 @@ ggplot(w_hits_improved[p_adj < 0.05],aes(x = dist)) +
 w_hits_improved[p_adj < 0.05,.N,by=.(gene,dataset)]
 w_hits_improved[p_adj < 0.05,.N,by=.(gene)]
 ```
+
+
+
+```{r}
+eQTLs_unmerged <- fread("http://mostafavilab.stat.ubc.ca/xqtl/eQTLs.txt")
+head(eQTLs_unmerged)
+head(w_hits)
+```
+```{r}
+eQTX <- w_hits_improved[p_adj < 0.05] %>% group_by(gene) %>% summarize(
+  probes = paste0(unique(feature[dataset == "methyl"]), collapse = ","),
+  peaks = paste0(unique(feature[dataset == "acetyl"]), collapse = ","))%>% unique()
+eQTLs <- eQTLs_unmerged %>% group_by(featureName) %>% 
+  summarize(
+    SNPs = paste0(unique(SNPid),collapse = ",")
+  )
+data_to_export <- merge(eQTLs, eQTX, by.x = "featureName", by.y = "gene")
+head(data_to_export)
+```
+
+
+
+```{r}
+write.table(data_to_export,file = "../eQTX_manifest.txt", quote = F, row.names = F)
+```
+
