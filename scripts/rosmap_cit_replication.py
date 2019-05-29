@@ -14,13 +14,13 @@ import numpy as np
 import pandas as pd
 
 
-def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts, geno=None):
+def cit_on_qtl_set(df, gene, methyl, acetyl, express, opts, geno=None):
     (m_samples, m_ids, methylation) = methyl
     (ac_samples, ac_ids, acetylation) = acetyl
     (e_samples, e_ids, expression) = express
     if geno is None:
         # get load in genotypes associated with gene
-        snp_files = dm.get_snp_groups(df.snp.values, coord_df, opts['genotype_dir'])
+        snp_files = dm.get_snp_groups(df.snp.values, opts['genotype_dir'])
         df['fname'] = snp_files
         groups = iter(df.groupby('fname'))
         # grab from first file
@@ -119,9 +119,6 @@ def main(**opts):
     acetylation = acetylation[:, mask]
     ac_ids = ac_ids[mask]
     expression = dm.standardize_remove_pcs(expression, pcs_to_remove)
-    # get snp coordinates
-    coord_files = [os.path.join(opts['snp_coords'],f) for f in os.listdir(opts['snp_coords']) if f.endswith('.csv')]
-    coord_df = pd.concat([pd.read_csv(f, header=None, names=["snp", "chr", "pos"]) for f in  coord_files], axis=0, ignore_index = True)
 
     # run tests by qtl Gene
     tests_df = pd.read_csv(opts['cit_tests'], sep='\t')
@@ -145,8 +142,8 @@ def main(**opts):
         express = (e_samples, e_ids, expression)
         geno = None
     with joblib.parallel_backend("loky"):
-       mediation_results = joblib.Parallel(n_jobs=-1, verbose=10)(
-           joblib.delayed(cit_on_qtl_set)(df, gene, coord_df, methyl, acetyl, express, opts, geno)
+       mediation_results = joblib.Parallel(n_jobs=6, verbose=10)(
+           joblib.delayed(cit_on_qtl_set)(df, gene, methyl, acetyl, express, opts, geno)
            for (gene, df) in tests_df.groupby('gene')
        )
     # mediation_results = [cit_on_qtl_set(df,gene,coord_df,methyl,acetyl,express,opts,geno) for (gene,df) in tests_df.groupby('gene')] # SEQUENTIAL VERSION
