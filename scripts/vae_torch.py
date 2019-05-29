@@ -75,7 +75,10 @@ def compute_mmd(x, y):
 
 
 def loss_mmd_nll(train_z,output,x):
-    samples = torch.randn([200,train_z.size()[1]])
+    if torch.cuda.is_available():
+        samples = torch.randn([200,train_z.size()[1]]).cuda()
+    else:
+        samples = torch.randn([200,train_z.size()[1]]).cuda()
     loss_mmd = compute_mmd(samples, train_z)
     loss_nll = (output - x).pow(2).mean()
     return loss_mmd, loss_nll
@@ -86,7 +89,7 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
     if torch.cuda.is_available():
         model = model.cuda()
         genotype = torch.Tensor(genotype).cuda()
-    optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=1e-6)
     traindata = AEData(genotype)
     trainloader = torch.utils.data.DataLoader(traindata, batch_size=10, shuffle=True)
     tol = 1e10
@@ -94,9 +97,8 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
     prev_loss = 1e10
     losses = []
     loss_value = None
-    while(i < 20): #num epochs
+    while(i < 50): #num epochs
         i += 1
-        tmp_losses = []
         for (j,gen_batch) in enumerate(trainloader):
             optimizer.zero_grad()
             output = model(gen_batch)
@@ -106,10 +108,11 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
             optimizer.step()
             if verbose:
                 print("Loss at batch {}, epoch {}: nll: {}, mmd: {}".format(j,i,loss_nll, loss_mmd))
+        output = model(genotype.detach()).detach()
+        loss_mmd,loss_nll = loss_mmd_nll(model.module.encode(genotype.detach()).detach(),output.detach(),genotype.detach())
+        loss = loss_mmd.detach() + loss_nll.detach()
+        losses.append(loss.item())
         if plot_loss:
-            loss_mmd,loss_nll = loss_mmd_nll(model.module.encode(gen_batch),output,gen_batch)
-            loss = loss_mmd + loss_nll
-            losses.append(loss.item())
             plt.clf()
             plt.plot(np.arange(i),np.array(losses))
             plt.xlabel("Epoch")
@@ -122,6 +125,7 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
         plt.plot(np.arange(i),np.array(losses))
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
-        plt.savefig("loss_fig.png")
+        plt.savefig(save_loss)
+        plt.close()
     del genotype
     return model.cpu().module

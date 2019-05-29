@@ -235,13 +235,14 @@ def reduce_genotype(genotype, lv_method, num_latent, state_name, vae_depth=None)
             "size": genotype.shape[1],
             "num_latent": num_latent,
             "depth": vae_depth}
-        fname = "/zfs3/users/william.casazza/william.casazza/vaecit/data/{}_model.pt".format(state_name)
+        fname = "/media/wcasazza/saved_models/{}_model.pt".format(state_name)
+        plot_name = "/media/wcasazza/saved_models/{}_loss.png".format(state_name)
         if os.path.isfile(fname):
             model = vt.MMD_VAE(**params)
             model.load_state_dict(torch.load(fname))
             model.eval()
         else:
-            model = vt.train_mmd_vae(torch.Tensor(stats.zscore(genotype)), params)
+            model = vt.train_mmd_vae(torch.Tensor(stats.zscore(genotype)), params, save_loss=plot_name)
             torch.save(model.state_dict(), fname)
         latent_genotype = model.encode(torch.Tensor(stats.zscore(genotype))).detach()
     elif lv_method == "pca":
