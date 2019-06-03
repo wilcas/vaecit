@@ -120,7 +120,7 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
             optimizer.step()
             if warmup < 0:
                 pass
-            elif warmup < 50:
+            elif warmup < 200:
                 warmup += 1
             if verbose:
                 print("Loss at batch {}, epoch {}: nll: {}, mmd: {}".format(j,i,loss_nll, loss_mmd))
