@@ -41,7 +41,8 @@ class MMD_VAE(nn.Module):
     def encode(self,x):
         for i in range(len(self.encode_net) - 1):
             if self.batch_norm:
-                x = nn.BatchNorm1d(F.relu(self.encode_net[i](x)))
+                x = F.relu(self.encode_net[i](x))
+                x = nn.BatchNorm1d(x.shape[1])(x)
             else:
                 x = F.relu(self.encode_net[i](x))
         x = self.encode_net[-1](x)
@@ -50,7 +51,8 @@ class MMD_VAE(nn.Module):
     def decode(self,z):
         for i in range(len(self.decode_net) - 1):
             if self.batch_norm:
-                z = nn.BatchNorm1d(F.relu(self.decode_net[i](z)))
+                z = F.relu(self.decode_net[i](z))
+                z = nn.BatchNorm1d(z.shape[1])(z)
             else:
                 z = F.relu(self.decode_net[i](z))
         z = self.decode_net[-1](z)
@@ -81,49 +83,49 @@ def compute_mmd(x, y):
     return mmd
 
 
-def loss_mmd_nll(train_z,output,x,**kwargs):
+def loss_mmd_nll(train_z,output,x,warmup):
     if torch.cuda.is_available():
         samples = torch.randn([200,train_z.size()[1]]).cuda()
     else:
-        samples = torch.randn([200,train_z.size()[1]]).cuda()
-    loss_mmd = kwargs['warmup'] * compute_mmd(samples, train_z)
+        samples = torch.randn([200,train_z.size()[1]])
+    loss_mmd = warmup * compute_mmd(samples, train_z)
     loss_nll = (output - x).pow(2).mean()
     return loss_mmd, loss_nll
 
 
-def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=False, **kwargs):
+def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=False, warmup=None):
     model = nn.DataParallel(MMD_VAE(**params))
     if torch.cuda.is_available():
         model = model.cuda()
         genotype = torch.Tensor(genotype).cuda()
-    optimizer = optim.Adam(model.parameters(), lr=1e-6)
+    optimizer = optim.Adam(model.parameters(), lr=1e-5)
     traindata = AEData(genotype)
     trainloader = torch.utils.data.DataLoader(traindata, batch_size=10, shuffle=True)
     i = 0
     losses = []
-    if kwargs['warmup']:
-        warmup = 0
-    elif kwargs['warmup'] < 0 :
-        warmup = 0
+    if warmup is None:
+        warmup = 200
+    elif warmup < 0 :
+        pass
     else:
-        warmup = 10
-    while(i < 50): #num epochs
+        warmup = 0
+    while(i < 2000): #num epochs
         i += 1
         for (j,gen_batch) in enumerate(trainloader):
             optimizer.zero_grad()
             output = model(gen_batch)
-            loss_mmd,loss_nll = loss_mmd_nll(model.module.encode(gen_batch),output,gen_batch, warmup=warmup/10)
+            loss_mmd,loss_nll = loss_mmd_nll(model.module.encode(gen_batch),output,gen_batch, 0 if warmup < 0 else warmup/200.0)
             loss = loss_mmd + loss_nll
             loss.backward()
             optimizer.step()
-            if kwargs['warmup'] < 0:
-                continue
-            elif warmup < 10:
+            if warmup < 0:
+                pass
+            elif warmup < 50:
                 warmup += 1
             if verbose:
                 print("Loss at batch {}, epoch {}: nll: {}, mmd: {}".format(j,i,loss_nll, loss_mmd))
         output = model(genotype.detach()).detach()
-        loss_mmd,loss_nll = loss_mmd_nll(model.module.encode(genotype.detach()).detach(),output.detach(),genotype.detach())
+        loss_mmd,loss_nll = loss_mmd_nll(model.module.encode(genotype.detach()).detach(),output.detach(),genotype.detach(),0 if warmup < 0 else warmup/200.0)
         loss = loss_mmd.detach() + loss_nll.detach()
         losses.append(loss.item())
         if plot_loss:

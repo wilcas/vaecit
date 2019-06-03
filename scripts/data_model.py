@@ -226,8 +226,8 @@ def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = No
             "depth": vae_depth}
         if re.search("batch", lv_method):
             params['batch_norm'] = True
-        fname = os.path.join(model_dir, "{}_{}model_{}_depth.pt".format(state_name, model, vae_depth))
-        plot_name = os.path.join(model_dir, "{}_{}loss_{}_depth.png".format(state_name, model, vae_depth))
+        fname = os.path.join(model_dir, "{}_{}model_{}_depth.pt".format(state_name, lv_method, vae_depth))
+        plot_name = os.path.join(model_dir, "{}_{}loss_{}_depth.png".format(state_name, lv_method, vae_depth))
         if os.path.isfile(fname):
             model = vt.MMD_VAE(**params)
             model.load_state_dict(torch.load(fname))
@@ -272,8 +272,8 @@ def reduce_genotype(genotype, lv_method, num_latent, state_name, vae_depth=None,
             "depth": vae_depth}
         if re.search("batch", lv_method):
             params['batch_norm'] = True
-        fname = os.path.join(model_dir, "{}_{}model_{}_depth.pt".format(state_name, model, vae_depth))
-        plot_name = os.path.join(model_dir, "{}_{}loss_{}_depth.png".format(state_name, model, vae_depth))
+        fname = os.path.join(model_dir, "{}_{}model_{}_depth.pt".format(state_name, lv_method, vae_depth))
+        plot_name = os.path.join(model_dir, "{}_{}loss_{}_depth.png".format(state_name, lv_method, vae_depth))
         if os.path.isfile(fname):
             model = vt.MMD_VAE(**params)
             model.load_state_dict(torch.load(fname))
