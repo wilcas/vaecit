@@ -155,9 +155,9 @@ mmd_cit_rep_1_df <- read.csv("../data/rosmap_cit_mmdvae/perm_test_mmdvae_1_laten
   rename(mmd_rep_1_p1 = p1,mmd_rep_1_p2 = p2,mmd_rep_1_p3 = p3,mmd_rep_1_p4= p4,mmd_rep_1_omni_p = omni_p )
 mmd_cit_rev_rep_1_df <- read.csv("../data/rosmap_cit_mmdvae/perm_test_rev_mmdvae_1_latent_depth_10_cit_rep1.csv") %>%
   rename(mmd_rev_rep_1_p1 = p1,mmd_rev_rep_1_p2 = p2,mmd_rev_rep_1_p3 = p3,mmd_rev_rep_1_p4= p4,mmd_rev_rep_1_omni_p = omni_p )
-mmd_cit_train2_df <- read.csv("../data/mmd_vae_new_train/perm_test_mmdvae_1_latent_depth_10_cit.csv") %>%
+mmd_cit_train2_df <- read.csv("../data/mmd_vae_new_train/perm_test_mmdvae_1_latent_depth_10_cit_20_epochs.csv") %>%
   rename(mmd_train_p1 = p1,mmd_train_p2 = p2, mmd_train_p3 = p3,mmd_train_p4 = p4,mmd_train_omni_p = omni_p)
-mmd_cit_rev_train2_df <- read.csv("../data/mmd_vae_new_train/perm_test_rev_mmdvae_1_latent_depth_10_cit.csv") %>%
+mmd_cit_rev_train2_df <- read.csv("../data/mmd_vae_new_train/perm_test_rev_mmdvae_1_latent_depth_10_cit_20_epochs.csv") %>%
   rename(mmd_rev_train_p1 = p1,mmd_rev_train_p2 = p2, mmd_rev_train_p3 = p3,mmd_rev_train_p4 = p4,mmd_rev_train_omni_p = omni_p)
 mmd_cit_train_100_df <- read.csv("../data/mmd_vae_new_train/perm_test_mmdvae_1_latent_depth_10_cit_100_epochs.csv") %>%
   rename(mmd_train_100_p1 = p1,mmd_train_100_p2 = p2, mmd_train_100_p3 = p3,mmd_train_100_p4 = p4,mmd_train_100_omni_p = omni_p)
@@ -717,6 +717,7 @@ pheatmap(test,show_rownames = F, show_colnames = F,cluster_rows = F, cluster_col
 ```
 See some small scattered clusters that may or may not be the same genes. Other than that what I can do is just rank high correlations and see those that aren't the same genes. I also need to check whether or not it's just a result of the number of snps being summarized
 ```{r}
+library(reshape2)
 snp_per_gene <- cit_df %>% select(snp,gene) %>% unique() %>% group_by(gene) %>% summarize(num_snp = n()) %>% column_to_rownames(var="gene")
 (diff_gene <- test %>% melt() %>% filter(Var1 != Var2) %>% mutate(nsnp1 = snp_per_gene[Var1,],nsnp2 = snp_per_gene[Var2,]))
 diff_gene %>% mutate(diff_snp = abs(nsnp1-nsnp2)) %>%
@@ -740,10 +741,15 @@ same_gene %>%
 ```
 ```{r}
 summary_1 <- mediation_df %>% filter(pca_rep_1_model != ae_rep_1_model)%>% select(gene,probe_peak, contains("pca"), contains("ae"), -matches("rep_[2-3]"), -pCausal) %>% unique() %>% mutate(corr = unlist(lapply(gene, function(x){test[x,x]})))
-summary_1 %>% ggplot(aes(x=corr)) + geom_histogram()
-
+summary_1 %>% filter(ae_rep_1_model != "Unclassified", pca_rep_1_model != "Unclassified")%>% ggplot(aes(x=corr)) + geom_histogram() + ggtitle("No unclassified, ae different from pca")
+summary_1 %>% filter(ae_rep_1_model != "Unclassified", pca_rep_1_model != "Unclassified", ae_rep_1_model == "Independent Association", pca_rep_1_model != "Independent Association")%>% ggplot(aes(x=corr)) + geom_histogram() + ggtitle("no unclassified, ae no mediation, pca mediation")
+summary_1 %>% filter(ae_rep_1_model != "Unclassified", pca_rep_1_model != "Unclassified", ae_rep_1_model != "Independent Association", pca_rep_1_model == "Independent Association")%>% ggplot(aes(x=corr)) + geom_histogram()+ ggtitle("no unclassified, ae  mediation, pca no mediation")
+summary_1 %>% filter(ae_rep_1_model == "Unclassified", pca_rep_1_model != "Unclassified")%>% ggplot(aes(x=corr)) + geom_histogram()+ ggtitle("ae unclassified, pca classified")
+summary_1 %>% filter(ae_rep_1_model != "Unclassified", pca_rep_1_model == "Unclassified")%>% ggplot(aes(x=corr)) + geom_histogram()+ ggtitle("ae classified, pca unclassified")
+# summary_1 %>% filter(ae_rep_1_model == "Unclassified", pca_rep_1_model == "Unclassified")%>% ggplot(aes(x=corr)) + geom_histogram() #CASE DOESN'T exist
+(summary_1 %>% select(pca_rep_1_model, ae_rep_1_model))
 summary_2 <- mediation_df %>% filter(pca_rep_1_model == ae_rep_1_model)%>% select(gene,probe_peak, contains("pca"), contains("ae"), -matches("rep_[2-3]"), -pCausal) %>% unique() %>% mutate(corr = unlist(lapply(gene, function(x){test[x,x]})))
-summary_2 %>% ggplot(aes(x=corr)) + geom_histogram()
+summary_2 %>% ggplot(aes(x=corr)) + geom_histogram()+ ggtitle("ae equal to pca")
 # library(Matrix)
 # library(CCA)
 # cc_res <- estim.regul(as.matrix(pcs_df[,-c(1)]), as.matrix(mmd_vae_df[,-c(1)]),plt = TRUE) 

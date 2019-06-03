@@ -42,7 +42,7 @@ def cit_on_qtl_set(df, gene, methyl, acetyl, express, opts, geno=None):
         cur_genotype = genotype[:,np.isin(g_ids, df.snp.to_numpy())]
 
     # reduce genotype
-    latent_genotype = dm.reduce_genotype(cur_genotype, opts['lv_method'], opts['num_latent'], gene, opts['vae_depth'])
+    latent_genotype = dm.reduce_genotype(cur_genotype, opts['lv_method'], opts['num_latent'], gene, opts['vae_depth'], opts['model_dir'])
 
     if type(latent_genotype) != np.ndarray:
         latent_genotype = latent_genotype.numpy().astype(np.float64)
@@ -52,13 +52,18 @@ def cit_on_qtl_set(df, gene, methyl, acetyl, express, opts, geno=None):
     n = expression.shape[0]
     mediation_results = []
     for (_, row) in df.iterrows():
+        if opts['lv_mediator']:
+            lv_method = opts['lv_method']
+        else:
+            lv_method = "pca"
         cur_epigenetic = dm.get_mediator(
             methylation,
             m_ids,
             row.probes.split(","),
             data2=acetylation,
             ids2=ac_ids,
-            which_ids2=row.peaks.split(",")
+            which_ids2=row.peaks.split(","),
+            lv_method=lv_method
         )
         # run CIT
         if opts['run_reverse']:
@@ -92,13 +97,15 @@ def cit_on_qtl_set(df, gene, methyl, acetyl, express, opts, geno=None):
     help="Filename of manifest containing rsids, probe/peak ids and genes to test for causal mediation.")
 @click.option('--snp-coords', type=str, required=True,
     help="Directory of csv files containing snp coordinates")
-@click.option('--lv-method', required=True, type=click.Choice(['pca', 'mmdvae','lfa', 'kernelpca', 'fastica']))
+@click.option('--lv-method', required=True, type=click.Choice(['pca', 'mmdvae','lfa', 'kernelpca', 'fastica', 'mmdvae_warmup', 'mmdvae_batch', 'mmdvae_batch_warmup', 'ae','ae_batch']))
 @click.option('--num-latent', type=int, required=True)
 @click.option('--out-name', type=str, required=True,
     help="Suffix for output files, no path")
 @click.option('--vae-depth', type=int, default=None)
 @click.option('--num-bootstrap', type=int, default = 100000)
 @click.option('--run-reverse', default=False, is_flag=True)
+@click.option('--model-dir')
+@click.option('--lv-mediator', default=False, is_flag=True)
 def main(**opts):
     logging.basicConfig(
         filename="{}_run.log{}".format(
@@ -142,7 +149,7 @@ def main(**opts):
         express = (e_samples, e_ids, expression)
         geno = None
     with joblib.parallel_backend("loky"):
-       mediation_results = joblib.Parallel(n_jobs=6, verbose=10)(
+       mediation_results = joblib.Parallel(n_jobs=-1, verbose=10)(
            joblib.delayed(cit_on_qtl_set)(df, gene, methyl, acetyl, express, opts, geno)
            for (gene, df) in tests_df.groupby('gene')
        )
@@ -158,6 +165,6 @@ def main(**opts):
 
 
 if __name__ == '__main__':
-    #torch.manual_seed(0)
-    #np.random.seed(0)
+    torch.manual_seed(0)
+    np.random.seed(0)
     main()

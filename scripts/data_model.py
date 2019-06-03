@@ -219,18 +219,26 @@ def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = No
         cur_data = np.concatenate((tmp_data, tmp_data2), axis=1)
     else:
         cur_data = tmp_data
-    if lv_method == 'mmdvae':
+    if re.search("ae", lv_method):
         params = {
             "size": cur_data.shape[1],
             "num_latent": num_latent,
             "depth": vae_depth}
-        fname = "/zfs3/users/william.casazza/william.casazza/vaecit/data/{}_model.pt".format(state_name)
+        if re.search("batch", lv_method):
+            params['batch_norm'] = True
+        fname = os.path.join(model_dir, "{}_{}model_{}_depth.pt".format(state_name, model, vae_depth))
+        plot_name = os.path.join(model_dir, "{}_{}loss_{}_depth.png".format(state_name, model, vae_depth))
         if os.path.isfile(fname):
             model = vt.MMD_VAE(**params)
             model.load_state_dict(torch.load(fname))
             model.eval()
         else:
-            model = vt.train_mmd_vae(torch.Tensor(stats.zscore(cur_data)), params)
+            if lv_method == "ae" or lv_method == "ae_batch":
+                model = vt.train_ae(torch.Tensor(stats.zscore(cur_data)), params, save_loss=plot_name)
+            elif re.search("warmup", lv_method):
+                model = vt.train_mmd_vae(torch.Tensor(stats.zscore(cur_data)), params, save_loss=plot_name, warmup=True)
+            else:
+                model = vt.train_mmd_vae(torch.Tensor(stats.zscore(cur_data)), params, save_loss=plot_name)
             torch.save(model.state_dict(), fname)
         cur_data = model.encode(torch.Tensor(stats.zscore(cur_data))).detach()
     elif lv_method == "pca":
@@ -245,7 +253,7 @@ def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = No
         ica = FastICA(n_components=1)
         cur_data = ica.fit_transform(stats.zscore(cur_data))
     else:
-        raise NotImplemented
+        raise NotImplementedError("No such lv method implemented!")
     if len(cur_data.shape) == 1:
         cur_data = cur_data.reshape((n,1))
     else:
@@ -253,23 +261,30 @@ def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = No
     return cur_data
 
 
-def reduce_genotype(genotype, lv_method, num_latent, state_name, vae_depth=None):
+def reduce_genotype(genotype, lv_method, num_latent, state_name, vae_depth=None, model_dir=""):
     if genotype.shape[1] == 1:
         return genotype
     num_latent = min(genotype.shape[1],num_latent)
-    if lv_method == 'mmdvae':
+    if re.search("ae", lv_method):
         params = {
             "size": genotype.shape[1],
             "num_latent": num_latent,
             "depth": vae_depth}
-        fname = "/media/wcasazza/saved_models/{}_model.pt".format(state_name)
-        plot_name = "/media/wcasazza/saved_models/{}_loss.png".format(state_name)
+        if re.search("batch", lv_method):
+            params['batch_norm'] = True
+        fname = os.path.join(model_dir, "{}_{}model_{}_depth.pt".format(state_name, model, vae_depth))
+        plot_name = os.path.join(model_dir, "{}_{}loss_{}_depth.png".format(state_name, model, vae_depth))
         if os.path.isfile(fname):
             model = vt.MMD_VAE(**params)
             model.load_state_dict(torch.load(fname))
             model.eval()
         else:
-            model = vt.train_mmd_vae(torch.Tensor(stats.zscore(genotype)), params, save_loss=plot_name)
+            if lv_method == "ae" or lv_method == "ae_batch":
+                model = vt.train_ae(torch.Tensor(stats.zscore(genotype)), params, save_loss=plot_name)
+            elif re.search("warmup", lv_method):
+                model = vt.train_mmd_vae(torch.Tensor(stats.zscore(genotype)), params, save_loss=plot_name, warmup=True)
+            else:
+                model = vt.train_mmd_vae(torch.Tensor(stats.zscore(genotype)), params, save_loss=plot_name)
             torch.save(model.state_dict(), fname)
         latent_genotype = model.encode(torch.Tensor(stats.zscore(genotype))).detach()
     elif lv_method == "pca":
@@ -284,5 +299,5 @@ def reduce_genotype(genotype, lv_method, num_latent, state_name, vae_depth=None)
         ica = FastICA(n_components=1)
         latent_genotype = ica.fit_transform(stats.zscore(genotype))
     else:
-        raise NotImplemented
+        raise NotImplementedError("LV method not defined!")
     return latent_genotype

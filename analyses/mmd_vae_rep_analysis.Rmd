@@ -1,0 +1,119 @@
+---
+title: "MMD VAE rep Analysis"
+author: "William Casazza"
+date: "May 31, 2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Breaking down performance of autoencoder vs PCA vs other dimensionality reduction methods
+There are a few experiments here that I want to cover:
+1. Variability in autoencoder mediation called due to different length training
+2. What type of mediation events are called by LFA, Kernel PCA, and FastICA
+3. How correlated PCs and autoencoder LVs call mediation differently opposed to LFA, Kernel PCA and FastICA
+
+Here I'll be loading in data into a clean dataframe (the previous analyses were starting to get messy):
+```{r}
+cit_df <- read.table("../data/rosmap_cit_pca/CIT_groupby_order.txt", header = TRUE) %>% select(snp,probes,peaks,gene,pCausal,pReact) %>% rename(pub_omni_p=pCausal,rev_pub_omni_p=pReact)
+cit_rep_1_df <- read.csv("../data/rosmap_complete_rep/perm_test_cit_sanity_check_rep_1.csv") %>%
+  rename(rep_1_p1 = p1, rep_1_p2 = p2, rep_1_p3 = p3, rep_1_p4 = p4, rep_1_omni_p = omni_p)
+cit_rev_rep_1_df <- read.csv("../data/rosmap_complete_rep/perm_test_rev_cit_sanity_check_rep_1.csv") %>%
+  rename( rev_rep_1_p1=p1, rev_rep_1_p2=p2, rev_rep_1_p3=p3, rev_rep_1_p4=p4, rev_rep_1_omni_p=omni_p) 
+cit_rep_df <- cbind(cit_df,cit_rep_1_df,cit_rev_rep_1_df)# MAIN DF
+head(cit_rep_df)
+
+pca_cit_rep_1_df <- read.csv("../data/rosmap_cit_pca/perm_test_pca_1_latent_cit_rep_1.csv") %>%
+    rename(pca_rep_1_p1 = p1,pca_rep_1_p2 = p2,pca_rep_1_p3 = p3,pca_rep_1_p4= p4,pca_rep_1_omni_p = omni_p )
+pca_cit_rev_rep_1_df <- read.csv("../data/rosmap_cit_pca/perm_test_rev_pca_1_latent_cit_rep_1.csv") %>%
+    rename(pca_rev_rep_1_p1 = p1,pca_rev_rep_1_p2 = p2,pca_rev_rep_1_p3 = p3,pca_rev_rep_1_p4= p4,pca_rev_rep_1_omni_p = omni_p )
+pca_df <- cbind(pca_cit_rep_1_df,pca_cit_rev_rep_1_df)# MAIN DF
+head(pca_df)
+
+mmd_cit_rep_1_df <- read.csv("../data/rosmap_cit_mmdvae/perm_test_mmdvae_1_latent_depth_10_cit_rep_1.csv") %>%
+  rename(mmd_rep_1_p1 = p1,mmd_rep_1_p2 = p2,mmd_rep_1_p3 = p3,mmd_rep_1_p4= p4,mmd_rep_1_omni_p = omni_p )
+mmd_cit_rev_rep_1_df <- read.csv("../data/rosmap_cit_mmdvae/perm_test_rev_mmdvae_1_latent_depth_10_cit_rep1.csv") %>%
+  rename(mmd_rev_rep_1_p1 = p1,mmd_rev_rep_1_p2 = p2,mmd_rev_rep_1_p3 = p3,mmd_rev_rep_1_p4= p4,mmd_rev_rep_1_omni_p = omni_p )
+mmd_df <- cbind(mmd_cit_rep_1_df,mmd_cit_rev_rep_1_df)# MAIN DF
+head(mmd_df)
+
+mmd_train_list <- list()
+for(f in dir("../data/mmd_vae_new_train/", full.names = TRUE)){
+  num_epochs<-gsub(".*/perm_test.*_mmdvae_1_latent_depth_10_(.*)_epochs.csv$","\\1",f)
+  model <- paste0("mmdvae", num_epochs,"_")
+  if(grepl("rev",f)){
+    model <- paste0("rev_", model)
+  }
+  df <- read.csv(f) %>% rename_all(function(x) paste0(model,x))
+  mmd_train_list[[f]] <- df
+}
+mmd_train_df <- bind_cols(mmd_train_list) # MAIN DF
+head(mmd_train_df)
+
+alt_lv_list <- list()
+for(f in dir("../data/alt_lv/", full.names = TRUE)){
+  model <- gsub(".*/perm_test.*_(.*)_1_latent_cit.csv$","\\1",f)
+  if(grepl("rev",f)){
+    model <- paste0("rev_", model)
+  }
+  df <- read.csv(f) %>% rename_all(function(x) paste0(model,"_",x))
+  alt_lv_list[[f]] <- df
+}
+alt_lv_df <- bind_cols(alt_lv_list) # MAIN DF
+alt_lv_df %>% select(contains("lfa_omni_p"))
+```
+## Variability in autoencoder mediation results
+I retrained the autoencoder using a lower number of epochs, 20, 50, and 100
+```{r}
+classify_p_value <- function(x,y,n){
+      ifelse(x < (0.05 / n) & y > (0.05 / n),
+        "Epigenetic Mediation",
+        ifelse(x > (0.05) / n & y < (0.05/ n),
+          "Transcriptional Mediation",
+          ifelse(x > (0.05) / n & y > (0.05/ n),
+            "Independent Association",
+            "Unclassified")))
+    
+}
+mmd_mediation_df <- cbind(mmd_train_df, mmd_df) %>% select(contains("omni_p")) %>%
+  mutate(
+    mmd_original_model = classify_p_value(mmd_rep_1_omni_p,mmd_rev_rep_1_omni_p, n()),
+    mmd_20_model = classify_p_value(mmdvaecit_20_omni_p,rev_mmdvaecit_20_omni_p, n()),
+    mmd_50_model = classify_p_value(mmdvaecit_50_omni_p,rev_mmdvaecit_50_omni_p, n()),
+    mmd_100_model = classify_p_value(mmdvaecit_100_omni_p,rev_mmdvaecit_100_omni_p, n())
+  )
+mmd_mediation_df %>% gather("test","mediation_model",ends_with("model")) %>%
+  group_by(test, mediation_model) %>% 
+  summarize(perc = n()/ nrow(mediation_df)) %>%
+  ggplot(aes(x = mediation_model,y=perc,label=percent(perc,accuracy = 0.001),fill=mediation_model)) +
+    geom_bar(stat="identity", position = position_dodge()) +
+    geom_text(position = position_dodge(), vjust=0.5, hjust = 0.6, size = 3) + 
+    facet_wrap(~test,ncol = 3) + 
+    labs(x= NULL) + 
+    theme_minimal() + 
+    theme(axis.text.x=element_blank())
+```
+Okay, this seems pretty variable actually..., need to be more sure about model selection here. Look more into the literature?
+
+## Looking into what's called by other methods
+```{r}
+mediation_df <- alt_lv_df %>%
+  mutate(
+    lfa_model = classify_p_value(lfa_omni_p,rev_lfa_omni_p, n()),
+    fastica_model = classify_p_value(fastica_omni_p,rev_fastica_omni_p, n()),
+    kernelpca_model = classify_p_value(kernelpca_omni_p,rev_kernelpca_omni_p, n())
+  )
+mediation_df %>% gather("test","mediation_model",ends_with("model")) %>%
+  group_by(test, mediation_model) %>% 
+  summarize(perc = n()/ nrow(mediation_df)) %>%
+  ggplot(aes(x = mediation_model,y=perc,label=percent(perc,accuracy = 0.001),fill=mediation_model)) +
+    geom_bar(stat="identity", position = position_dodge()) +
+    geom_text(position = position_dodge(), vjust=0.5, hjust = 0.6, size = 3) + 
+    facet_wrap(~test,ncol = 3) + 
+    labs(x= NULL) + 
+    theme_minimal() + 
+    theme(axis.text.x=element_blank())
+```
+Okay, so kernel PCA calls mediation WAY more than the other two methods, and lfa calls more than pca or fastica. This supports the idea that it's more about nonlinearity in representing features. Also supports the narratife that a more constraints on the factors leads to lower detection of mediation

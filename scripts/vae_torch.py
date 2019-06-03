@@ -23,7 +23,7 @@ class AEData(torch.utils.data.Dataset):
 
 
 class MMD_VAE(nn.Module):
-    def __init__(self, size=None, num_latent=1, depth=1):
+    def __init__(self, size=None, num_latent=1, depth=1, batch_norm=False):
         super(MMD_VAE, self).__init__()
         encode_list = [nn.Linear(size, 128*depth)]
         for i in range(depth-1):
@@ -35,17 +35,24 @@ class MMD_VAE(nn.Module):
             decode_list.append(nn.Linear(128*(i+1), 128 * (i+2)))
         decode_list.append(nn.Linear(128*depth,size))
         self.decode_net = nn.ModuleList(decode_list)
+        self.batch_norm = batch_norm
 
 
     def encode(self,x):
         for i in range(len(self.encode_net) - 1):
-            x = F.relu(self.encode_net[i](x))
+            if self.batch_norm:
+                x = nn.BatchNorm1d(F.relu(self.encode_net[i](x)))
+            else:
+                x = F.relu(self.encode_net[i](x))
         x = self.encode_net[-1](x)
         return x
 
     def decode(self,z):
         for i in range(len(self.decode_net) - 1):
-            z = F.relu(self.decode_net[i](z))
+            if self.batch_norm:
+                z = nn.BatchNorm1d(F.relu(self.decode_net[i](z)))
+            else:
+                z = F.relu(self.decode_net[i](z))
         z = self.decode_net[-1](z)
         return z
 
@@ -74,17 +81,17 @@ def compute_mmd(x, y):
     return mmd
 
 
-def loss_mmd_nll(train_z,output,x):
+def loss_mmd_nll(train_z,output,x,**kwargs):
     if torch.cuda.is_available():
         samples = torch.randn([200,train_z.size()[1]]).cuda()
     else:
         samples = torch.randn([200,train_z.size()[1]]).cuda()
-    loss_mmd = compute_mmd(samples, train_z)
+    loss_mmd = kwargs['warmup'] * compute_mmd(samples, train_z)
     loss_nll = (output - x).pow(2).mean()
     return loss_mmd, loss_nll
 
 
-def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=False):
+def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=False, **kwargs):
     model = nn.DataParallel(MMD_VAE(**params))
     if torch.cuda.is_available():
         model = model.cuda()
@@ -92,20 +99,27 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
     optimizer = optim.Adam(model.parameters(), lr=1e-6)
     traindata = AEData(genotype)
     trainloader = torch.utils.data.DataLoader(traindata, batch_size=10, shuffle=True)
-    tol = 1e10
     i = 0
-    prev_loss = 1e10
     losses = []
-    loss_value = None
+    if kwargs['warmup']:
+        warmup = 0
+    elif kwargs['warmup'] < 0 :
+        warmup = 0
+    else:
+        warmup = 10
     while(i < 50): #num epochs
         i += 1
         for (j,gen_batch) in enumerate(trainloader):
             optimizer.zero_grad()
             output = model(gen_batch)
-            loss_mmd,loss_nll = loss_mmd_nll(model.module.encode(gen_batch),output,gen_batch)
+            loss_mmd,loss_nll = loss_mmd_nll(model.module.encode(gen_batch),output,gen_batch, warmup=warmup/10)
             loss = loss_mmd + loss_nll
             loss.backward()
             optimizer.step()
+            if kwargs['warmup'] < 0:
+                continue
+            elif warmup < 10:
+                warmup += 1
             if verbose:
                 print("Loss at batch {}, epoch {}: nll: {}, mmd: {}".format(j,i,loss_nll, loss_mmd))
         output = model(genotype.detach()).detach()
@@ -129,3 +143,7 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
         plt.close()
     del genotype
     return model.cpu().module
+
+
+def train_ae(genotype, params, verbose=False, plot_loss=False, save_loss=False):
+    return train_mmd_vae(genotype, params, verbose=verbose, plot_loss=plot_loss, save_loss=save_loss, warmup=-1) #no KL term
