@@ -71,7 +71,7 @@ lv_batch_warmup = dm.reduce_genotype(genotype, "mmdvae_batch_warmup",1,'testing'
 # In[ ]:
 
 
-lv_no_var = dm.reduce_genotype(genotype, "ae",1,'testing',vae_depth=5,model_dir="~/projects/def-saram/wcasazza/vaecit/analyses/tmp/")
+lv_no_var = dm.reduce_genotype(genotype, "ae",1,'testing',vae_depth=5,model_dir="/home/wcasazza/projects/def-saram/wcasazza/vaecit/analyses/tmp/")
 
 
 # ![testing_aeloss_5_depth.png](tmp/testing_aeloss_5_depth.png)
@@ -79,7 +79,7 @@ lv_no_var = dm.reduce_genotype(genotype, "ae",1,'testing',vae_depth=5,model_dir=
 # In[ ]:
 
 
-lv_no_var_batch = dm.reduce_genotype(genotype, "ae_batch",1,'testing',vae_depth=5,model_dir="~/projects/def-saram/wcasazza/vaecit/analyses/tmp/")
+lv_no_var_batch = dm.reduce_genotype(genotype, "ae_batch",1,'testing',vae_depth=5,model_dir="/home/wcasazza/projects/def-saram/wcasazza/vaecit/analyses/tmp/")
 
 
 # ![testing_ae_batchloss_5_depth.png](tmp/testing_ae_batchloss_5_depth.png)
