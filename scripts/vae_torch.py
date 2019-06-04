@@ -26,6 +26,7 @@ class MMD_VAE(nn.Module):
     def __init__(self, size=None, num_latent=1, depth=1, batch_norm=False):
         super(MMD_VAE, self).__init__()
         encode_list = [nn.Linear(size, 128*depth)]
+        encode_list.append(nn.BatchNorm1d(128*depth))
         for i in range(depth-1):
             encode_list.append(nn.Linear(128*(depth - i), 128*(depth - i - 1)))
             if batch_norm:
@@ -33,6 +34,7 @@ class MMD_VAE(nn.Module):
         encode_list.append(nn.Linear(128,num_latent))
         self.encode_net = nn.ModuleList(encode_list)
         decode_list = [nn.Linear(num_latent,128)]
+        decode_list.append(nn.BatchNorm1d(128))
         for i in range(depth-1):
             decode_list.append(nn.Linear(128*(i+1), 128 * (i+2)))
             if batch_norm:
@@ -44,7 +46,7 @@ class MMD_VAE(nn.Module):
 
     def encode(self,x):
         if self.batch_norm:
-            for i in range(len(self.encode_net) - 2):
+            for i in range(0, len(self.encode_net) - 2, 2):
                 x = F.relu(self.encode_net[i](x))
                 x = self.encode_net[i+1](x)
         else:
@@ -55,7 +57,7 @@ class MMD_VAE(nn.Module):
 
     def decode(self,z):
         if self.batch_norm:
-            for i in range(len(self.decode_net) - 2):
+            for i in range(0, len(self.decode_net) - 2, 2):
                 z = F.relu(self.decode_net[i](z))
                 z = self.decode_net[i+1](z)
         else:
