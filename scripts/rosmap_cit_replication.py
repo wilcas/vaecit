@@ -149,7 +149,7 @@ def main(**opts):
         express = (e_samples, e_ids, expression)
         geno = None
     with joblib.parallel_backend("loky"):
-       mediation_results = joblib.Parallel(n_jobs=-1, verbose=10)(
+       mediation_results = joblib.Parallel(n_jobs=6, verbose=10)(
            joblib.delayed(cit_on_qtl_set)(df, gene, methyl, acetyl, express, opts, geno)
            for (gene, df) in tests_df.groupby('gene')
        )

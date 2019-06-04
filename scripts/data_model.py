@@ -209,7 +209,7 @@ def compute_pcs(A):
     return A_std@vh.T
 
 
-def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = None, lv_method="pca", vae_depth=None):
+def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = None, lv_method="pca", vae_depth=None,num_latent=1):
     n = data.shape[0]
     feature_idx = np.isin(ids, which_ids)
     tmp_data = data[:,feature_idx]
