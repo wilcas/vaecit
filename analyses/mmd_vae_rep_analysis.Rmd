@@ -2,11 +2,12 @@
 title: "MMD VAE rep Analysis"
 author: "William Casazza"
 date: "May 31, 2019"
-output: github_document
+output: beamer_presentation
 ---
 
 ```{r setup, include=FALSE}
 library(tidyverse)
+library(scales)
 knitr::opts_chunk$set(echo = TRUE)
 ```
 # Breaking down performance of autoencoder vs PCA vs other dimensionality reduction methods
@@ -86,7 +87,7 @@ mmd_mediation_df <- cbind(mmd_train_df, mmd_df) %>% select(contains("omni_p")) %
   )
 mmd_mediation_df %>% gather("test","mediation_model",ends_with("model")) %>%
   group_by(test, mediation_model) %>% 
-  summarize(perc = n()/ nrow(mediation_df)) %>%
+  summarize(perc = n()/ nrow(mmd_mediation_df)) %>%
   ggplot(aes(x = mediation_model,y=perc,label=percent(perc,accuracy = 0.001),fill=mediation_model)) +
     geom_bar(stat="identity", position = position_dodge()) +
     geom_text(position = position_dodge(), vjust=0.5, hjust = 0.6, size = 3) + 
