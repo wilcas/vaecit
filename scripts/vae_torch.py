@@ -122,6 +122,8 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
     while(i < 1000): #num epochs
         i += 1
         for (j,gen_batch) in enumerate(trainloader):
+            if gen_batch.shape[0] <= 1:
+                continue # breaks batch norm, get on next epoch
             optimizer.zero_grad()
             output = model(gen_batch)
             loss_mmd,loss_nll = loss_mmd_nll(model.module.encode(gen_batch),output,gen_batch, 0 if warmup < 0 else warmup/100.0)
