@@ -39,7 +39,10 @@ def cit_on_qtl_set(df, gene, methyl, acetyl, express, opts, geno=None):
         (g_samples, genotype) = (g_samples[g_idx], genotype[g_idx,:])
     else:
         (g_samples, g_ids, genotype) = geno
-        cur_genotype = genotype[:,np.isin(g_ids, df.snp.to_numpy())]
+        if opts['lv_mediator']:
+            cur_genotype = genotype[:, np.isin(g_ids, np.array([rsid for sublist in df.snp for rsid in sublist.split(",")]))]
+        else:
+            cur_genotype = genotype[:,np.isin(g_ids, df.snp.to_numpy())]
 
     # reduce genotype
     latent_genotype = dm.reduce_genotype(cur_genotype, opts['lv_method'], opts['num_latent'], gene, opts['vae_depth'], opts['model_dir'])
@@ -54,8 +57,14 @@ def cit_on_qtl_set(df, gene, methyl, acetyl, express, opts, geno=None):
     for (_, row) in df.iterrows():
         if opts['lv_mediator']:
             lv_method = opts['lv_method']
+            state_name = gene+"_mediator"
+            model_dir = opts['model_dir']
+            depth = opts['vae_depth']
         else:
             lv_method = "pca"
+            state_name = ""
+            model_dir = ""
+            depth = None
         cur_epigenetic = dm.get_mediator(
             methylation,
             m_ids,
@@ -63,8 +72,13 @@ def cit_on_qtl_set(df, gene, methyl, acetyl, express, opts, geno=None):
             data2=acetylation,
             ids2=ac_ids,
             which_ids2=row.peaks.split(","),
-            lv_method=lv_method
+            lv_method=lv_method,
+            state_name=state_name,
+            model_dir = model_dir,
+            vae_depth = depth
         )
+        if ("ae" in lv_method) and opts['lv_mediator']:
+            cur_epigenetic = cur_epigenetic.numpy().astype(np.float64)
         # run CIT
         if opts['run_reverse']:
             mediation_results.append(
@@ -128,7 +142,9 @@ def main(**opts):
     expression = dm.standardize_remove_pcs(expression, pcs_to_remove)
 
     # run tests by qtl Gene
-    tests_df = pd.read_csv(opts['cit_tests'], sep='\t')
+    tests_df = pd.read_csv(opts['cit_tests'], sep=' ')
+    if pd.isna(tests_df).any().any():
+        tests_df[pd.isna(tests_df)] = ""
     if opts['genotype_file'] is not None:
         genotype_df = pd.read_csv(opts['genotype_file'], index_col=0)
         genotype = genotype_df.to_numpy().T
@@ -149,11 +165,11 @@ def main(**opts):
         express = (e_samples, e_ids, expression)
         geno = None
     with joblib.parallel_backend("loky"):
-       mediation_results = joblib.Parallel(n_jobs=6, verbose=10)(
+       mediation_results = joblib.Parallel(n_jobs=5, verbose=10)(
            joblib.delayed(cit_on_qtl_set)(df, gene, methyl, acetyl, express, opts, geno)
            for (gene, df) in tests_df.groupby('gene')
        )
-    # mediation_results = [cit_on_qtl_set(df,gene,coord_df,methyl,acetyl,express,opts,geno) for (gene,df) in tests_df.groupby('gene')] # SEQUENTIAL VERSION
+    #mediation_results = [cit_on_qtl_set(df,gene,coord_df,methyl,acetyl,express,opts,geno) for (gene,df) in tests_df.groupby('gene')] # SEQUENTIAL VERSION
     merged_results = [item for sublist in mediation_results for item in sublist]
     # generate output
     if opts['run_reverse']:

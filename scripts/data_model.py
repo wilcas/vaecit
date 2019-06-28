@@ -209,16 +209,19 @@ def compute_pcs(A):
     return A_std@vh.T
 
 
-def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = None, lv_method="pca", vae_depth=None,num_latent=1):
+def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = None, lv_method="pca", vae_depth=None,num_latent=1, state_name="", model_dir=""):
     n = data.shape[0]
     feature_idx = np.isin(ids, which_ids)
     tmp_data = data[:,feature_idx]
+
     if not np.isscalar(data2) and data2 is not None:
         feature_idx2 = np.isin(ids2, which_ids2)
         tmp_data2 = data2[:, feature_idx2]
         cur_data = np.concatenate((tmp_data, tmp_data2), axis=1)
     else:
         cur_data = tmp_data
+    if len(cur_data.shape) == 1:
+        cur_data = cur_data.reshape((n,1))
     if re.search("ae", lv_method):
         params = {
             "size": cur_data.shape[1],
