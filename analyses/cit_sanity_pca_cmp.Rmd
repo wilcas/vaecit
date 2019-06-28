@@ -391,7 +391,10 @@ ggplot(to_plot,aes(x = "", y = quant /total * 100  , fill = model,label = percen
   geom_bar(stat="identity", position = position_dodge()) + 
   labs(x=NULL)+ 
   geom_text(position = position_dodge(0.9), vjust = 0)+ 
-  theme_minimal()
+  labs(y = sprintf("Percentage of K = %d Tests", nrow(cit_df)),fill= "Mode of Association") +
+  ggtitle("Mediation Analysis with Single SNPs") + 
+ scale_y_continuous(limits=c(0,125), breaks = seq(0,100,25), labels = c("0","25","50","75", "100"))+
+  theme_minimal(base_family = "Roboto")
 ```
 
 
