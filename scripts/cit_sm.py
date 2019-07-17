@@ -47,7 +47,8 @@ def cit(target, mediator, instrument, num_bootstrap=10000):
     n = target.shape[0]
     p1 = sm.OLS(target,np.c_[np.ones((n, 1)), instrument]).fit().pvalues[-1]
     p2 = sm.OLS(mediator, np.c_[np.ones((n, 1)), target, instrument]).fit().pvalues[-1]
-    p3 = sm.OLS(target,np.c_[np.ones((n, 1)), instrument, mediator]).fit().pvalues[-1]
+    p3_fit = sm.OLS(target,np.c_[np.ones((n, 1)), instrument, mediator]).fit()
+    p3 = p3_fit.pvalues[-1]
     p4 = test_independence(target, mediator, instrument, num_bootstrap)
     omni_p = max(p1, p2, p3, p4)
-    return {"p1":p1, "p2":p2,"p3":p3,"p4":p4,"omni_p": omni_p}
+    return {"p1":p1, "p2":p2,"p3":p3,"p4":p4,"omni_p": omni_p, "mediation_coef": p3_fit.params[-1] }

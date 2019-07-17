@@ -142,7 +142,7 @@ def main(**opts):
     expression = dm.standardize_remove_pcs(expression, pcs_to_remove)
 
     # run tests by qtl Gene
-    tests_df = pd.read_csv(opts['cit_tests'], sep=' ')
+    tests_df = pd.read_csv(opts['cit_tests'], delim_whitespace=True)
     if pd.isna(tests_df).any().any():
         tests_df[pd.isna(tests_df)] = ""
     if opts['genotype_file'] is not None:
