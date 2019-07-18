@@ -1,0 +1,59 @@
+---
+title: "new simulation figures"
+author: "William Casazza"
+date: '2019-07-17'
+output: github_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+get_sanity_results <- function(path){
+  sanity_results <- list()
+  for(f in dir(path, full.names = TRUE)){
+    tmp_df <- read.csv(f)
+    tmp_df$scenario <- gsub(".*/cit_(.*)_(lfa|pca|kernelpca|fastica|mmdvae_batch|ae_batch)_50_gen.csv", "\\1", f)
+    tmp_df$method <- gsub(".*/cit_(.*)_(lfa|pca|kernelpca|fastica|mmdvae_batch|ae_batch)_50_gen.csv", "\\2", f)
+
+    sanity_results[[f]] <- tmp_df
+  }
+  sanity_df <- bind_rows(sanity_results) %>%
+    mutate(method = factor(method,levels = c("fastica", "pca", "lfa","kernelpca", "mmdvae_batch", "ae_batch")))%>%
+    mutate(
+      method = plyr::mapvalues(
+        method,
+        from = c("fastica", "pca", "kernelpca", "lfa", "mmdvae_batch", "ae_batch"),
+        to = c("Fast ICA", "PCA", "Kernel PCA", "LFA", "MMD-VAE", "Autoencoder")
+      ),
+      Scenario = plyr::mapvalues(
+        scenario,
+        from = c("caus1","ind1","null"), 
+        to = c("Full Mediation", "Independent Association", "Null")))
+  
+  str(sanity_df)
+  return(sanity_df)
+}
+(test <- get_sanity_results("../data/new_simulation/"))
+```
+```{r}
+test %>% filter(method == "kernelpca") %>%
+  ggplot(aes(x = omni_p, fill = Scenario)) +
+    geom_histogram(position="identity", alpha = 0.7, bins = 40) +
+    labs(y= "Number of Tests", x = "P Value of Full Mediation")+
+  scale_y_continuous(limits=c(0,25))+
+    theme_bw() 
+
+test %>%
+  ggplot(aes(x = omni_p, fill = Scenario)) +
+    geom_histogram(position="identity", alpha = 0.7, bins = 40) +
+    labs(y= "Number of Tests", x = "P Value of Full Mediation")+
+    ggtitle("Determining Full Mediation Under Different Causal Scenarios")+
+  scale_y_continuous(limits=c(0,25))+
+    facet_wrap(~method)+
+    theme_bw() +
+    theme(legend.justification = c(1,1.13))
+```
+

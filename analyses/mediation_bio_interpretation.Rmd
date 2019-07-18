@@ -1,0 +1,242 @@
+---
+title: "Interpreting Mediated Loci"
+author: "William Casazza"
+date: '2019-07-16'
+output: github_document
+---
+
+```{r setup, echo=FALSE}
+library(tidyverse)
+library(fgsea)
+library(scales)
+knitr::opts_knit$set(root.dir = "~/vaecit/analyses/" )
+setwd("~/vaecit/analyses/")
+```
+
+Here I'll be loading in data into a clean dataframe (the previous analyses were starting to get messy):
+```{r}
+cit_df <- read.table("../data/rosmap_cit_pca/CIT_groupby_order.txt", header = TRUE) %>% select(snp,probes,peaks,gene,pCausal,pReact) %>% rename(pub_omni_p=pCausal,rev_pub_omni_p=pReact)
+
+alt_lv_list <- list()
+for(f in dir("../data/gsea_data/", full.names = TRUE)){
+  model <- gsub(".*/perm_test.*_(lfa|pca|fastica|kernelpca|mmdvae_batch_warmup|mmdvae_batch|mmdvae_warmup|ae|ae_batch)_1_latent_depth_5_cit.csv$","\\1",f)
+  if(grepl("rev",f)){
+    model <- paste0("rev_", model)
+  }
+  df <- read.csv(f) %>% rename_all(function(x) paste0(model,"_",x))
+  alt_lv_list[[f]] <- df
+}
+alt_lv_df <- bind_cols(alt_lv_list) # MAIN DF
+alt_lv_df %>% select(contains("lfa_omni_p"))
+head(alt_lv_df)
+```
+Next I'll just call mediation at an adjusted threshold for each "direction" of association determined:
+```{r}
+multisnp_n <- nrow(cit_df %>% select(probes,peaks,gene) %>% unique())
+classify_p_value <- function(x,y,n){
+      ifelse(x < (0.05 / n) & y > (0.05 / n),
+        "Epigenetic Mediation",
+        ifelse(x > (0.05 / n) & y < (0.05/ n),
+          "Transcriptional Mediation",
+          ifelse(x > (0.05 / n) & y > (0.05/ n),
+            "Independent Association",
+            "Unclassified")))
+    
+}
+mediation_df <- cbind(cit_df %>% select(probes,peaks,gene),alt_lv_df) %>% group_by(probes,peaks,gene)%>% summarize_all(max) %>% unique() %>% 
+  mutate(
+    ae_model = classify_p_value(ae_omni_p,rev_ae_omni_p,multisnp_n),
+    ae_batch_model = classify_p_value(ae_batch_omni_p,rev_ae_batch_omni_p, multisnp_n),
+    mmdvae_warmup_model = classify_p_value(mmdvae_warmup_omni_p,rev_mmdvae_warmup_omni_p,multisnp_n),
+    mmdvae_batch_model = classify_p_value(mmdvae_batch_omni_p, rev_mmdvae_batch_omni_p, multisnp_n),
+    pca_model = classify_p_value(pca_omni_p, rev_pca_omni_p, multisnp_n),
+    lfa_model = classify_p_value(lfa_omni_p,rev_lfa_omni_p, multisnp_n),
+    fastica_model = classify_p_value(fastica_omni_p,rev_fastica_omni_p, multisnp_n),
+    kernelpca_model = classify_p_value(kernelpca_omni_p,rev_kernelpca_omni_p, multisnp_n)
+  )
+```
+
+Getting genes under either form of mediation:
+```{r}
+mediation_df %>% select(-contains("_p")) %>% filter_at(vars(contains("model")),all_vars(grepl("Mediation",.)))
+mediation_df %>% select(-contains("_p")) %>% filter_at(vars(contains("model")),all_vars(grepl("Mediation",.)))
+
+mediation_df %>% select(-contains("_p")) %>% filter_at(vars(mmdvae_warmup_model),any_vars(grepl("Mediation",.)))
+mediation_df %>% select(-contains("_p")) %>% filter_at(vars(kernelpca_model,lfa_model),any_vars(grepl("Mediation",.)))
+```
+
+
+## GSEA 
+I've selected two gene sets relating two all terms in Msigdb matching alzheimer* and those matching age OR aging. As well as some of the larger sets:
+* **C2** curated gene sets
+* **C3** motif Gene sets
+* **C5** GO gene sets
+* **C7** immunologic signatures
+
+```{r}
+
+runGSEA <- function(my_title){
+  ranks_df <-  mediation_df  %>%
+    dplyr::select(coef_var, "gene", model_var) %>% 
+    dplyr::filter(.data[[model_var]] == mediation_var) %>%
+    dplyr::group_by(gene) %>%
+    dplyr::summarise(v = mean(.data[[coef_var]]))
+  print(head(ranks_df))
+  ranks <- ranks_df$v
+  names(ranks) <- as.character(ranks_df$gene)
+  ad_results <- fgsea(pathways = gmtPathways(pathway),stats= ranks, nperm=10000)
+
+  fgseaResTidy <- ad_results %>%
+    as_tibble() %>%
+    arrange(desc(NES))
+  p <- ggplot(fgseaResTidy, aes(reorder(pathway, NES), NES)) +
+    geom_col(aes(fill=padj<0.25)) +
+    coord_flip() +
+    labs(x="Pathway", y="Normalized Enrichment Score",
+         title=my_title) + 
+    geom_text(aes(label = round(padj, digits = 4), y = ifelse(NES > 0, -0.25, 0.25)),size = 3, position = position_identity())
+    theme_bw()
+  print(p)
+  res <- list()
+  res$fgseaResTidy <- fgseaResTidy
+  res$fgseaRes <- ad_results
+  return(res)
+}
+model_var <- "kernelpca_model"
+
+coef_var <- "rev_kernelpca_mediation_coef"
+mediation_var <- "Transcriptional Mediation"
+mediation <- "Transcriptional"
+pathway <- "../data/genesets/aging_genesets.gmt"
+runGSEA("kpca trans")
+
+coef_var <- "kernelpca_mediation_coef"
+mediation_var <- "Epigenetic Mediation"
+mediation <- "Epigenetic"
+pathway <- "../data/genesets/aging_genesets.gmt"
+mediation_res <- runGSEA("GSEA for Epigenetically Mediated Genes\n(Kernel PCA, Sets Relating to\n'AGE' OR 'AGING')")
+
+model_var <- "mmdvae_batch_model"
+
+coef_var <- "rev_mmdvae_batch_mediation_coef"
+mediation_var <- "Transcriptional Mediation"
+mediation <- "Transcriptional"
+pathway <- "../data/genesets/aging_genesets.gmt"
+runGSEA("mmdbatch trans")
+
+coef_var <- "mmdvae_batch_mediation_coef"
+mediation_var <- "Epigenetic Mediation"
+mediation <- "Epigenetic"
+pathway <- "../data/genesets/aging_genesets.gmt"
+runGSEA("mmdbatch epi")
+
+model_var <- "lfa_model"
+
+coef_var <- "rev_lfa_mediation_coef"
+mediation_var <- "Transcriptional Mediation"
+mediation <- "Transcriptional"
+pathway <- "../data/genesets/aging_genesets.gmt"
+runGSEA(" lfa trans")
+
+coef_var <- "lfa_mediation_coef"
+mediation_var <- "Epigenetic Mediation"
+mediation <- "Epigenetic"
+pathway <- "../data/genesets/aging_genesets.gmt"
+runGSEA("lfa epi")
+
+
+model_var <- "kernelpca_model"
+
+coef_var <- "rev_kernelpca_mediation_coef"
+mediation_var <- "Transcriptional Mediation"
+mediation <- "Transcriptional"
+pathway <- "../data/genesets/ad_genesets.gmt"
+runGSEA("kpca trans ad")
+
+coef_var <- "kernelpca_mediation_coef"
+mediation_var <- "Epigenetic Mediation"
+mediation <- "Epigenetic"
+pathway <- "../data/genesets/ad_genesets.gmt"
+runGSEA("kpca epi ad")
+
+model_var <- "mmdvae_batch_model"
+
+coef_var <- "rev_mmdvae_batch_mediation_coef"
+mediation_var <- "Transcriptional Mediation"
+mediation <- "Transcriptional"
+pathway <- "../data/genesets/ad_genesets.gmt"
+runGSEA("mmd trans ad")
+
+coef_var <- "mmdvae_batch_mediation_coef"
+mediation_var <- "Epigenetic Mediation"
+mediation <- "Epigenetic"
+pathway <- "../data/genesets/ad_genesets.gmt"
+runGSEA("mmd epi ad")
+
+model_var <- "lfa_model"
+
+coef_var <- "rev_lfa_mediation_coef"
+mediation_var <- "Transcriptional Mediation"
+mediation <- "Transcriptional"
+pathway <- "../data/genesets/ad_genesets.gmt"
+runGSEA("lfa trans ad")
+
+coef_var <- "lfa_mediation_coef"
+mediation_var <- "Epigenetic Mediation"
+mediation <- "Epigenetic"
+pathway <- "../data/genesets/ad_genesets.gmt"
+runGSEA("lfa epi ad")
+
+# model_var <- "kernelpca_model"
+# 
+# coef_var <- "rev_kernelpca_mediation_coef"
+# mediation_var <- "Transcriptional Mediation"
+# mediation <- "Transcriptional"
+# pathway <- "../data/genesets/c7.all.v6.2.symbols.gmt"
+# runGSEA()
+# 
+# coef_var <- "kernelpca_mediation_coef"
+# mediation_var <- "Epigenetic Mediation"
+# mediation <- "Epigenetic"
+# pathway <-"../data/genesets/c7.all.v6.2.symbols.gmt"
+# runGSEA()
+# 
+# model_var <- "mmdvae_batch_model"
+# 
+# coef_var <- "rev_mmdvae_batch_mediation_coef"
+# mediation_var <- "Transcriptional Mediation"
+# mediation <- "Transcriptional"
+# pathway <- "../data/genesets/c7.all.v6.2.symbols.gmt"
+# runGSEA()
+# 
+# coef_var <- "mmdvae_batch_mediation_coef"
+# mediation_var <- "Epigenetic Mediation"
+# mediation <- "Epigenetic"
+# pathway <-"../data/genesets/c7.all.v6.2.symbols.gmt"
+# runGSEA()
+# 
+# model_var <- "lfa_model"
+# 
+# coef_var <- "rev_lfa_mediation_coef"
+# mediation_var <- "Transcriptional Mediation"
+# mediation <- "Transcriptional"
+# pathway <- "../data/genesets/c7.all.v6.2.symbols.gmt"
+# runGSEA()
+# 
+# coef_var <- "lfa_mediation_coef"
+# mediation_var <- "Epigenetic Mediation"
+# mediation <- "Epigenetic"
+# pathway <- "../data/genesets/c7.all.v6.2.symbols.gmt"
+# runGSEA()
+
+
+```
+
+```{r}
+# test <- mediation_df %>% filter(mmdvae_batch_model == "Epigenetic Mediation") 
+# writeLines(paste0(unique(test$gene), collapse = "\n"))
+test <- mediation_df %>% filter(kernelpca_model == "Epigenetic Mediation") 
+writeLines(paste0(unique(test$gene), collapse = "\n"))
+mediation_res$fgseaRes
+```
+

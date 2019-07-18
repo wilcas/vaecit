@@ -1,4 +1,5 @@
 data/*
+results/*
 *.out
 CIT.txt
 .Rproj.user
