@@ -119,7 +119,7 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
         pass
     else:
         warmup = 0
-    while(i < 1000): #num epochs
+    while(i < 150): #num epochs
         i += 1
         for (j,gen_batch) in enumerate(trainloader):
             if gen_batch.shape[0] <= 1:

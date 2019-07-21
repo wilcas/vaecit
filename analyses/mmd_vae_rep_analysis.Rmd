@@ -456,6 +456,7 @@ FURTHER EXPLORATION GOES HERE!!!
 
 
 ```{r}
+(eQTX_manifest <- read.table("~/eQTX_manifest.txt", sep = " ",header = T))
 eQTX_list <- list()
 for(f in dir("../data/eQTX_experiment/", full.names = TRUE)){
   model <- gsub(".*/perm_test.*_(.*)_1_latent_depth_5_cit.csv$","\\1",f)
@@ -472,8 +473,55 @@ eQTX_df %>% select(contains("omni_p")) %>% gather("method", "omni_p", everything
     geom_histogram() +
     facet_wrap(~method)
 eQTX_df %>% select(contains("omni_p")) %>% gather("method", "omni_p", everything()) %>% group_by(method) %>% summarize(sum(is.na(omni_p)))
-```
-```{r}
+classify_p_value <- function(x,y,n){
+      ifelse(x < (0.05 / n) & y > (0.05 / n),
+        "Epigenetic Mediation",
+        ifelse(x > (0.05 / n) & y < (0.05/ n),
+          "Transcriptional Mediation",
+          ifelse(x > (0.05 / n) & y > (0.05/ n),
+            "Independent Association",
+            "Unclassified")))
+    
+}
+eQTX_mediation <- cbind(eQTX_manifest, eQTX_df) %>% group_by(gene) %>% 
+    mutate(
+      ae_model = classify_p_value(ae_omni_p,rev_ae_omni_p,multisnp_n),
+      pca_model = classify_p_value(pca_omni_p, rev_pca_omni_p, multisnp_n),
+      lfa_model = classify_p_value(lfa_omni_p,rev_lfa_omni_p, multisnp_n),
+      fastica_model = classify_p_value(fastica_omni_p,rev_fastica_omni_p, multisnp_n),
+      kernelpca_model = classify_p_value(kernelpca_omni_p,rev_kernelpca_omni_p, multisnp_n)
+    )
+eQTX_mediation %>%gather("test","mediation_model",ends_with("model")) %>% mutate(mediation_model = replace(mediation_model,is.na(mediation_model), "Unclassified")) %>% 
+  group_by(test, mediation_model) %>%
+  summarize(perc = n()/ nrow(eQTX_manifest)) %>%
+  ggplot(aes(x = mediation_model,y=perc,group=test,label=percent(perc,accuracy = 0.001),fill=mediation_model)) +
+    geom_bar(stat="identity", position = position_dodge()) +
+    geom_text(position = position_dodge(), vjust=0.5, hjust = 0.6, size = 3) + 
+    labs(x= NULL) + 
+    theme_minimal() + 
+    theme(axis.text.x=element_blank())
+eQTX_mediation %>%gather("test","mediation_model",ends_with("model")) %>% mutate(mediation_model = replace(mediation_model,is.na(mediation_model), "Unclassified")) %>% 
+  group_by(test, mediation_model) %>%
+  summarize(perc = n()/ nrow(eQTX_manifest)) %>% filter(grepl("Mediation", mediation_model)) 
 
-```
 
+runGSEA <- function(my_title, ranks, pathway){
+  ranks <- ranks_df$v
+  names(ranks) <- as.character(ranks_df$gene)
+  ad_results <- fgsea(pathways = gmtPathways(pathway),stats= ranks, nperm=1000)
+
+  fgseaResTidy <- ad_results %>%
+    as_tibble() %>%
+    arrange(desc(NES))
+  p <- ggplot(fgseaResTidy, aes(reorder(pathway, NES), NES)) +
+    geom_col(aes(fill=padj<0.25)) +
+    coord_flip() +
+    labs(x="Pathway", y="Normalized Enrichment Score",
+         title=my_title) + 
+    theme_minimal()
+  print(p)
+  return(fgseaResTidy)
+}
+
+df <- eQTX_mediation %>%gather("test","mediation_model",ends_with("model")) %>% mutate(mediation_model = replace(mediation_model,is.na(mediation_model), "Unclassified")) %>% filter(test == "kernelpca_model", mediation_model == "Transcriptional Mediation")
+```

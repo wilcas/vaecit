@@ -5,7 +5,8 @@
 #PBS -q small
 #PBS -m be
 #PBS -M william.casazza@stat.ubc.ca
-METHODS=( 'mmdvae_warmup' 'mmdvae_batch_warmup' 'ae' 'pca' 'lfa' 'fastica' 'kernelpca')
+set -e -x
+METHODS=( 'mmdvae_warmup' 'mmdvae_batch' 'ae' 'ae_batch' 'pca' 'lfa' 'fastica' 'kernelpca')
 METHOD="${METHODS[$1]}"
 LATENT=1
 DEPTH=5
@@ -16,7 +17,7 @@ else
 fi  
 
 
-cd /zfs3/users/william.casazza/william.casazza/vaecit/scripts
+#cd /zfs3/users/william.casazza/william.casazza/vaecit/scripts
 python rosmap_cit_replication.py \
   --m-file="$HOME/methylationSNMnormpy.mat" \
   --ac-file="$HOME/acetylationNorm.mat" \

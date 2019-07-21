@@ -275,8 +275,12 @@ def reduce_genotype(genotype, lv_method, num_latent, state_name, vae_depth=None,
             "depth": vae_depth}
         if re.search("batch", lv_method):
             params['batch_norm'] = True
-        fname = os.path.join(model_dir, "{}_{}model_{}_depth.pt".format(state_name, lv_method, vae_depth))
-        plot_name = os.path.join(model_dir, "{}_{}loss_{}_depth.png".format(state_name, lv_method, vae_depth))
+        if model_dir:
+            fname = os.path.join(model_dir, "{}_{}model_{}_depth.pt".format(state_name, lv_method, vae_depth))
+            plot_name = os.path.join(model_dir, "{}_{}loss_{}_depth.png".format(state_name, lv_method, vae_depth))
+        else:
+            fname = ""
+            plot_name = ""
         if os.path.isfile(fname):
             model = vt.MMD_VAE(**params)
             model.load_state_dict(torch.load(fname))
@@ -288,7 +292,8 @@ def reduce_genotype(genotype, lv_method, num_latent, state_name, vae_depth=None,
                 model = vt.train_mmd_vae(torch.Tensor(stats.zscore(genotype)), params, save_loss=plot_name, warmup=True)
             else:
                 model = vt.train_mmd_vae(torch.Tensor(stats.zscore(genotype)), params, save_loss=plot_name)
-            torch.save(model.state_dict(), fname)
+            if model_dir:
+                torch.save(model.state_dict(), fname)
         latent_genotype = model.encode(torch.Tensor(stats.zscore(genotype))).detach()
     elif lv_method == "pca":
         latent_genotype = compute_pcs(genotype)[:, 0:num_latent]
