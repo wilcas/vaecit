@@ -60,7 +60,7 @@ def main(**opts):
     expression = dm.standardize_remove_pcs(expression, pcs_to_remove)
 
     # run tests by qtl Gene
-    tests_df = pd.read_csv(opts['cit_tests'], sep=' ')
+    tests_df = pd.read_csv(opts['cit_tests'], sep='\t')
     if pd.isna(tests_df).any().any():
         tests_df[pd.isna(tests_df)] = ""
     if opts['genotype_file'] is not None:
@@ -80,7 +80,7 @@ def main(**opts):
     else:
         raise ValueError("require genotype manifest file")
     with joblib.parallel_backend("loky"):
-       mediation_results = joblib.Parallel(n_jobs=-1, verbose=10)(
+       mediation_results = joblib.Parallel(n_jobs=6, verbose=10)(
            joblib.delayed(retrieve_latent)(df, gene, methyl, acetyl, express, opts, geno)
            for (gene, df) in tests_df.groupby('gene')
        )

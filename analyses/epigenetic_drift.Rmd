@@ -1,0 +1,119 @@
+---
+title: "Epigenetic Drift Age Analysis"
+author: "William Casazza"
+date: '2019-08-14'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(reticulate)
+use_condaenv("tf_vae")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Goals
+* Analyze the extent to which epigenetic drift seems to be happening in rosmap cohort 
+    * global change in methylation
+    * change in methylation across individual probes with subject age
+* analyze the extent to which we observe more instances of mediation when we restrict ages to different groups and bins
+    * Simple way is bins
+    * More robust and perhaps better powered way would be to use DCARS
+
+## Load in methylation and phenotype data
+```{r}
+require(data.table)
+require(RSpectra)
+methy_data <- data.table::fread("tar zxfO ~/ROSMAPmethylationWAgeSex.tar.gz", header = T)
+tmp_data <- scale(t(as.matrix(methy_data[,2:ncol(methy_data)])))
+decomp <- RSpectra::svds(tmp_data,10)
+probe_names <- methy_data$V1
+phen_data <- read.csv("~/ROSMAP_PHEN.csv", row.names = 1)
+mask <- match(colnames(methy_data), rownames(phen_data))
+phen_data <- phen_data[rownames(phen_data) %in% colnames(methy_data), ]
+methy_data <- methy_data[,rownames(phen_data), with=FALSE]
+```
+
+
+## Global Changes in methylation
+```{r}
+mean_methy<- colMeans(methy_data)
+fit <- lm(mean_methy ~ phen_data$age.death + phen_data$msex)
+plot(fit)
+summary(fit)
+plot(phen_data$age.death, mean_methy)
+abline(coef(fit)[c(1,2)])
+
+
+fit2 <- glm(parkdx ~ mean_methy + age.death + msex, family = "binomial", data = na.omit(data.frame(msex = phen_data$msex, parkdx = phen_data$parkdx,age.death = phen_data$age.death, mean_methy = mean_methy)))
+# plot(fit2)
+summary(fit2)
+plot(phen_data$parkdx, mean_methy)
+abline(coef(fit2)[c(1,2)])
+fit2 <- glm(cAD ~ mean_methy + age.death + msex,family = "binomial", data = na.omit(data.frame(msex = phen_data$msex, cAD = phen_data$cAD,age.death = phen_data$age.death, mean_methy = mean_methy)))
+# plot(fit2)
+summary(fit2)
+plot(phen_data$parkdx, mean_methy)
+abline(coef(fit2)[c(1,2)])
+```
+
+
+
+## Changes in methylation across subjects
+```{r}
+res <- suppressWarnings(apply(methy_data,1, function(x) cor.test(x,phen_data$age.death, method = "spearman")))
+```
+
+```{r}
+res_df <- as.data.frame(t(sapply(res, function(x) c(estimate = x$estimate, pval = x$p.value))))
+res_df <- res_df %>% mutate(pbonf = p.adjust(pval, method = "bonf"))
+sum(res_df$pbonf < 0.05)
+```
+```{r}
+tmp <- sapply(res, function(x) x$p.value)
+df <- data.frame(p =tmp, p_adj = p.adjust(tmp, method = "bonf"))
+```
+## Mediation at different ages (implemented in drift_experiment.py)
+
+Loading in data from each quantile:
+```{r}
+data_dir <- "~/vaecit/data/epigenetic_drift_experiment/"
+fmt <- ".*_([0-3])_quantile_(.*)_5.*.csv"
+result <- list()
+for(f in dir(data_dir, pattern = "^_.*")){
+  df <- read.csv(paste0(data_dir,f))
+  df$quant <- as.numeric(gsub(fmt,"\\1",f))
+  df$method <- gsub(fmt,"\\2",f)
+  rev_df <- read.csv(paste0(data_dir,"rev",f))
+  colnames(rev_df) <- paste0("rev_",colnames(rev_df))
+  result[[f]] <- cbind(df, rev_df)
+}
+
+drift_df <- bind_rows(result)
+```
+
+
+```{r, fig.width=12, fig.height=5}
+alpha <- 0.05
+classify_p_value <- function(x,y,n){
+      ifelse(x < (alpha / n) & y > (alpha / n),
+        "Epigenetic Mediation",
+        ifelse(x > (alpha / n) & y < (alpha/ n),
+          "Transcriptional Mediation",
+          ifelse(x > (alpha / n) & y > (alpha/ n),
+            "Independent Association",
+            "Unclassified")))
+    
+}
+
+classified_drift <- drift_df %>% group_by(quant) %>% mutate(mediation = classify_p_value(omni_p, rev_omni_p, n())) %>% ungroup()
+to_plot <- classified_drift %>% group_by(quant,method,mediation) %>% summarize(num_classified = n()) %>% ungroup() %>%  filter(mediation != "Independent Association")# %>% mutate(mediation = gsub("Mediation", "", mediation), method = factor(method, levels = c("fastica","pca","lfa","kernelpca",unique(method)[c(4,5)]))) 
+  ggplot(to_plot, aes(x= quant, y= num_classified, fill = mediation)) + geom_bar(stat = "identity") + facet_wrap(mediation~method, nrow=2)
+  ggplot(to_plot, aes(x= quant, y= num_classified, fill = mediation)) + geom_bar(stat = "identity") + facet_wrap(~method, nrow=1)
+```
+## Mediation at different ages (ignoring multivariate stuff for now)
+
+```{r}
+
+```
+

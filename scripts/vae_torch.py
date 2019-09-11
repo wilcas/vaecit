@@ -1,5 +1,7 @@
 """PyTorch implementation of MMD-VAE described in Info-VAE paper."""
 import pandas as pd
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
@@ -7,7 +9,6 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torch.utils.data
 import numpy as np
-
 class AEData(torch.utils.data.Dataset):
     def __init__(self,x):
         super(AEData, self).__init__()
