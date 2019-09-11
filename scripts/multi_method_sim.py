@@ -16,7 +16,6 @@ import numpy as np
 from itertools import product
 
 
-
 @click.command()
 @click.option('--lv-method', type=click.Choice(['pca', 'mmdvae','lfa', 'kernelpca', 'fastica', 'mmdvae_warmup', 'mmdvae_batch', 'mmdvae_batch_warmup', 'ae','ae_batch']))
 @click.option('--num-latent', type=int, required=True)
@@ -87,7 +86,6 @@ def main(**opts):
             "cit_ind1_{}_{}_gen.csv".format(
                 opts['lv_method'],
                 num_genotypes))
-
     return 0
 
 
