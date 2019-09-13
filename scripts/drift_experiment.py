@@ -105,7 +105,7 @@ def main():
     (ac_samples,ac_ids,acetylation) = (acety_df.columns.to_numpy(), acety_df.index.to_numpy(), acety_df.to_numpy().T)
     (p_samples, p_ids, phenotype) = (phen_df.index.to_numpy(), phen_df.columns.to_numpy(), phen_df.to_numpy())
     (m_samples,m_ids,methylation) = (methy_df.columns.to_numpy(), methy_df.index.to_numpy(), methy_df.to_numpy().T)
-    (e_samples, e_ids, expression) = dm.load_expression('/home/wcasazza/expressionAndPhenotype.mat')
+    (e_samples, e_ids, expression) = dm.load_expression('/home/wcasazza/expressionNonAgeSexAdj.mat')
     pcs_to_remove = 10
     
     
@@ -136,6 +136,7 @@ def main():
     # remove sex effects from acetylation and methylation
     methylation = remove_covar(methylation, phenotype[:,p_ids == "msex"])
     acetylation = remove_covar(acetylation, phenotype[:,p_ids == "msex"])
+    expression = remove_covar(expression, phenotype[:,p_ids == "msex"])
     
     geno = (g_samples, g_ids, genotype)
     methyl = (m_samples, m_ids, methylation)
@@ -150,28 +151,42 @@ def main():
       'num_latent': 1,
       'model_dir': "/media/wcasazza/DATA2/wcasazza/saved_models_test_training/",
       'run_reverse': False,
-      'num_bootstrap':0
+      'num_bootstrap':None
     }
-    quantiles = pd.qcut(phenotype[:, p_ids == 'age death'].flatten(),3, labels = [0,1])
+    # quantiles = pd.qcut(phenotype[:, p_ids == 'age death'].flatten(),3, labels = [0,1])
+    mean_age = np.mean(phenotype[:, p_ids == "age death"])
     cit_df = pd.read_csv("/home/wcasazza/vaecit/CIT.txt", sep = "\t")
-    lv_methods = ['pca', 'mmdvae','lfa', 'kernelpca', 'fastica', 'mmdvae_warmup', 'mmdvae_batch', 'mmdvae_batch_warmup', 'ae','ae_batch']
+    # lv_methods = ['pca', 'mmdvae','lfa', 'kernelpca', 'fastica', 'mmdvae_warmup', 'mmdvae_batch', 'mmdvae_batch_warmup', 'ae','ae_batch']
+    young_mask = (phenotype[:, p_ids == "age death"] < mean_age).flatten()
+    old_mask = (phenotype[:, p_ids == "age death"] > mean_age).flatten()
     for i in range(2):
         opts['run_reverse'] =  not opts['run_reverse']
-        for lv_method in lv_methods:
-            opts['lv_method'] = lv_method
-            for cur_quant in range(5):
-                geno = (g_samples, g_ids, genotype[quantiles == cur_quant,:])
-                methyl = (m_samples, m_ids, methylation[quantiles == cur_quant,:])
-                acetyl = (ac_samples, ac_ids, acetylation[quantiles == cur_quant,:])
-                express = (e_samples, e_ids, expression[quantiles == cur_quant,:]) 
-                with joblib.parallel_backend("loky"):
-                    mediation_tmp = joblib.Parallel(n_jobs=5, verbose=10)(
-                    joblib.delayed(cit_on_qtl_set)(df, gene, methyl, acetyl, express, opts, geno)
-                        for (gene, df) in cit_df.groupby('gene')
-                    )
-                mediation_result = [item for sublist in mediation_tmp for item in sublist]
-                cit.write_csv(mediation_result, "{}_{}_quantile_{}_5_cit_replication_perm_test.csv".format("rev" if opts['run_reverse'] else "",cur_quant,lv_method))
+        # for lv_method in lv_methods:
+        # opts['lv_method'] = lv_method
+        # for cur_quant in range(5):
+        geno = (g_samples, g_ids, genotype[young_mask,:])
+        methyl = (m_samples, m_ids, methylation[young_mask,:])
+        acetyl = (ac_samples, ac_ids, acetylation[young_mask,:])
+        express = (e_samples, e_ids, expression[young_mask,:]) 
+        with joblib.parallel_backend("loky"):
+            mediation_tmp = joblib.Parallel(n_jobs=5, verbose=10)(
+            joblib.delayed(cit_on_qtl_set)(df, gene, methyl, acetyl, express, opts, geno)
+                for (gene, df) in cit_df.groupby('gene')
+            )
+        mediation_result = [item for sublist in mediation_tmp for item in sublist]
+        cit.write_csv(mediation_result, "{}_leMean_5_cit_replication_perm_test.csv".format("rev" if opts['run_reverse'] else ""))
 
+        geno = (g_samples, g_ids, genotype[old_mask,:])
+        methyl = (m_samples, m_ids, methylation[old_mask,:])
+        acetyl = (ac_samples, ac_ids, acetylation[old_mask,:])
+        express = (e_samples, e_ids, expression[old_mask,:]) 
+        with joblib.parallel_backend("loky"):
+            mediation_tmp = joblib.Parallel(n_jobs=5, verbose=10)(
+            joblib.delayed(cit_on_qtl_set)(df, gene, methyl, acetyl, express, opts, geno)
+                for (gene, df) in cit_df.groupby('gene')
+            )
+        mediation_result = [item for sublist in mediation_tmp for item in sublist]
+        cit.write_csv(mediation_result, "{}_geMean_5_cit_replication_perm_test.csv".format("rev" if opts['run_reverse'] else ""))
 
 if __name__ == '__main__':
   main()

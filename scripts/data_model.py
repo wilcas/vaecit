@@ -88,12 +88,24 @@ def generate_caus1_scale_kernel(n=100, p=200):
 
 
 def load_expression(fname):
-    exp_and_phen = io.loadmat(fname)
-    expression = exp_and_phen['data'][0][0][0]
-    samples = exp_and_phen['data'][0][0][4]
-    samples = np.array([re.sub(":.*","",sample[0][0]) for sample in samples])
-    genes = exp_and_phen['data'][0][0][3]
-    genes = np.array([re.sub(":.*","",gene[0][0]) for gene in genes])
+    if re.match("phen",fname):
+        exp_and_phen = io.loadmat(fname)
+        expression = exp_and_phen['data'][0][0][0]
+        samples = exp_and_phen['data'][0][0][4]
+        samples = np.array([re.sub(":.*","",sample[0][0]) for sample in samples])
+        genes = exp_and_phen['data'][0][0][3]
+        genes = np.array([re.sub(":.*","",gene[0][0]) for gene in genes])
+
+    elif re.match("Normalize", fname):
+        struct = io.loadmat(fname, squeeze_me=True)
+        expression = struct['expr']
+        samples = struct['exprList']
+        genes = struct['geneSymbol']
+    else:
+        struct = io.loadmat(fname, squeeze_me=True)['Res']
+        expression = struct['data'].item()
+        samples = struct['rowlabels'].item()
+        genes = struct['collabels'].item()
     return samples.flatten(), genes.flatten(), expression
 
 
