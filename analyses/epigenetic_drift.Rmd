@@ -114,6 +114,12 @@ to_plot <- classified_drift %>% group_by(quant,method,mediation) %>% summarize(n
 ## Mediation at different ages (ignoring multivariate stuff for now)
 
 ```{r}
+epi_less <- read.csv("~/vaecit/scripts/_leMean_5_cit_replication_perm_test.csv")
 
+epi_greater <- read.csv("~/vaecit/scripts/_geMean_5_cit_replication_perm_test.csv")
+epi_less %>% filter(omni_p * n() < 0.05)
+epi_greater %>% filter(omni_p * n() < 0.05)
+to_plot <- data.frame(group = c("Younger", "Older"), amt_Mediation=c(604,805)) %>% mutate(group = factor(group, levels = c("Younger", "Older")))
+ggplot(to_plot, aes(x=group, y = amt_Mediation)) + geom_bar(stat = "identity") + ggtitle("Epigenetic Mediation in Young Versus Old (single SNPs)") + theme_minimal()
 ```
 
