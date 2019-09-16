@@ -4,6 +4,7 @@ version of this project.
 """
 import csv
 import h5py
+import importlib
 import logging
 import numpy as np
 import pandas as pd
@@ -11,8 +12,9 @@ import os
 import re
 import random
 import torch
-import vae_torch as vt
 
+loader = importlib.machinery.SourceFileLoader('vae_torch', '/home/wcasazza/vaecit/scripts/vae_torch.py')
+vt = loader.load_module('vae_torch')
 
 from scipy import io,stats
 from scipy.sparse.linalg import svds
@@ -68,6 +70,41 @@ def generate_ind1(n=100, p=200, genotype = None):
     gene_exp = random.choice([-1,1])*np.random.uniform()+(genotype@exp_coeffs)  + np.random.normal(size=(n,))
     trait_coeffs= np.array([random.choice([-1,1])*np.random.uniform() for i in range(p)])
     trait = random.choice([-1,1])*np.random.uniform()+(genotype@trait_coeffs)+ np.random.normal(size=(n,))
+    return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
+
+
+def generate_caus_ind(n=100, p=200, genotype=None):
+    if genotype is None:
+        genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
+    exp_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
+    gene_exp = random.choice([-1,1])*np.random.uniform() + \
+        (genotype@exp_coeffs) + \
+        np.random.normal(size=(n,))
+    small_exp_coeffs = np.array([random.choice([-1,1])*np.random.uniform()* 1e-2 for i in range(p)])
+    trait = random.choice([-1,1])*np.random.uniform() + \
+        random.choice([-1,1])*np.random.uniform() * gene_exp + \
+        genotype@small_exp_coeffs + np.random.normal(size=(n,))
+    return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
+
+
+def generate_ind_hidden(n=100, p=200, genotype=None):
+    if genotype is None:
+        genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
+    exp_coeffs= np.array([random.choice([-1,1])*np.random.uniform() for i in range(p)])
+    hidden_cov = np.random.normal(size=(n,10))
+    gene_exp = random.choice([-1,1])*np.random.uniform()+(genotype@exp_coeffs)  + hidden_cov + np.random.normal(size=(n,))
+    trait_coeffs= np.array([random.choice([-1,1])*np.random.uniform() for i in range(p)])
+    trait = random.choice([-1,1])*np.random.uniform()+(genotype@trait_coeffs)+ hidden_cov + np.random.normal(size=(n,))
+    return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
+
+
+def generate_caus_hidden(n=100, p=200, genotype=None):
+    if genotype is None:
+        genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
+    hidden_cov = np.random.normal(size=(n,10))
+    exp_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
+    gene_exp = random.choice([-1,1])*np.random.uniform() + (genotype@exp_coeffs) + np.random.normal(size=(n,)) + hidden_cov
+    trait = random.choice([-1,1])*np.random.uniform() + random.choice([-1,1])*np.random.uniform() * gene_exp + np.random.normal(size=(n,)) + hidden_cov
     return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
