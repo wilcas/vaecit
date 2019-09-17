@@ -1,25 +1,15 @@
-import importlib
+import numpy as np
 import joblib
-
-dm_load = importlib.machinery.SourceFileLoader(
-    'data_model',
-    "/home/wcasazza/vaecit/scripts/data_model.py"
-)
-dm = dm_load.load_module('data_model')
-
-cit_load = importlib.machinery.SourceFileLoader(
-    'cit_sm', 
-    "/home/wcasazza/vaecit/scripts/cit_sm.py"
-)
-cit = cit_load.load_module('cit_sm')
+import data_model as dm
+import cit_sm as cit
 
 
-def run_cit_sim(trait,expr,geno,params,scenario,lv_method):
-    z = dm.reduce_genotype(geno,lv_method,params['num_latent'],"",vae_depth=params['vae_depth'])
+def run_cit_sim(trait,expr,geno,scenario,lv_method,num_latent,vae_depth,num_bootstrap):
+    z = dm.reduce_genotype(geno,lv_method,num_latent,"",vae_depth=vae_depth)
     if type(z) != np.ndarray:
         z = z.numpy().astype(np.float64)
-    result = cit.cit(trait,expr,z,num_bootstrap=params['num_bootstrap'])
-    result_rev = cit.cit(trait,z,expr,num_bootstrap=params['num_bootstrap'])
+    result = cit.cit(trait,expr,z,num_bootstrap=num_bootstrap)
+    result_rev = cit.cit(trait,z,expr,num_bootstrap=num_bootstrap)
     result_rev = {f'rev_{k}': result_rev[k] for k in result_rev}
     result.update(result_rev)
     result['method'] = lv_method
@@ -38,7 +28,7 @@ def main():
     }
     params = {
         'models': model_str.keys(),
-        'num_genotypes': [1,25,50,100,200,400,600],
+        'num_genotypes': [1],#25,50,100,200,400,600],
         'lv_method': [
             'pca', 
             'mmdvae',
@@ -65,9 +55,9 @@ def main():
         for num_genotype in params['num_genotypes'] 
         for model in params['models']
     }
-    with joblib.parallel_backend('loky', n_jobs=4):
+    with joblib.parallel_backend('loky', n_jobs=8):
         results = joblib.Parallel(verbose=10)(
-            joblib.delayed(run_cit_sim)(trait,expr,geno,params, k, lv_method) 
+            joblib.delayed(run_cit_sim)(trait,expr,geno, k, lv_method, params['num_latent'], params['vae_depth'], params['num_bootstrap']) 
                 for lv_method in params['lv_method']
                 for k in data
                 for (trait,expr,geno) in data[k]

@@ -12,9 +12,7 @@ import os
 import re
 import random
 import torch
-
-loader = importlib.machinery.SourceFileLoader('vae_torch', '/home/wcasazza/vaecit/scripts/vae_torch.py')
-vt = loader.load_module('vae_torch')
+import vae_torch as vt
 
 from scipy import io,stats
 from scipy.sparse.linalg import svds
@@ -91,7 +89,7 @@ def generate_ind_hidden(n=100, p=200, genotype=None):
     if genotype is None:
         genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
     exp_coeffs= np.array([random.choice([-1,1])*np.random.uniform() for i in range(p)])
-    hidden_cov = np.random.normal(size=(n,10))
+    hidden_cov = np.random.normal(size=(n,))
     gene_exp = random.choice([-1,1])*np.random.uniform()+(genotype@exp_coeffs)  + hidden_cov + np.random.normal(size=(n,))
     trait_coeffs= np.array([random.choice([-1,1])*np.random.uniform() for i in range(p)])
     trait = random.choice([-1,1])*np.random.uniform()+(genotype@trait_coeffs)+ hidden_cov + np.random.normal(size=(n,))
@@ -101,7 +99,7 @@ def generate_ind_hidden(n=100, p=200, genotype=None):
 def generate_caus_hidden(n=100, p=200, genotype=None):
     if genotype is None:
         genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
-    hidden_cov = np.random.normal(size=(n,10))
+    hidden_cov = np.random.normal(size=(n,))
     exp_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
     gene_exp = random.choice([-1,1])*np.random.uniform() + (genotype@exp_coeffs) + np.random.normal(size=(n,)) + hidden_cov
     trait = random.choice([-1,1])*np.random.uniform() + random.choice([-1,1])*np.random.uniform() * gene_exp + np.random.normal(size=(n,)) + hidden_cov
