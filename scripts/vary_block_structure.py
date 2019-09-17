@@ -26,9 +26,19 @@ def main():
         'causal_hidden': dm.generate_caus_hidden,
         'independent_hidden': dm.generate_ind_hidden
     }
+    block_structures = {
+        "100": [1.0],
+        "80-20": [0.8,0.2],
+        "50-50": [0.5,0.5],
+        "33-33-34": [0.33,0.33,0.34],
+        "all-25": [0.25,0.25,0.25,0.25],
+        "all-20": [0.2,0.2,0.2,0.2,0.2],
+        "all": None
+    }
+
     params = {
         'models': model_str.keys(),
-        'num_genotypes': [1,25,50,100,200,400,600],
+        'num_genotypes': [200],
         'lv_method': [
             'pca', 
             'mmdvae',
@@ -48,12 +58,13 @@ def main():
         'vae_depth': 5
     }
     data = {
-        f'{num_genotype}genotypes_{model}': [
-            model_str[model](params['num_samples'],num_genotype) 
+        f'{num_genotype}genotypes{structure}_{model}': [
+            model_str[model](params['num_samples'],num_genotype, dm.block_genotype(params['num_samples'],num_genotype,block_structures[structure]))
             for i in range(params['num_simulations'])
         ]
         for num_genotype in params['num_genotypes'] 
         for model in params['models']
+        for structure in block_structures
     }
     with joblib.parallel_backend('loky', n_jobs=8):
         results = joblib.Parallel(verbose=10)(
