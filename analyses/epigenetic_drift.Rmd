@@ -22,22 +22,41 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Load in methylation and phenotype data
 ```{r}
+require(tidyverse)
 require(data.table)
 require(RSpectra)
+require(R.matlab)
 methy_data <- data.table::fread("tar zxfO ~/ROSMAPmethylationWAgeSex.tar.gz", header = T)
 tmp_data <- scale(t(as.matrix(methy_data[,2:ncol(methy_data)])))
 decomp <- RSpectra::svds(tmp_data,10)
 probe_names <- methy_data$V1
+rownames(methy_data) <- probe_names
 phen_data <- read.csv("~/ROSMAP_PHEN.csv", row.names = 1)
 mask <- match(colnames(methy_data), rownames(phen_data))
 phen_data <- phen_data[rownames(phen_data) %in% colnames(methy_data), ]
 methy_data <- methy_data[,rownames(phen_data), with=FALSE]
+methy_data <- resid(lm(t(as.matrix(methy_data)) ~ phen_data$msex))
+exprs <- readMat("~/expressionNonAgeSexAdj.mat")
+expression <- exprs$Res[[1]]
+rownames(expression) <- unlist(exprs$Res[[2]])
+colnames(expression) <- unlist(exprs$Res[[3]])
+phen <- readMat("~/phenotype.mat")
+phenotype <- phen$Pm[[1]]
+rownames(phenotype) <- unlist(phen$Pm[[2]])
+colnames(phenotype) <- unlist(phen$Pm[[3]])
+# regress out covariates
+decomp <- svds(expression,10)
+expression <- expression - (decomp$u %*% diag(decomp$d) %*% t(decomp$v))
+expression <- expression[match(rownames(phenotype), rownames(expression)),]
+all(rownames(expression) == rownames(phenotype))
+fit <- lm(as.matrix(expression) ~  phenotype[,"msex"])
+expression <- resid(fit)
 ```
 
 
 ## Global Changes in methylation
 ```{r}
-mean_methy<- colMeans(methy_data)
+mean_methy<- rowMeans(methy_data)
 fit <- lm(mean_methy ~ phen_data$age.death + phen_data$msex)
 plot(fit)
 summary(fit)
@@ -114,12 +133,44 @@ to_plot <- classified_drift %>% group_by(quant,method,mediation) %>% summarize(n
 ## Mediation at different ages (ignoring multivariate stuff for now)
 
 ```{r}
+manifest <- read.csv("../CIT.txt", sep= "\t", stringsAsFactors = T)
 epi_less <- read.csv("~/vaecit/scripts/_leMean_5_cit_replication_perm_test.csv")
-
+epi_less$gene <- manifest$gene
 epi_greater <- read.csv("~/vaecit/scripts/_geMean_5_cit_replication_perm_test.csv")
-epi_less %>% filter(omni_p * n() < 0.05)
-epi_greater %>% filter(omni_p * n() < 0.05)
+epi_greater$gene <- manifest$gene
+(sig_less <- epi_less %>% filter(omni_p * n() < 0.05))
+(sig_greater <- epi_greater %>% filter(omni_p * n() < 0.05))
 to_plot <- data.frame(group = c("Younger", "Older"), amt_Mediation=c(604,805)) %>% mutate(group = factor(group, levels = c("Younger", "Older")))
 ggplot(to_plot, aes(x=group, y = amt_Mediation)) + geom_bar(stat = "identity") + ggtitle("Epigenetic Mediation in Young Versus Old (single SNPs)") + theme_minimal()
+```
+## DCARS
+Input
+  * Expression and methylation rankings
+    * sort along columns by age, compute rank of each methylation probe
+```{r}
+eQTX_manifest <- read.delim("/home/wcasazza/eQTX_manifest.txt", sep = " ")
+expression <- expression[rownames(expression) %in% rownames(methy_data),]
+#methy_data <- methy_data[match(rownames(methy_data),rownames(expression))]
+all(rownames(expression) == rownames(methy_data))
+all(rownames(expression) == rownames(phen_data))
+express_ranks <- apply(t(expression[order(phen_data$age.death),]),1,rank)
+methy_ranks <- apply(t(methy_data[order(phen_data$age.death),]),1,rank)
+colnames(methy_ranks) <- probe_names
+edges<- apply(eQTX_manifest,1,function(x) strsplit(x[3],","))
+names(edges) <- eQTX_manifest$gene
+edges <- as.matrix(bind_rows(edges,.id = "gene"))
+all_data <- rbind(t(express_ranks),t(methy_ranks))
+```
+
+
+```{r}
+suppressMessages(result <- DCARS::DCARSacrossNetwork(all_data,edges[c(1,2),], extractPermutationTestStatistics = T, niter=1000))
+saveRDS(result, "DCARS_network.RDS")
+```
+```{r}
+tmp <- readRDS("../scripts/DCARS_network.RDS")
+tmp[order(tmp,decreasing = T)]
+hist(tmp,breaks=100)
+DCARS::tmp
 ```
 

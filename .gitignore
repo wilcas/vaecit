@@ -1,6 +1,6 @@
 *.out
 CIT.txt
-.Rproj.user
+.Rproj.user*
 vaecit.Rproj
 .Rhistory
 *__pycache__*
@@ -16,3 +16,4 @@ eQTX_manifest.txt
 cit_merged_mhaQTL.txt
 .vscode
 *.gmt
+*.RDS

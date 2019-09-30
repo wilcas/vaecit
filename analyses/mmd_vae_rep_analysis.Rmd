@@ -8,6 +8,7 @@ output: beamer_presentation
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(scales)
+setwd("~/vaecit/analyses")
 knitr::opts_chunk$set(echo = TRUE)
 ```
 # Breaking down performance of autoencoder vs PCA vs other dimensionality reduction methods
@@ -18,6 +19,7 @@ There are a few experiments here that I want to cover:
 
 Here I'll be loading in data into a clean dataframe (the previous analyses were starting to get messy):
 ```{r}
+
 cit_df <- read.table("../data/rosmap_cit_pca/CIT_groupby_order.txt", header = TRUE) %>% select(snp,probes,peaks,gene,pCausal,pReact) %>% rename(pub_omni_p=pCausal,rev_pub_omni_p=pReact)
 cit_rep_1_df <- read.csv("../data/rosmap_complete_rep/perm_test_cit_sanity_check_rep_1.csv") %>%
   rename(rep_1_p1 = p1, rep_1_p2 = p2, rep_1_p3 = p3, rep_1_p4 = p4, rep_1_omni_p = omni_p)

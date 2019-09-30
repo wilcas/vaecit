@@ -56,4 +56,13 @@ test %>%
     theme_bw() +
     theme(legend.justification = c(1,1.13))
 ```
+```{r}
+to_plot <- test %>% group_by(method) %>% summarize(
+  causal_TPR = sum(scenario == "caus1" & omni_p < 0.05) / (sum(scenario == "caus1")),
+  independent_FPR = sum(scenario == "ind1"& omni_p < 0.05)/ sum(scenario == "ind1")) %>% 
+  mutate(pseudo_ratio= causal_TPR / independent_FPR, pseudo_specificity= 1 - independent_FPR)
+ggplot(to_plot %>% gather("stat", "rate", ends_with("PR")), aes(x = method, y= rate, fill = stat)) + geom_bar(stat = "identity", position = "dodge")
+
+ggplot(to_plot %>% gather(stat,value, starts_with("pseudo")), aes(method, y= value)) + geom_bar(stat="identity") + facet_wrap(~stat, scales = "free")
+```
 
