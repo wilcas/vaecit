@@ -17,3 +17,4 @@ cit_merged_mhaQTL.txt
 .vscode
 *.gmt
 *.RDS
+.Rproj.user

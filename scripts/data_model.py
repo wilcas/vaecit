@@ -59,8 +59,12 @@ def generate_caus1(n=100, p=200, genotype = None, fix_effects = False):
         exp_coeffs = np.array([1 for i in range(p)])
     else:
         exp_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
-    gene_exp = random.choice([-1,1])*np.random.uniform() + (genotype@exp_coeffs) + np.random.normal(size=(n,))
-    trait = random.choice([-1,1])*np.random.uniform() + random.choice([-1,1])*np.random.uniform() * gene_exp + np.random.normal(size=(n,))
+    gene_exp =  (genotype@exp_coeffs) + np.random.normal(size=(n,))
+    if fix_effects:
+        trait_coeff = 1
+    else:
+        trait_coeff = random.choice([-1,1])*np.random.uniform()
+    trait =  trait_coeff* gene_exp + np.random.normal(size=(n,))
     return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
@@ -71,30 +75,28 @@ def generate_ind1(n=100, p=200, genotype = None, fix_effects=False):
         exp_coeffs = np.array([1 for i in range(p)])
     else:
         exp_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
-    gene_exp = random.choice([-1,1])*np.random.uniform()+(genotype@exp_coeffs)  + np.random.normal(size=(n,))
+    gene_exp = (genotype@exp_coeffs)  + np.random.normal(size=(n,))
     if fix_effects:
         trait_coeffs = np.array([1 for i in range(p)])
     else:
         trait_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
-    trait = random.choice([-1,1])*np.random.uniform()+(genotype@trait_coeffs)+ np.random.normal(size=(n,))
+    trait = (genotype@trait_coeffs)+ np.random.normal(size=(n,))
     return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
 def generate_caus_ind(n=100, p=200, genotype=None, fix_effects=False):
     if genotype is None:
         genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
-    exp_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
-    gene_exp = random.choice([-1,1])*np.random.uniform() + \
-        (genotype@exp_coeffs) + \
-        np.random.normal(size=(n,))
     if fix_effects:
-        exp_coeffs = np.array([0.01 for i in range(p)])
+        exp_coeffs= np.array([1 for i in range(p)])
     else:
-        exp_coeffs = np.array([random.choice([-1,1])*np.random.uniform()* 1e-2 for i in range(p)])
-
-    trait = random.choice([-1,1])*np.random.uniform() + \
-        random.choice([-1,1])*np.random.uniform() * gene_exp + \
-        genotype@exp_coeffs + np.random.normal(size=(n,))
+        exp_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
+    gene_exp = (genotype@exp_coeffs) + np.random.normal(size=(n,))
+    if fix_effects:
+        small_coeffs = np.array([0.01 for i in range(p)])
+    else:
+        small_coeffs = np.array([random.choice([-1,1])*np.random.uniform()* 1e-2 for i in range(p)])
+    trait = exp_coeffs@gene_exp + genotype@small_coeffs + np.random.normal(size=(n,))
     return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
@@ -105,26 +107,28 @@ def generate_ind_hidden(n=100, p=200, genotype=None, fix_effects=False):
         exp_coeffs = np.array([1 for i in range(p)])
     else:
         exp_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
-    hidden_cov = np.sum(np.random.normal(size=(n,10)),1)
-    gene_exp = random.choice([-1,1])*np.random.uniform()+(genotype@exp_coeffs)  + hidden_cov + np.random.normal(size=(n,))
+    hidden_cov = np.sum(np.random.normal(size=(n,10)),1) * (p / 10.0)
+    gene_exp = (genotype@exp_coeffs)  + hidden_cov + np.random.normal(size=(n,))
     if fix_effects:
         trait_coeffs = np.array([1 for i in range(p)])
     else:
         trait_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
-    trait = random.choice([-1,1])*np.random.uniform()+(genotype@trait_coeffs)+ hidden_cov + np.random.normal(size=(n,))
+    trait = (genotype@trait_coeffs)+ hidden_cov + np.random.normal(size=(n,))
     return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
 def generate_caus_hidden(n=100, p=200, genotype=None, fix_effects = False):
     if genotype is None:
         genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
-    hidden_cov = np.sum(np.random.normal(size=(n,10)),1)
+    hidden_cov = np.sum(np.random.normal(size=(n,10)),1) * (p /10.0)
     if fix_effects:
         exp_coeffs = np.array([1 for i in range(p)])
+        trait_coeffs = 1
     else:
-        exp_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
-    gene_exp = random.choice([-1,1])*np.random.uniform() + (genotype@exp_coeffs) + np.random.normal(size=(n,)) + hidden_cov
-    trait = random.choice([-1,1])*np.random.uniform() + random.choice([-1,1])*np.random.uniform() * gene_exp + np.random.normal(size=(n,)) + hidden_cov
+        exp_coeffs = np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
+        trait_coeffs = random.choice([-1,1])*np.random.uniform()
+    gene_exp =  (genotype@exp_coeffs) + np.random.normal(size=(n,)) + hidden_cov
+    trait = trait_coeffs*gene_exp + np.random.normal(size=(n,)) + hidden_cov
     return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
