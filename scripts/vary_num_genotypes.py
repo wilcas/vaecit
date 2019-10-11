@@ -28,16 +28,16 @@ def main():
     }
     params = {
         'models': model_str.keys(),
-        'num_genotypes': [1,50,100,200,400],
+        'num_genotypes': [1,10,25,50]#,#100,200,400],
         'lv_method': [
             'pca',
-            'mmdvae',
             'lfa', 
             'kernelpca', 
             'fastica', 
             #'mmdvae_warmup', 
             #'mmdvae_batch', 
-            'ae'
+            'ae',
+            'mmdvae'
             #'ae_batch'
         ],
         'fix_effects': sys.argv[1] == "fix_effects" if len(sys.argv) > 1 else False,
@@ -62,7 +62,7 @@ def main():
     with joblib.parallel_backend('loky', n_jobs=8):
         for lv_method in params['lv_method']:
             for k in data:
-                fname = f"{sys.argv[1] if len(sys.argv) > 1 else ''}simulation_{lv_method}_{k}.csv" 
+                fname = f"{sys.argv[1] if len(sys.argv) > 1 else ''}simulation_{lv_method}_{k}_debug.csv" 
                 cur_files = [f for (_,_,files) in os.walk("/home/wcasazza/scratch/vaecit/data/") for f in files]
                 if fname not in cur_files and not os.path.isfile(fname):
                     results = joblib.Parallel(verbose=10)(
