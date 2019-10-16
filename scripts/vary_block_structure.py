@@ -10,7 +10,7 @@ def run_cit_sim(trait,expr,geno,scenario,lv_method,num_latent,vae_depth,num_boot
     if type(z) != np.ndarray:
         z = z.numpy().astype(np.float64)
     result = cit.cit(trait,expr,z,num_bootstrap=num_bootstrap)
-    result_rev = cit.cit(trait,z,expr,num_bootstrap=num_bootstrap)
+    result_rev = cit.cit(expr,trait,z,num_bootstrap=num_bootstrap)
     result_rev = {f'rev_{k}': result_rev[k] for k in result_rev}
     result.update(result_rev)
     result['method'] = lv_method
@@ -42,13 +42,13 @@ def main():
         'num_genotypes': [200],
         'lv_method': [
             'pca', 
-            'mmdvae',
             'lfa', 
             'kernelpca', 
             'fastica', 
         #    'mmdvae_warmup', 
         #    'mmdvae_batch', 
         #    'mmdvae_batch_warmup', 
+            'mmdvae',
             'ae'
         #    'ae_batch'
         ],

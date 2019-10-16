@@ -16,7 +16,7 @@ import vae_torch as vt
 
 from scipy import io,stats
 from scipy.sparse.linalg import svds
-from sklearn.decomposition import FactorAnalysis, FastICA, KernelPCA
+from sklearn.decomposition import FactorAnalysis, FastICA, KernelPCA, PCA
 from functools import reduce
 
 
@@ -47,8 +47,8 @@ def block_genotype(n=100,p=200, perc=[0.5,0.5]):
 def generate_null(n=100, p=200, genotype = None, fix_effects=False):
     if genotype is None:
         genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
-    trait = np.random.normal(size=(n,))
-    gene_exp = np.random.normal(size=(n,))
+    trait = np.random.normal(10,0.3,size=(n,))
+    gene_exp = np.random.normal(10,0.3,size=(n,))
     return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
@@ -59,12 +59,12 @@ def generate_caus1(n=100, p=200, genotype = None, fix_effects = False):
         exp_coeffs = np.array([1 for i in range(p)])
     else:
         exp_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
-    gene_exp =  (genotype@exp_coeffs) + np.random.normal(size=(n,))
+    gene_exp =  (genotype@exp_coeffs) + np.random.normal(10,0.3,size=(n,))
     if fix_effects:
         trait_coeff = 1
     else:
         trait_coeff = random.choice([-1,1])*np.random.uniform()
-    trait =  trait_coeff* gene_exp + np.random.normal(size=(n,))
+    trait =  trait_coeff* gene_exp + np.random.normal(10,0.3,size=(n,))
     return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
@@ -75,12 +75,12 @@ def generate_ind1(n=100, p=200, genotype = None, fix_effects=False):
         exp_coeffs = np.array([1 for i in range(p)])
     else:
         exp_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
-    gene_exp = (genotype@exp_coeffs)  + np.random.normal(size=(n,))
+    gene_exp = (genotype@exp_coeffs)  + np.random.normal(10,0.3,size=(n,))
     if fix_effects:
         trait_coeffs = np.array([1 for i in range(p)])
     else:
         trait_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
-    trait = (genotype@trait_coeffs)+ np.random.normal(size=(n,))
+    trait = (genotype@trait_coeffs)+ np.random.normal(10,0.3,size=(n,))
     return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
@@ -88,15 +88,17 @@ def generate_caus_ind(n=100, p=200, genotype=None, fix_effects=False):
     if genotype is None:
         genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
     if fix_effects:
+        trait_coeffs = 1
         exp_coeffs= np.array([1 for i in range(p)])
     else:
+        trait_coeffs = random.choice([-1,1])*np.random.uniform()
         exp_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
-    gene_exp = (genotype@exp_coeffs) + np.random.normal(size=(n,))
+    gene_exp = (genotype@exp_coeffs) + np.random.normal(10,0.3,size=(n,))
     if fix_effects:
-        small_coeffs = np.array([0.01 for i in range(p)])
+        small_coeffs = np.array([0.1 for i in range(p)])
     else:
         small_coeffs = np.array([random.choice([-1,1])*np.random.uniform()* 1e-2 for i in range(p)])
-    trait = exp_coeffs@gene_exp + genotype@small_coeffs + np.random.normal(size=(n,))
+    trait = trait_coeffs*gene_exp + genotype@small_coeffs + np.random.normal(10,0.3,size=(n,))
     return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
@@ -107,28 +109,28 @@ def generate_ind_hidden(n=100, p=200, genotype=None, fix_effects=False):
         exp_coeffs = np.array([1 for i in range(p)])
     else:
         exp_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
-    hidden_cov = np.sum(np.random.normal(size=(n,10)),1) * (p / 10.0)
-    gene_exp = (genotype@exp_coeffs)  + hidden_cov + np.random.normal(size=(n,))
+    hidden_cov = np.random.normal(0,0.3,size=(n,))
+    gene_exp = (genotype@exp_coeffs)  + hidden_cov + np.random.normal(10,0.3,size=(n,))
     if fix_effects:
         trait_coeffs = np.array([1 for i in range(p)])
     else:
         trait_coeffs= np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
-    trait = (genotype@trait_coeffs)+ hidden_cov + np.random.normal(size=(n,))
+    trait = (genotype@trait_coeffs)+ hidden_cov + np.random.normal(10,0.3,size=(n,))
     return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
 def generate_caus_hidden(n=100, p=200, genotype=None, fix_effects = False):
     if genotype is None:
         genotype = np.random.binomial(n=2, p=0.25, size=(n, p))
-    hidden_cov = np.sum(np.random.normal(size=(n,10)),1) * (p /10.0)
+    hidden_cov = np.random.normal(0,0.3,size=(n,))
     if fix_effects:
         exp_coeffs = np.array([1 for i in range(p)])
         trait_coeffs = 1
     else:
         exp_coeffs = np.array([(random.choice([-1,1])*np.random.uniform())for i in range(p)])
         trait_coeffs = random.choice([-1,1])*np.random.uniform()
-    gene_exp =  (genotype@exp_coeffs) + np.random.normal(size=(n,)) + hidden_cov
-    trait = trait_coeffs*gene_exp + np.random.normal(size=(n,)) + hidden_cov
+    gene_exp =  (genotype@exp_coeffs) + np.random.normal(10,0.3,size=(n,)) + hidden_cov
+    trait = trait_coeffs*gene_exp + np.random.normal(10,0.3,size=(n,)) + hidden_cov
     return trait.reshape(n,1), gene_exp.reshape(n,1), genotype.astype(np.float64)
 
 
@@ -272,14 +274,17 @@ def get_snp_groups(rsids, coord_df, genotype_dir, sep='\t'):
 
 
 def compute_pcs(A):
-    n = A.shape[0]
-    A_std = stats.zscore(A)
-    try:
-        (U, D, vh) = np.linalg.svd(A_std, full_matrices=False, compute_uv=True)
-    except np.linalg.LinAlgError:
-        A2 = np.conj(A_std.T)@A_std
-        (U,D,vh) = np.linalg.svd(A_std, full_matrices=False, compute_uv=True)
-    return A_std@vh.T
+    model = PCA()
+    return model.fit_transform(A)
+
+    # n = A.shape[0]
+    # A_std = stats.zscore(A)
+    # try:
+    #     (U, D, vh) = np.linalg.svd(A_std, full_matrices=False, compute_uv=True)
+    # except np.linalg.LinAlgError:
+    #     A2 = np.conj(A_std.T)@A_std
+    #     (U,D,vh) = np.linalg.svd(A_std, full_matrices=False, compute_uv=True)
+    # return A_std@vh.T
 
 
 def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = None, lv_method="pca", vae_depth=None,num_latent=1, state_name="", model_dir=""):
@@ -317,6 +322,8 @@ def get_mediator(data, ids, which_ids, data2= None, ids2 = None, which_ids2 = No
                 model = vt.train_mmd_vae(torch.Tensor(stats.zscore(cur_data)), params, save_loss=plot_name)
             torch.save(model.state_dict(), fname)
         cur_data = model.encode(torch.Tensor(stats.zscore(cur_data))).detach()
+    elif lv_method == "none":
+        return cur_data
     elif lv_method == "pca":
         cur_data = compute_pcs(cur_data)[:, 0:num_latent]
     elif lv_method == "lfa":
@@ -368,6 +375,8 @@ def reduce_genotype(genotype, lv_method, num_latent, state_name, vae_depth=None,
             if model_dir:
                 torch.save(model.state_dict(), fname)
         latent_genotype = model.encode(torch.Tensor(stats.zscore(genotype))).detach()
+    elif lv_method == "none":
+        return genotype
     elif lv_method == "pca":
         latent_genotype = compute_pcs(genotype)[:, 0:num_latent]
     elif lv_method == "lfa":
@@ -375,6 +384,12 @@ def reduce_genotype(genotype, lv_method, num_latent, state_name, vae_depth=None,
         latent_genotype = lfa.fit_transform(stats.zscore(genotype))
     elif lv_method == "kernelpca":
         kpca = KernelPCA(n_components=1, kernel="rbf")
+        latent_genotype = kpca.fit_transform(stats.zscore(genotype))
+    elif lv_method == "kernelpca-linear":
+        kpca = KernelPCA(n_components=1, kernel="linear")
+        latent_genotype = kpca.fit_transform(stats.zscore(genotype))
+    elif lv_method == "kernelpca-sigmoid":
+        kpca = KernelPCA(n_components=1, kernel="sigmoid")
         latent_genotype = kpca.fit_transform(stats.zscore(genotype))
     elif lv_method == "fastica":
         ica = FastICA(n_components=1)

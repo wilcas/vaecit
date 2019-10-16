@@ -63,7 +63,7 @@ calculate_mode <- function(x) {
   uniqx <- unique(na.omit(x))
   uniqx[which.max(tabulate(match(x, uniqx)))]
 }
-age_ranks_df <- diff_exp_df %>% top_n(12000, wt = q_val) %>% group_by(gene) %>% summarize(Estimate = Estimate[which.max(q_val)]) %>% select(gene, Estimate)
+age_ranks_df <- diff_exp_df  %>% group_by(gene) %>% summarize(Estimate = Estimate[which.max(q_val)]) %>% select(gene, Estimate)
 age_ranks <- age_ranks_df$Estimate
 names(age_ranks) <- age_ranks_df$gene
 
@@ -108,10 +108,10 @@ fgseaResTidy1 <- res1 %>%
     as_tibble() %>%
     arrange(desc(NES))
   p1 <- ggplot(fgseaResTidy1, aes(reorder(pathway, NES), NES)) +
-    geom_col(aes(fill=padj<0.05)) +
+    geom_col(aes(fill=padj<0.10)) +
     coord_flip() +
     labs(x="Pathway", y="Normalized Enrichment Score",
-         title="Method 1") + 
+         title="Method 1: Any q") + 
     geom_text(aes(label = round(padj, digits = 4), y = ifelse(NES > 0, -0.25, 0.25)),size = 3, position = position_identity())+theme_bw()
 print(p1)
 
@@ -119,10 +119,10 @@ fgseaResTidy2 <- res2 %>%
     as_tibble() %>%
     arrange(desc(NES))
   p2 <- ggplot(fgseaResTidy2, aes(reorder(pathway, NES), NES)) +
-    geom_col(aes(fill=padj<0.05)) +
+    geom_col(aes(fill=padj<0.10)) +
     coord_flip() +
     labs(x="Pathway", y="Normalized Enrichment Score",
-         title="Method 2") + 
+         title="Method 2: Majority q") + 
     geom_text(aes(label = round(padj, digits = 4), y = ifelse(NES > 0, -0.25, 0.25)),size = 3, position = position_identity())+theme_bw()
 print(p2)
 
@@ -130,10 +130,10 @@ fgseaResTidy3 <- res3 %>%
     as_tibble() %>%
     arrange(desc(NES))
   p3 <- ggplot(fgseaResTidy3, aes(reorder(pathway, NES), NES)) +
-    geom_col(aes(fill=padj<0.05)) +
+    geom_col(aes(fill=padj<0.10)) +
     coord_flip() +
     labs(x="Pathway", y="Normalized Enrichment Score",
-         title="Method 3") + 
+         title="Method 3: Min P value q") + 
     geom_text(aes(label = round(padj, digits = 4), y = ifelse(NES > 0, -0.25, 0.25)),size = 3, position = position_identity())+theme_bw()
 print(p3)
 ```
