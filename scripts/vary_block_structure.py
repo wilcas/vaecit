@@ -41,6 +41,12 @@ def main():
         'models': model_str.keys(),
         'num_genotypes': [200],
         'lv_method': [
+<<<<<<< HEAD
+=======
+            'none',
+            'none.5',
+            'none.25',
+>>>>>>> update to how blocks are generated
             'pca',
             'lfa',
             'kernelpca',
@@ -84,7 +90,7 @@ def main():
         for lv_method in params['lv_method']:
             for k in data:
                 fname = f"{sys.argv[1] if len(sys.argv) > 1 else ''}simulation_{lv_method}_{k}.csv"
-                cur_files = [f for (_,_,files) in os.walk("/home/wcasazza/scratch/vaecit/data/") for f in files]
+                cur_files = [f for (_,_,files) in os.walk("/h/wcasazza/vaecit/data/") for f in files]
                 if fname not in cur_files and not os.path.isfile(fname):
                     results = joblib.Parallel(verbose=10)(
                         joblib.delayed(run_cit_sim)(trait,expr,geno, k, lv_method, params['num_latent'], params['vae_depth'], params['num_bootstrap'])

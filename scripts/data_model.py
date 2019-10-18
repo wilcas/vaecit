@@ -386,6 +386,12 @@ def reduce_genotype(genotype, lv_method, num_latent, state_name, vae_depth=None,
         latent_genotype = model.encode(torch.Tensor(stats.zscore(genotype))).detach()
     elif lv_method == "none":
         return genotype
+    elif lv_method == "none.5":
+        idx = round(genotype.shape[2] / 2)
+        return genotype[:idx,:]
+    elif lv_method == "none.25":
+        idx = round(genotype.shape[2] / 4)
+        return genotype[:idx,:]
     elif lv_method == "pca":
         latent_genotype = compute_pcs(genotype)[:, 0:num_latent]
     elif lv_method == "lfa":
