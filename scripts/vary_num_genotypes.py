@@ -28,7 +28,7 @@ def main():
     }
     params = {
         'models': model_str.keys(),
-        'num_genotypes': [1,2,3,4,5,10,25,50,100,200,400],
+        'num_genotypes': [1,2,3,4,5,10,25,50,100,200],
         'lv_method': [
             'none',
             'pca',

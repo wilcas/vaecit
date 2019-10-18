@@ -16,6 +16,7 @@ import vae_torch as vt
 
 from scipy import io,stats
 from scipy.sparse.linalg import svds
+from scipy.linalg import block_diag
 from sklearn.decomposition import FactorAnalysis, FastICA, KernelPCA, PCA
 from functools import reduce
 
@@ -26,6 +27,14 @@ def write_csv(results, filename):
         writer = csv.DictWriter(f, names)
         writer.writeheader()
         writer.writerows(results)
+
+
+def generate_block(n=100,p=200, num_blocks=2):
+    blocks = [np.diag(x) * 0.1 + 0.9 for x in np.array_split(np.ones(p),num_blocks)]
+    sigma = block_diag(*blocks)
+    mvn = stats.multivariate_normal(cov = sigma)
+    genotypes = mvn.rvs(n,p)
+    return genotypes
 
 
 def block_genotype(n=100,p=200, perc=[0.5,0.5]):
