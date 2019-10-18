@@ -30,7 +30,7 @@ def test_independence(T, G, L, num_bootstrap):
         if L.shape[1] > 1:
             A = np.identity(len(fit.params))[2:,:]
             f_test = fit.f_test(A)
-            fstats[i] = f_test.pvalue.item()
+            fstats[i] = f_test.fvalue.item()
         else:
             fstats[i] = fit.tvalues[-1] ** 2
     if num_bootstrap is None:
@@ -46,7 +46,7 @@ def test_independence(T, G, L, num_bootstrap):
         porig = stats.ncf.cdf(f_orig,v1,v2,delta)
         zorig = stats.norm.ppf(porig)
         p = stats.norm.cdf(zorig,scale=np.std(zperm))
-        if p == np.nan:
+        if np.isnan(p):
             return 1
     else:
         p = np.sum(fstats <= f_orig) / num_bootstrap
@@ -57,7 +57,7 @@ def cit(target, mediator, instrument, num_bootstrap=10000):
     # run tests
     n = target.shape[0]
     num_instruments = instrument.shape[1]
-    if num_instruments > 0:
+    if num_instruments > 1:
         p1_fit =  sm.OLS(target,np.c_[np.ones((n, 1)), instrument]).fit()
         A = np.identity(len(p1_fit.params))[1:,:]
         p1 = p1_fit.f_test(A).pvalue.item()
