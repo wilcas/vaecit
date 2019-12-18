@@ -16,11 +16,11 @@ knitr::read_chunk("/home/wcasazza/vaecit/analyses/result_loading_utils.R")
 
 
 ```{r}
-exprs <- readMat("~/expressionNonAgeSexAdj.mat")
+exprs <- readMat("/media/wcasazza/DATA2/wcasazza/ROSMAP/expressionNonAgeSexAdj.mat")
 expression <- exprs$Res[[1]]
 rownames(expression) <- unlist(exprs$Res[[2]])
 colnames(expression) <- unlist(exprs$Res[[3]])
-phen <- readMat("~/phenotype.mat")
+phen <- readMat("/media/wcasazza/DATA2/wcasazza/ROSMAP/phenotype.mat")
 phenotype <- phen$Pm[[1]]
 rownames(phenotype) <- unlist(phen$Pm[[2]])
 colnames(phenotype) <- unlist(phen$Pm[[3]])
@@ -112,7 +112,7 @@ fgseaResTidy1 <- res1 %>%
     coord_flip() +
     labs(x="Pathway", y="Normalized Enrichment Score",
          title="Method 1: Any q") + 
-    geom_text(aes(label = round(padj, digits = 4), y = ifelse(NES > 0, -0.25, 0.25)),size = 3, position = position_identity())+theme_bw()
+    geom_text(aes(label = round(pval, digits = 4), y = ifelse(NES > 0, -0.25, 0.25)),size = 3, position = position_identity())+theme_bw()
 print(p1)
 
 fgseaResTidy2 <- res2 %>%
@@ -123,7 +123,7 @@ fgseaResTidy2 <- res2 %>%
     coord_flip() +
     labs(x="Pathway", y="Normalized Enrichment Score",
          title="Method 2: Majority q") + 
-    geom_text(aes(label = round(padj, digits = 4), y = ifelse(NES > 0, -0.25, 0.25)),size = 3, position = position_identity())+theme_bw()
+    geom_text(aes(label = round(pval, digits = 4), y = ifelse(NES > 0, -0.25, 0.25)),size = 3, position = position_identity())+theme_bw()
 print(p2)
 
 fgseaResTidy3 <- res3 %>%
@@ -134,7 +134,7 @@ fgseaResTidy3 <- res3 %>%
     coord_flip() +
     labs(x="Pathway", y="Normalized Enrichment Score",
          title="Method 3: Min P value q") + 
-    geom_text(aes(label = round(padj, digits = 4), y = ifelse(NES > 0, -0.25, 0.25)),size = 3, position = position_identity())+theme_bw()
+    geom_text(aes(label = round(pval, digits = 4), y = ifelse(NES > 0, -0.25, 0.25)),size = 3, position = position_identity())+theme_bw()
 print(p3)
 ```
 ```{r}

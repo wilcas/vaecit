@@ -160,7 +160,7 @@ def generate_caus1_scale_kernel(n=100, p=200):
 
 
 def load_expression(fname):
-    if re.match("phen",fname):
+    if "Phen" in fname:
         exp_and_phen = io.loadmat(fname)
         expression = exp_and_phen['data'][0][0][0]
         samples = exp_and_phen['data'][0][0][4]
@@ -168,7 +168,7 @@ def load_expression(fname):
         genes = exp_and_phen['data'][0][0][3]
         genes = np.array([re.sub(":.*","",gene[0][0]) for gene in genes])
 
-    elif re.match("Normalize", fname):
+    elif "Normalize" in fname:
         struct = io.loadmat(fname, squeeze_me=True)
         expression = struct['expr']
         samples = struct['exprList']

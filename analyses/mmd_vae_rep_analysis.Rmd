@@ -22,23 +22,27 @@ Here I'll be loading in data into a clean dataframe (the previous analyses were 
 
 cit_df <- read.table("../data/rosmap_cit_pca/CIT_groupby_order.txt", header = TRUE) %>% select(snp,probes,peaks,gene,pCausal,pReact) %>% rename(pub_omni_p=pCausal,rev_pub_omni_p=pReact)
 cit_rep_1_df <- read.csv("../data/rosmap_complete_rep/perm_test_cit_sanity_check_rep_1.csv") %>%
-  rename(rep_1_p1 = p1, rep_1_p2 = p2, rep_1_p3 = p3, rep_1_p4 = p4, rep_1_omni_p = omni_p)
+  rename(rep_1_p1 = p1, rep_1_p2 = p2, rep_1_p3 = p3, rep_1_p4 = p4, rep_1_omni_p = omni_p) %>% mutate(rep_1_part_p = pmax(rep_1_p1,rep_1_p2,rep_1_p3))
 cit_rev_rep_1_df <- read.csv("../data/rosmap_complete_rep/perm_test_rev_cit_sanity_check_rep_1.csv") %>%
-  rename( rev_rep_1_p1=p1, rev_rep_1_p2=p2, rev_rep_1_p3=p3, rev_rep_1_p4=p4, rev_rep_1_omni_p=omni_p) 
+  rename( rev_rep_1_p1=p1, rev_rep_1_p2=p2, rev_rep_1_p3=p3, rev_rep_1_p4=p4, rev_rep_1_omni_p=omni_p) %>% mutate(rev_rep_1_part_p = pmax(rev_rep_1_p1,rev_rep_1_p2,rev_rep_1_p3)) 
 cit_rep_df <- cbind(cit_df,cit_rep_1_df,cit_rev_rep_1_df)# MAIN DF
 head(cit_rep_df)
 
 pca_cit_rep_1_df <- read.csv("../data/rosmap_cit_pca/perm_test_pca_1_latent_cit_rep_1.csv") %>%
-    rename(pca_rep_1_p1 = p1,pca_rep_1_p2 = p2,pca_rep_1_p3 = p3,pca_rep_1_p4= p4,pca_rep_1_omni_p = omni_p )
+    rename(pca_rep_1_p1 = p1,pca_rep_1_p2 = p2,pca_rep_1_p3 = p3,pca_rep_1_p4= p4,pca_rep_1_omni_p = omni_p ) %>%
+    mutate(pca_rep_1_part_p = pmax(pca_rep_1_p1,pca_rep_1_p2,pca_rep_1_p3))
 pca_cit_rev_rep_1_df <- read.csv("../data/rosmap_cit_pca/perm_test_rev_pca_1_latent_cit_rep_1.csv") %>%
-    rename(pca_rev_rep_1_p1 = p1,pca_rev_rep_1_p2 = p2,pca_rev_rep_1_p3 = p3,pca_rev_rep_1_p4= p4,pca_rev_rep_1_omni_p = omni_p )
+    rename(pca_rev_rep_1_p1 = p1,pca_rev_rep_1_p2 = p2,pca_rev_rep_1_p3 = p3,pca_rev_rep_1_p4= p4,pca_rev_rep_1_omni_p = omni_p ) %>%
+    mutate(pca_rev_rep_1_part_p = pmax(pca_rev_rep_1_p1,pca_rev_rep_1_p2,pca_rev_rep_1_p3))
 pca_df <- cbind(pca_cit_rep_1_df,pca_cit_rev_rep_1_df)# MAIN DF
 head(pca_df)
 
 mmd_cit_rep_1_df <- read.csv("../data/rosmap_cit_mmdvae/perm_test_mmdvae_1_latent_depth_10_cit_rep_1.csv") %>%
-  rename(mmd_rep_1_p1 = p1,mmd_rep_1_p2 = p2,mmd_rep_1_p3 = p3,mmd_rep_1_p4= p4,mmd_rep_1_omni_p = omni_p )
+  rename(mmd_rep_1_p1 = p1,mmd_rep_1_p2 = p2,mmd_rep_1_p3 = p3,mmd_rep_1_p4= p4,mmd_rep_1_omni_p = omni_p ) %>%
+  mutate(mmd_rep_1_part_p = pmax(mmd_rep_1_p1,mmd_rep_1_p2,mmd_rep_1_p3))
 mmd_cit_rev_rep_1_df <- read.csv("../data/rosmap_cit_mmdvae/perm_test_rev_mmdvae_1_latent_depth_10_cit_rep1.csv") %>%
-  rename(mmd_rev_rep_1_p1 = p1,mmd_rev_rep_1_p2 = p2,mmd_rev_rep_1_p3 = p3,mmd_rev_rep_1_p4= p4,mmd_rev_rep_1_omni_p = omni_p )
+  rename(mmd_rev_rep_1_p1 = p1,mmd_rev_rep_1_p2 = p2,mmd_rev_rep_1_p3 = p3,mmd_rev_rep_1_p4= p4,mmd_rev_rep_1_omni_p = omni_p )%>%
+  mutate(mmd_rev_rep_1_part_p = pmax(mmd_rev_rep_1_p1,mmd_rev_rep_1_p2,mmd_rev_rep_1_p3))
 mmd_df <- cbind(mmd_cit_rep_1_df,mmd_cit_rev_rep_1_df)# MAIN DF
 head(mmd_df)
 
@@ -53,8 +57,8 @@ for(f in dir("../data/mmd_vae_new_train/", full.names = TRUE)){
       model <- paste0("rev_", model)
     }
   }
-
-  df <- read.csv(f) %>% rename_all(function(x) paste0(model,x))
+  
+  df <- read.csv(f) %>% mutate(part_p=pmax(p1,p2,p3)) %>% rename_all(function(x) paste0(model,x))
   mmd_train_list[[f]] <- df
 }
 mmd_train_df <- bind_cols(mmd_train_list) # MAIN DF
@@ -66,7 +70,7 @@ for(f in dir("../data/alt_lv/", full.names = TRUE)){
   if(grepl("rev",f)){
     model <- paste0("rev_", model)
   }
-  df <- read.csv(f) %>% rename_all(function(x) paste0(model,"_",x))
+  df <- read.csv(f)%>% mutate(part_p=pmax(p1,p2,p3)) %>% rename_all(function(x) paste0(model,"_",x))
   alt_lv_list[[f]] <- df
 }
 alt_lv_df <- bind_cols(alt_lv_list) # MAIN DF
@@ -78,25 +82,25 @@ I retrained the autoencoder using a lower number of epochs, 20, 50, and 100
 multisnp_n <- nrow(cit_df %>% select(probes,peaks,gene) %>% unique())
 classify_p_value <- function(x,y,n){
       ifelse(x < (0.05 / n) & y > (0.05 / n),
-        "Epigenetic Mediation",
+        "Partial Mediation",
         ifelse(x > (0.05 / n) & y < (0.05/ n),
-          "Transcriptional Mediation",
+          "Partial Mediation",
           ifelse(x > (0.05 / n) & y > (0.05/ n),
             "Independent Association",
-            "Unclassified")))
+            "Partial Mediation")))
     
 }
-mmd_mediation_df <- cbind(cit_df %>% select(probes,peaks,gene),mmd_train_df, mmd_df) %>% group_by(probes,peaks,gene)%>% summarize_all(max) %>% select(contains("omni_p")) %>%
+mmd_mediation_df <- cbind(cit_df %>% select(probes,peaks,gene),mmd_train_df, mmd_df) %>% group_by(probes,peaks,gene)%>% summarize_all(max) %>% select(contains("part_p")) %>%
   mutate(
-    mmd_original_model = classify_p_value(mmd_rep_1_omni_p,mmd_rev_rep_1_omni_p, multisnp_n),
-    mmd_20_model = classify_p_value(mmdvaecit_20_omni_p,rev_mmdvaecit_20_omni_p, multisnp_n),
-    mmd_50_model = classify_p_value(mmdvaecit_50_omni_p,rev_mmdvaecit_50_omni_p, multisnp_n),
-    mmd_100_model = classify_p_value(mmdvaecit_100_omni_p,rev_mmdvaecit_100_omni_p, multisnp_n),
-    ae_model = classify_p_value(ae_omni_p,rev_ae_omni_p,multisnp_n),
-    ae_batch_model = classify_p_value(ae_batch_omni_p,rev_ae_batch_omni_p, multisnp_n),
-    mmdvae_warmup_model = classify_p_value(mmdvae_warmup_omni_p,rev_mmdvae_warmup_omni_p,multisnp_n),
-    mmdvae_batch_model = classify_p_value(mmdvae_batch_omni_p, rev_mmdvae_batch_omni_p, multisnp_n),
-    mmdvae_batch_warmup_model = classify_p_value(mmdvae_batch_warmup_omni_p, mmdvae_batch_warmup_omni_p, multisnp_n)
+    mmd_original_model = classify_p_value(mmd_rep_1_part_p,mmd_rev_rep_1_part_p, multisnp_n),
+    mmd_20_model = classify_p_value(mmdvaecit_20_part_p,rev_mmdvaecit_20_part_p, multisnp_n),
+    mmd_50_model = classify_p_value(mmdvaecit_50_part_p,rev_mmdvaecit_50_part_p, multisnp_n),
+    mmd_100_model = classify_p_value(mmdvaecit_100_part_p,rev_mmdvaecit_100_part_p, multisnp_n),
+    ae_model = classify_p_value(ae_part_p,rev_ae_part_p,multisnp_n),
+    ae_batch_model = classify_p_value(ae_batch_part_p,rev_ae_batch_part_p, multisnp_n),
+    mmdvae_warmup_model = classify_p_value(mmdvae_warmup_part_p,rev_mmdvae_warmup_part_p,multisnp_n),
+    mmdvae_batch_model = classify_p_value(mmdvae_batch_part_p, rev_mmdvae_batch_part_p, multisnp_n),
+    mmdvae_batch_warmup_model = classify_p_value(mmdvae_batch_warmup_part_p, mmdvae_batch_warmup_part_p, multisnp_n)
   )
 mmd_mediation_df %>% gather("test","mediation_model",ends_with("model")) %>%
   group_by(test, mediation_model) %>% 
@@ -115,10 +119,10 @@ Okay, this seems pretty variable actually..., need to be more sure about model s
 ```{r}
 mediation_df <- cbind(cit_df %>% select(probes,peaks,gene),pca_df,alt_lv_df) %>% group_by(probes,peaks,gene)%>% summarize_all(max) %>% unique()%>%
   mutate(
-    pca_model = classify_p_value(pca_rep_1_omni_p, pca_rev_rep_1_omni_p, multisnp_n),
-    lfa_model = classify_p_value(lfa_omni_p,rev_lfa_omni_p, multisnp_n),
-    fastica_model = classify_p_value(fastica_omni_p,rev_fastica_omni_p, multisnp_n),
-    kernelpca_model = classify_p_value(kernelpca_omni_p,rev_kernelpca_omni_p, multisnp_n)
+    pca_model = classify_p_value(pca_rep_1_part_p, pca_rev_rep_1_part_p, multisnp_n),
+    lfa_model = classify_p_value(lfa_part_p,rev_lfa_part_p, multisnp_n),
+    fastica_model = classify_p_value(fastica_part_p,rev_fastica_part_p, multisnp_n),
+    kernelpca_model = classify_p_value(kernelpca_part_p,rev_kernelpca_part_p, multisnp_n)
   )
 mediation_df %>% gather("test","mediation_model",ends_with("model")) %>%
   group_by(test, mediation_model) %>% 

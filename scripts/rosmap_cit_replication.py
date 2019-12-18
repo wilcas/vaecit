@@ -65,35 +65,63 @@ def cit_on_qtl_set(df, gene, methyl, acetyl, express, opts, geno=None):
             state_name = ""
             model_dir = ""
             depth = None
-        cur_epigenetic = dm.get_mediator(
-            methylation,
-            m_ids,
-            row.probes.split(","),
-            data2=acetylation,
-            ids2=ac_ids,
-            which_ids2=row.peaks.split(","),
-            lv_method=lv_method,
-            state_name=state_name,
-            model_dir = model_dir,
-            vae_depth = depth
-        )
-        if ("ae" in lv_method) and opts['lv_mediator']:
-            cur_epigenetic = cur_epigenetic.numpy().astype(np.float64)
-        # run CIT
-        if opts['run_reverse']:
-            mediation_results.append(
-                cit.cit(
-                    cur_epigenetic.reshape(n,1),
-                    cur_exp.reshape(n,1),
-                    latent_genotype.reshape(n,opts['num_latent']),
-                    num_bootstrap=opts['num_bootstrap']))
+        if opts['separate_epigenetic'] is None:
+            cur_epigenetic = dm.get_mediator(
+                methylation,
+                m_ids,
+                row.probes.split(","),
+                data2=acetylation,
+                ids2=ac_ids,
+                which_ids2=row.peaks.split(","),
+                lv_method=lv_method,
+                state_name=state_name,
+                model_dir = model_dir,
+                vae_depth = depth
+            )
+            if ("ae" in lv_method) and opts['lv_mediator']:
+                cur_epigenetic = cur_epigenetic.numpy().astype(np.float64)
+            cur_epigenetic_vars = [cur_epigenetic] # list of epigenetic variables to test
+            epi_labels = [",".join([row.probes,row.peaks])]
+        elif opts['separate_epigenetic'] == "PC":
+            cur_methy = methylation[:, np.isin(m_ids,row.probes.split(","))]
+            cur_acety = acetylation[:, np.isin(ac_ids,row.peaks.split(","))]
+            cur_epigenetic_vars = []
+            epi_labels = []
+            if cur_methy.shape[1] != 0:
+                methy_PC = dm.compute_pcs(cur_methy)[:,0]
+                cur_epigenetic_vars.append(methy_PC)
+                epi_labels += row.probes
+            if cur_acety.shape[1] != 0:
+                acety_PC = dm.compute_pcs(cur_acety)[:,0]
+                cur_epigenetic_vars.append(acety_PC)
+                epi_labels += row.peaks
+            epi_labels = [row.probes,row.peaks]
+        elif opts['separate_epigenetic'] == "single":
+            cur_methy = methylation[:, np.isin(m_ids,row.probes.split(","))]
+            cur_acety = acetylation[:, np.isin(ac_ids,row.peaks.split(","))]
+            cur_methy = [col for col in cur_methy.T]
+            cur_acety = [col for col in cur_acety.T]
+            cur_epigenetic_vars = cur_methy + cur_acety
+            epi_labels = row.probes.split(",") + row.peaks.split(",")
         else:
-            mediation_results.append(
-                cit.cit(
+            raise IOError("Problem with parameters for 'separate_epigenetic' ")
+        # run CIT
+        for cur_epigenetic,label in zip(cur_epigenetic_vars, epi_labels):
+            if opts['run_reverse']:
+                res = cit.cit(
+                    cur_epigenetic.reshape(n,1),
+                    cur_exp.reshape(n,1),
+                    latent_genotype.reshape(n,opts['num_latent']),
+                    num_bootstrap=opts['num_bootstrap'])
+            else:
+                res = cit.cit(
                     cur_exp.reshape(n,1),
                     cur_epigenetic.reshape(n,1),
                     latent_genotype.reshape(n,opts['num_latent']),
-                    num_bootstrap=opts['num_bootstrap']))
+                    num_bootstrap=opts['num_bootstrap'])
+            res['gene'] = gene
+            res['epi_var'] = label
+            mediation_results.append(res)
     return mediation_results
 
 
@@ -120,6 +148,7 @@ def cit_on_qtl_set(df, gene, methyl, acetyl, express, opts, geno=None):
 @click.option('--run-reverse', default=False, is_flag=True)
 @click.option('--model-dir')
 @click.option('--lv-mediator', default=False, is_flag=True)
+@click.option('--separate-epigenetic', default=None, type=click.Choice(['PC','single']))
 def main(**opts):
     logging.basicConfig(
         filename="{}_run.log{}".format(
@@ -142,7 +171,7 @@ def main(**opts):
     expression = dm.standardize_remove_pcs(expression, pcs_to_remove)
 
     # run tests by qtl Gene
-    tests_df = pd.read_csv(opts['cit_tests'], sep=' ' )
+    tests_df = pd.read_csv(opts['cit_tests'], sep='\t' )
     if pd.isna(tests_df).any().any():
         tests_df[pd.isna(tests_df)] = ""
     if opts['genotype_file'] is not None:

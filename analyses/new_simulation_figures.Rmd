@@ -75,7 +75,7 @@ load_simulation <- function(base_dir){
   res <- list()
   for(f in files){
     f_str <- gsub("_debug","",f)
-    matches <- str_match(f_str,".*_(.*)_([0-9]*)genotypes(all|all-20|all-25|[0-9]*|[0-9]+[-[0-9]+]+)_(.*).csv")
+    matches <- str_match(f_str,".*_(.*)_([0-9]*)genotypes([0-9]*|)_(.*).csv")
     # print(matches)
     cur_table <- read.csv(file.path(base_dir, f))
     cur_table$method<- matches[2]
@@ -91,7 +91,7 @@ result <- load_simulation("/home/wcasazza/vaecit/data/fixed_vary_block/")
 result2 <- load_simulation("/home/wcasazza/vaecit/data/fixed_vary_num/")
 result3 <- load_simulation("/home/wcasazza/vaecit/data/random_vary_block/")
 result4 <- load_simulation("/home/wcasazza/vaecit/data/random_vary_num/")
-
+result5 <- load_simulation("/home/wcasazza/vaecit/data/fixed_vary_num_debug/")
 ```
 ### results with extra uniform random term accidentally added
 ```{r, fig.height=10}
@@ -130,9 +130,21 @@ ggplot(testing %>% gather(pval,value,p1,p2,p3,p4,omni_p), aes(x=value)) + geom_h
 ```{r}
 result5 <- load_simulation("/home/wcasazza/vaecit/data/fixed_vary_num_debug/")
 
-random_vary_num <- result5 %>% mutate(mediation_call= factor(classify_p_value(omni_p,rev_omni_p)), num_geno = factor(num_geno, levels = c("1","2","3","4","5", "10","25","50"))) 
+random_vary_num <- result5 %>% mutate(mediation_call= factor(classify_p_value(omni_p,rev_omni_p)), num_geno = factor(num_geno, levels = sort(unique(as.numeric(num_geno)))))
 for(cur_scenario in unique(random_vary_num$scenario)){
-  p <- ggplot(random_vary_num %>% filter(scenario == cur_scenario),aes(mediation_call, fill = mediation_call)) + geom_bar() +facet_grid(method ~num_geno) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1)) + ggtitle(cur_scenario)+
+  p <- ggplot(random_vary_num %>% filter(scenario == cur_scenario),aes(mediation_call, fill = mediation_call)) + scale_fill_discrete(drop=FALSE)+ geom_bar() +facet_grid(method ~num_geno) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1)) + ggtitle(cur_scenario)+
+  scale_x_discrete(drop = FALSE)
+  print(p)
+}
+testing <- read.csv("../data/fixed_vary_num_debug/fix_effectssimulation_none_1genotypes_independent_debug.csv")
+ggplot(testing %>% gather(pval,value,p1,p2,p3,p4,omni_p,rev_p1,rev_p2,rev_p3, rev_p4, rev_omni_p), aes(x=value)) + geom_histogram() + facet_wrap(~pval)
+```
+```{r}
+result6 <- load_simulation("/home/wcasazza/vaecit/data/fixed_vary_block_debug/")
+
+random_vary_block <- result6 %>% mutate(mediation_call= factor(classify_p_value(omni_p,rev_omni_p)), num_geno = factor(num_geno, levels = sort(unique(as.numeric(num_geno)))))
+for(cur_scenario in unique(random_vary_block$scenario)){
+  p <- ggplot(random_vary_block %>% filter(scenario == cur_scenario),aes(mediation_call, fill = mediation_call)) + scale_fill_discrete(drop=FALSE)+ geom_bar() +facet_grid(method ~ block_struct) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1)) + ggtitle(cur_scenario)+
   scale_x_discrete(drop = FALSE)
   print(p)
 }
