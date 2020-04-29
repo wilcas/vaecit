@@ -1,0 +1,235 @@
+---
+title: "new mediator analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+
+
+## Data loading
+```{r}
+alt_lv_list <- list()
+fs <- dir("../data/new_mediator", full.names = TRUE)
+model <- gsub("1_latent_depth_5_","",fs)
+potential_models <- gsub(".*/perm_test_(.*)_(PC|single).*_cit.csv$","\\1_\\2",model)
+print(potential_models)
+names(fs) <- potential_models
+non_rev <- potential_models[!grepl("rev",potential_models)]
+for(model in non_rev){
+  df <- read.csv(fs[[model]])%>% mutate(part_p=pmax(p1,p2,p3))
+  rev_df <- read.csv(fs[[paste0("rev_",model)]]) %>% mutate(part_p=pmax(p1,p2,p3)) %>% select(-gene,epi_var) %>%  rename_all(~paste0("rev_",.))
+  final_df <- cbind(df,rev_df)
+  final_df$mediator <- gsub("(.*)_(single|PC)","\\2",model)
+  final_df$model <- gsub("(.*)_(single|PC)","\\1",model)
+  final_df$epi <- ifelse(grepl("cg",final_df$epi_var),"Methylation","Acetylation")
+  alt_lv_list[[model]] <- final_df
+}
+print(model)
+print(non_rev)
+length(alt_lv_list)
+alt_lv_list[1]
+all_data <- bind_rows(alt_lv_list) %>%
+  group_by(model,mediator) %>% 
+  mutate(
+    part_q = p.adjust(part_p,method = "BH"),
+    part_fwer = p.adjust(part_p,method = "bonf"),
+    omni_q = p.adjust(omni_p,method = "BH"),
+    omni_fwer =  p.adjust(omni_p,method = "bonf"),
+    rev_part_q = p.adjust(rev_part_p,method = "BH"),
+    rev_part_fwer = p.adjust(rev_part_p,method = "bonf"),
+    rev_omni_q = p.adjust(rev_omni_p,method = "BH"),
+    rev_omni_fwer =  p.adjust(rev_omni_p,method = "bonf")
+  )
+```
+
+
+## Call Mediation 
+```{r}
+call_mediation <- function(for_p,rev_p){
+  ifelse(
+    for_p < 0.05,
+    ifelse(
+      rev_p < 0.05,
+      "Unknown",
+      "Epigenetic"
+    ),
+    ifelse(
+      rev_p < 0.05,
+      "Transcriptional",
+      "Independent"
+    )
+  )
+}
+
+call_bin_mediation <- function(for_p,rev_p){
+  ifelse(
+    for_p < 0.05,
+    ifelse(
+      rev_p < 0.05,
+      "Mediation",
+      "Mediation"
+    ),
+    ifelse(
+      rev_p < 0.05,
+      "Mediation",
+      "Independent"
+    )
+  )
+}
+classified_df <- all_data %>%
+  mutate(
+    bonf_part_mediation = call_mediation(part_fwer, rev_part_fwer),
+    bonf_full_mediation = call_mediation(omni_fwer, rev_omni_fwer),
+    fdr_part_mediation = call_mediation(part_q, rev_part_q),
+    fdr_full_mediation = call_mediation(omni_q, rev_omni_q),
+    bin_bonf_part_mediation = call_bin_mediation(part_fwer, rev_part_fwer),
+    bin_bonf_full_mediation = call_bin_mediation(omni_fwer, rev_omni_fwer),
+    bin_fdr_part_mediation = call_bin_mediation(part_q, rev_part_q),
+    bin_fdr_full_mediation = call_bin_mediation(omni_q, rev_omni_q)
+  ) %>% ungroup()
+head(classified_df %>% filter(mediator=="single"))
+```
+
+## Plotting
+```{r}
+library(cowplot)
+replication_df <- classified_df %>% filter(model == "replication_single_snp")
+lv_df <- classified_df %>% filter(model != "replication_single_snp") %>%mutate(model = factor(model, levels = c('fastica','pca','lfa','kernelpca', 'ae', 'ae_batch',   'mmdvae_batch', 'mmdvae_batch_warmup', 'mmdvae_warmup' )))
+
+prop_table <- classified_df %>% gather("threshold","med_var",contains('mediation')) %>% group_by(mediator,model,epi,threshold,med_var) %>% summarize(n=n()) %>% group_by(mediator,model,epi,threshold) %>% mutate(prop= n/ sum(n))%>% ungroup() %>% mutate(model = factor(model, levels = c('replication_single_snp','fastica','pca','lfa','kernelpca', 'ae', 'ae_batch',   'mmdvae_batch', 'mmdvae_batch_warmup', 'mmdvae_warmup' ))) 
+prop1 <- ggplot(prop_table %>% filter(threshold == "bonf_full_mediation", !model %in% c("mmdvae_batch","mmdvae_warmup","ae_batch"),med_var != "Independent")%>% mutate(model = recode(model, "fastica" = "Independent Components Analysis", "lfa" = "Latent Factor Analysis", "pca"="PCA","kernelpca" = "RBF Kernel PCA", "mmdvae_batch_warmup" = "Variational Autoencoder","ae"="Autoencoder", "replication_single_snp" = "Single SNP")), aes(x= med_var,y=prop, fill = model, group=model)) + geom_bar(position="dodge",stat="identity") + facet_grid(epi~mediator) + coord_cartesian(ylim=c(0,0.2))+ theme_minimal() + theme(axis.text.x = element_text(angle = 90, hjust=1,vjust=1)) + ggtitle("Full Mediation in ROSMAP")+ labs(y="Proportion of Tests", x = "")
+
+prop2 <- ggplot(prop_table %>% filter(threshold == "bonf_part_mediation", !model %in% c("mmdvae_batch","mmdvae_warmup","ae_batch"),med_var != "Independent")%>% mutate(model = recode(model, "fastica" = "Independent Components Analysis", "lfa" = "Latent Factor Analysis", "pca"="PCA","kernelpca" = "RBF Kernel PCA", "mmdvae_batch_warmup" = "Variational Autoencoder","ae" = "Autoencoder", "replication_single_snp" = "Single SNP")), aes(x= med_var,y=prop, fill = model, group=model)) + geom_bar(position="dodge",stat="identity") + facet_grid(epi~mediator) + coord_cartesian(ylim=c(0,0.2))+ theme_minimal() + theme(axis.text.x = element_text(angle = 90, hjust=1,vjust=1)) + ggtitle("Partial Mediation in ROSMAP")+ labs(y="Proportion of Tests", x = "")
+
+prop3 <- ggplot(prop_table %>% filter(threshold == "bin_bonf_part_mediation", !model %in% c("mmdvae_batch","mmdvae_warmup","ae_batch"),med_var != "Independent")%>% mutate(model = recode(model, "ae" = "Autoencoder", "fastica" = "Independent Components Analysis", "lfa" = "Latent Factor Analysis", "pca"="PCA","kernelpca" = "RBF Kernel PCA", "mmdvae_batch_warmup" = "Variational Autoencoder", "replication_single_snp" = "Single SNP")), aes(x= med_var,y=prop, fill = model, group=model)) + geom_bar(position="dodge",stat="identity") + facet_grid(epi~mediator)  + coord_cartesian(ylim=c(0,0.3)) + theme_minimal() + theme(axis.text.x = element_text(angle = 90, hjust=1,vjust=1)) + ggtitle("Summarized Partial Mediation in ROSMAP") + labs(y="Proportion of Tests", x = "")
+prop1_single <- ggplot(prop_table %>% filter(threshold == "bonf_full_mediation", grepl("single",model),med_var != "Independent")%>% mutate(model = recode(model, "fastica" = "Independent Components Analysis", "lfa" = "Latent Factor Analysis", "pca"="PCA","kernelpca" = "RBF Kernel PCA", "mmdvae_batch_warmup" = "Variational Autoencoder","ae"="Autoencoder", "replication_single_snp" = "Single SNP")), aes(x= med_var,y=prop, fill = model, group=model)) + geom_bar(position="dodge",stat="identity") + facet_grid(epi~mediator) + coord_cartesian(ylim=c(0,0.2))+ theme_minimal() + theme(axis.text.x = element_text(angle = 90, hjust=1,vjust=1)) + ggtitle("Full Mediation in ROSMAP")+ labs(y="Proportion of Tests", x = "")
+prop1
+prop2
+prop3
+ggplot(replication_df, aes(x=bonf_full_mediation, group = interaction(epi,mediator))) +
+  geom_bar(aes(y=..prop.., fill = factor(..x..)), stat= "count")+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", vjust = -0.3)+
+  facet_grid(epi~mediator) + labs(y = "Proportion of Tests", x = )
+
+ggplot(lv_df , aes(x=bonf_full_mediation,group=interaction(epi,mediator,model))) +
+  geom_bar(position = "dodge", mapping = aes(y= ..prop.., fill =factor(..x..)))+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", position= position_dodge(width=1),hjust=-0.1,size =3, angle = 90) +
+  facet_grid(epi~mediator)
+ggplot(lv_df , aes(x=bonf_full_mediation,group=interaction(epi,mediator,model))) +
+  geom_point(position = "dodge", mapping = aes(y= ..prop.., fill =factor(..x..)))+
+  facet_grid(epi~mediator)
+
+replication_df <- classified_df %>% filter(model == "replication_single_snp")
+lv_df <- classified_df %>% filter(model != "replication_single_snp")
+unique(classified_df$model)
+ggplot(replication_df, aes(x=bonf_part_mediation, group = interaction(epi,mediator))) +
+  geom_bar(aes(y=..prop.., fill = factor(..x..)), stat= "count")+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", vjust = -0.3)+
+  facet_grid(epi~mediator)
+
+ggplot(lv_df , aes(x=bonf_part_mediation,group=interaction(epi,mediator,model))) +
+  geom_bar(position = "dodge", mapping = aes(y= ..prop.., fill =factor(..x..)))+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", position= position_dodge(width=1),hjust=-0.1,size =3, angle = 90) +
+  facet_grid(epi~mediator)
+
+ggplot(replication_df, aes(x=bin_bonf_full_mediation, group = interaction(epi,mediator))) +
+  geom_bar(aes(y=..prop.., fill = factor(..x..)), stat= "count")+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", vjust = -0.3)+
+  facet_grid(epi~mediator)
+
+ggplot(lv_df , aes(x=bin_bonf_full_mediation,group=interaction(epi,mediator,model))) +
+  geom_bar(position = "dodge", mapping = aes(y= ..prop.., fill =factor(..x..)))+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", position= position_dodge(width=1),hjust=-0.1,size =3, angle = 90) +
+  facet_grid(epi~mediator)
+
+
+replication_df <- classified_df %>% filter(model == "replication_single_snp")
+lv_df <- classified_df %>% filter(model != "replication_single_snp")
+unique(classified_df$model)
+ggplot(replication_df, aes(x=bin_bonf_part_mediation, group = interaction(epi,mediator))) +
+  geom_bar(aes(y=..prop.., fill = factor(..x..)), stat= "count")+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", vjust = -0.3)+
+  facet_grid(epi~mediator)+ coord_cartesian(ylim=c(0,1.1))
+
+ggplot(lv_df , aes(x=bin_bonf_part_mediation,group=interaction(epi,mediator,model))) +
+  geom_bar(position = "dodge", mapping = aes(y= ..prop.., fill =factor(..x..)))+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", position= position_dodge(width=1),hjust=-0.1,size =3, angle = 90) +
+  facet_grid(epi~mediator) + coord_cartesian(ylim=c(0,1.1))
+
+ggplot(lv_df , aes(x=bin_bonf_part_mediation,group=interaction(mediator,model))) +
+  geom_bar(position = "dodge", mapping = aes(y= ..prop.., fill =factor(..x..)))+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", position= position_dodge(width=1),hjust=-0.1,size =3, angle = 90) +
+  facet_grid(~mediator) + coord_cartesian(ylim=c(0,1.1))
+
+ggplot(replication_df , aes(x=bin_bonf_part_mediation,group=interaction(mediator,model))) +
+  geom_bar(position = "dodge", mapping = aes(y= ..prop.., fill =factor(..x..)))+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", position= position_dodge(width=1),hjust=-0.1,size =3, angle = 90) +
+  facet_grid(~mediator) + coord_cartesian(ylim=c(0,1.1))
+```
+```{r}
+replication_df <- classified_df %>% filter(model == "replication_single_snp")
+lv_df <- classified_df %>% filter(model != "replication_single_snp") %>%mutate(model = factor(model, levels = c('fastica','pca','lfa','kernelpca', 'ae', 'ae_batch',   'mmdvae_batch', 'mmdvae_batch_warmup', 'mmdvae_warmup' )))
+
+
+ggplot(replication_df, aes(x=fdr_full_mediation, group = interaction(epi,mediator))) +
+  geom_bar(aes(y=..prop.., fill = factor(..x..)), stat= "count")+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", vjust = -0.3)+
+  facet_grid(epi~mediator)
+
+ggplot(lv_df , aes(x=fdr_full_mediation,group=interaction(epi,mediator,model))) +
+  geom_bar(position = "dodge", mapping = aes(y= ..prop.., fill =factor(..x..)))+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", position= position_dodge(width=1),hjust=-0.1,size =3, angle = 90) +
+  facet_grid(epi~mediator)
+
+
+replication_df <- classified_df %>% filter(model == "replication_single_snp")
+lv_df <- classified_df %>% filter(model != "replication_single_snp")
+unique(classified_df$model)
+ggplot(replication_df, aes(x=fdr_part_mediation, group = interaction(epi,mediator))) +
+  geom_bar(aes(y=..prop.., fill = factor(..x..)), stat= "count")+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", vjust = -0.3)+
+  facet_grid(epi~mediator)
+
+ggplot(lv_df , aes(x=fdr_part_mediation,group=interaction(epi,mediator,model))) +
+  geom_bar(position = "dodge", mapping = aes(y= ..prop.., fill =factor(..x..)))+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", position= position_dodge(width=1),hjust=-0.1,size =3, angle = 90) +
+  facet_grid(epi~mediator)
+
+ggplot(replication_df, aes(x=bin_fdr_full_mediation, group = interaction(epi,mediator))) +
+  geom_bar(aes(y=..prop.., fill = factor(..x..)), stat= "count")+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", vjust = -0.3)+
+  facet_grid(epi~mediator)+ coord_cartesian(ylim=c(0,1.1))
+
+ggplot(lv_df , aes(x=bin_fdr_full_mediation,group=interaction(epi,mediator,model))) +
+  geom_bar(position = "dodge", mapping = aes(y= ..prop.., fill =factor(..x..)))+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", position= position_dodge(width=1),hjust=-0.1,size =3, angle = 90) +
+  facet_grid(epi~mediator)+ coord_cartesian(ylim=c(0,1.1))
+
+
+replication_df <- classified_df %>% filter(model == "replication_single_snp")
+lv_df <- classified_df %>% filter(model != "replication_single_snp")
+unique(classified_df$model)
+ggplot(replication_df, aes(x=bin_fdr_part_mediation, group = interaction(epi,mediator))) +
+  geom_bar(aes(y=..prop.., fill = factor(..x..)), stat= "count")+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", vjust = -0.3)+
+  facet_grid(epi~mediator)+ coord_cartesian(ylim=c(0,1.1))
+
+ggplot(lv_df , aes(x=bin_fdr_part_mediation,group=interaction(epi,mediator,model))) +
+  geom_bar(position = "dodge", mapping = aes(y= ..prop.., fill =factor(..x..)))+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", position= position_dodge(width=1),hjust=-0.1,size =3, angle = 90) +
+  facet_grid(epi~mediator)+ coord_cartesian(ylim=c(0,1.1))
+ggplot(replication_df, aes(x=bin_fdr_part_mediation, group = interaction(mediator))) +
+  geom_bar(aes(y=..prop.., fill = factor(..x..)), stat= "count")+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", vjust = -0.3)+
+  facet_grid(~mediator)+ coord_cartesian(ylim=c(0,1.1))
+
+ggplot(lv_df , aes(x=bin_fdr_part_mediation,group=interaction(mediator,model))) +
+  geom_bar(position = "dodge", mapping = aes(y= ..prop.., fill =factor(..x..)))+
+  geom_text(aes(y= ..prop.., label = scales::percent(round(..prop.., 3))), stat= "count", position= position_dodge(width=1),hjust=-0.1,size =3, angle = 90) +
+  facet_grid(~mediator)+ coord_cartesian(ylim=c(0,1.1))
+```
+

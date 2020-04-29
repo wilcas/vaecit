@@ -181,7 +181,13 @@ merged_cit_df <- cbind(
 )
 head(merged_cit_df)
 merged_cit_df %>% group_by(probes,peaks,gene) %>% summarize(count = n()) %>%
-  ggplot(aes(x = "Number of epigenetic terms shared per gene", y = count)) + geom_violin(width = 0.5)
+  ggplot(aes(x = count)) + geom_histogram(bins=100) + labs(x="Number of Epigenetic Terms per Gene")
+
+p1 <- cit_df %>% group_by(gene) %>% summarize(count = n()) %>% mutate(gene = factor(gene, levels =  gene[order(count)])) %>%
+  ggplot(aes(x = gene, y = count)) + geom_bar(stat="identity")
+
+p2 <- cit_df %>% group_by(gene) %>% summarize(count = n()) %>% mutate(gene = factor(gene, levels =  gene[order(count)])) %>%
+  ggplot(aes(x  = count)) + geom_histogram(bins = 100) + labs(x="Number of SNPs per Gene")
 ```
 Okay, that last plot means that I made an incorrect assumption in how to go about plotting these tests. Really, for each p value I have in the PCA version, I actually have multiple snp-relative p values I am comparing in the single version (for the case where I have shared epigenetic sets). I can/should change my script later to also group on sets of epigenetic marks, but to get a sense of how the rest of my pipeline worked let's group things properly before plotting:
 ```{r}
@@ -305,7 +311,7 @@ p2 <- ggplot(rep_merged_df, aes(-log10(omni_p),-log10(pCausal))) + geom_point() 
       -log10(rep_merged_df$pCausal))))
 plot_grid(p1,p2)
 ggplot(rep_merged_df, aes(p2)) + geom_histogram()
-print(p2 +  ggtitle("Replication of CIT ROSMAP, Causal model") +labs( y = "-log10(xQTL P)", x = "-log10(my pipeline P)"))
+print(causal_model_plot <- p2 +  ggtitle("Replication of Causal model") +labs( y = "-log10(xQTL P)", x = "-log10(CIT Pipeline P)"))
 p1 <- ggplot(rep_merged_df, aes(-log10(pmax(rev_p2,rev_p3, rev_p4)),-log10(pReact))) + geom_point() +
   labs(caption = sprintf(
     "Correlation: %f", 
@@ -323,7 +329,7 @@ gather(rep_merged_df,key = "test",value = "pvalue", rev_p1, rev_p2, rev_p3, rev_
   ggplot(aes(pvalue)) + geom_histogram() + facet_wrap(~ test)
 plot_grid(p1,p2)
 ggplot(rep_merged_df, aes(rev_p2)) + geom_histogram()
-print(p2 + ggtitle("Replication of CIT ROSMAP, Reactive model") + labs(y = "-log10(xQTL P)", x = "-log10(my pipeline P)"))
+print(reactive_model_plot <- p2 + ggtitle("Replication of Reactive model") + labs(y = "-log10(xQTL P)", x = "-log10(CIT Pipeline P)"))
 ```
 ## Log of my thoughts before debugging
 > Okay, so I should be looking to my pipeline code for possible bugs. I am positive that my code to match up samples  works correctly, however here are the things I think are most likely incorrect:
@@ -346,43 +352,42 @@ to_plot <- rep_merged_df %>% #mutate(omni_p = pmax(p1,p2,p3), rev_omni_p = pmax(
   mutate(
     model = ifelse(
       omni_p < (0.05 / n()) & rev_omni_p > (0.05 / n()),
-      "Epigenetic Mediation",
+      "Epigenetic",
       ifelse(
         omni_p > (0.05) / n() & rev_omni_p < (0.05/ n()),
-        "Transcriptional Mediation",
+        "Transcriptional",
         ifelse(
           omni_p > (0.05) / n() & rev_omni_p > (0.05/ n()),
-          "Independent Association",
-          "Unknown"
+          "Independent",
+          "Unclassified"
         )
       )
     )
   ) %>%
-  mutate(model = factor(model, levels = c("Epigenetic Mediation", "Independent Association", "Transcriptional Mediation", "Unkno"))) %>% 
+  mutate(model = factor(model, levels = c("Epigenetic", "Independent", "Transcriptional", "Unclassified"))) %>% 
   group_by(model) %>%
   summarize(quant = n())
 head(to_plot)
 total <- sum(to_plot$quant)
-ggplot(to_plot,aes(x = "", y = quant /total * 100  , fill = model,label = percent(quant/total))) +
+replication_res_plot <- ggplot(to_plot,aes(x = model, y = quant /total * 100  , fill = model,label = percent(quant/total))) +
   geom_bar(stat="identity", position = position_dodge()) + 
   labs(x=NULL)+ 
   geom_text(position = position_dodge(0.9), vjust = 0)+   geom_text(position = position_dodge(0.9), vjust = 0)+ 
-  labs(y = sprintf("Percentage of K = %d Tests", nrow(cit_df)),fill= "Mode of Association") +
-  ggtitle("Mediation Analysis with Single SNPs") + 
+  labs(y = sprintf("Percentage of %d Tests", nrow(cit_df)),fill= "Mode of Association") +
+  ggtitle("Replication with Single SNPs") + 
  scale_y_continuous(limits=c(0,125), breaks = seq(0,100,25), labels = c("0","25","50","75", "100"))+
-  theme_minimal(base_family = "Roboto")
   theme_minimal()
 to_plot <- rep_merged_df %>% 
   mutate(
     model = ifelse(
       pCausal < (0.05 / n()) & pReact > (0.05 / n()),
-      "Epigenetic Mediation",
+      "Epigenetic",
       ifelse(
         pCausal > (0.05) / n() & pReact < (0.05/ n()),
-        "Transcriptional Mediation",
+        "Transcriptional",
         ifelse(
           pCausal > (0.05) / n() & pReact > (0.05/ n()),
-          "Independent Association",
+          "Independent",
           "Unclassified"
         )
       )
@@ -392,14 +397,17 @@ to_plot <- rep_merged_df %>%
   summarize(quant = n())
 head(to_plot)
 total <- sum(to_plot$quant)
-ggplot(to_plot,aes(x = "", y = quant /total * 100  , fill = model,label = percent(quant/total))) +
+published_res_plot <- ggplot(to_plot,aes(x = model, y = quant /total * 100  , fill = model,label = percent(quant/total))) +
   geom_bar(stat="identity", position = position_dodge()) + 
   labs(x=NULL)+ 
   geom_text(position = position_dodge(0.9), vjust = 0)+ 
-  labs(y = sprintf("Percentage of K = %d Tests", nrow(cit_df)),fill= "Mode of Association") +
+  labs(y = sprintf("Percentage of %d Tests", nrow(cit_df)),fill= "Mode of Association") +
   ggtitle("Mediation Analysis with Single SNPs") + 
  scale_y_continuous(limits=c(0,125), breaks = seq(0,100,25), labels = c("0","25","50","75", "100"))+
-  theme_minimal(base_family = "Roboto")
+  theme_minimal()  
+published_res_plot
+
+plot_grid(causal_model_plot + theme_minimal()+theme(axis.title =element_text(size = 8)),reactive_model_plot + theme_minimal()+theme(axis.title =element_text(size = 8)), replication_res_plot+ theme(axis.text.x = element_text(angle=45, hjust = 1,vjust = 1, size = 8),legend.position = "none",axis.title =element_text(size = 8)),published_res_plot+ theme(axis.title =element_text(size = 8),axis.text.x = element_text(angle=45, hjust = 1,vjust = 1, size = 8),legend.position = "none"),labels = c("A","B","C","D"))
 ```
 
 
@@ -424,11 +432,13 @@ to_plot <- merged_cit_df %>%
   group_by(model) %>%
   summarize(quant = n())
 total <- sum(to_plot$quant)
-ggplot(to_plot,aes(x = "", y = quant /total * 100  , fill = model,label = percent(quant/total))) +
+ggplot(to_plot,aes(x = model, y = quant /total * 100  , fill = model,label = percent(quant/total))) +
   geom_bar(stat="identity", position = position_dodge()) + 
   labs(x=NULL)+ 
   geom_text(position = position_dodge(0.9), vjust = 0)+ 
-  theme_minimal()
+  theme_minimal() +
+  labs(title = "Mediation of VAE LV with ROSMAP Epigenome PCs", y = "Percentage of Tests")+
+  theme(axis.text.x = element_text(angle = 45,hjust =1, vjust=1), legend.position = "none")
 ```
 ```{r}
 to_plot <- merged_cit_df %>% 
@@ -450,11 +460,13 @@ to_plot <- merged_cit_df %>%
   group_by(model) %>%
   summarize(quant = n())
 total <- sum(to_plot$quant)
-ggplot(to_plot,aes(x = "", y = quant /total * 100  , fill = model,label = percent(quant/total))) +
+ggplot(to_plot,aes(x = model, y = quant /total * 100  , fill = model,label = percent(quant/total))) +
   geom_bar(stat="identity", position = position_dodge()) + 
   labs(x=NULL)+ 
   geom_text(position = position_dodge(0.9), vjust = 0)+ 
-  theme_minimal()
+  theme_minimal()+
+    labs(title = "Mediation of Genotype PC1 with ROSMAP Epigenome PCs", y = "Percentage of Tests")+
+  theme(axis.text.x = element_text(angle = 45,hjust =1, vjust=1), legend.position = "none")
 ggplot(merged_cit_df, aes(pca_omni_p)) + geom_histogram()
 ggplot(merged_cit_df,aes(pca_rev_omni_p)) + geom_histogram()
 ```

@@ -67,11 +67,11 @@ def cit_on_qtl_set(df, gene, coord_df, methyl, acetyl, express, opts, geno=None)
             if cur_methy.shape[1] != 0:
                 methy_PC = dm.compute_pcs(cur_methy)[:,0]
                 cur_epigenetic_vars.append(methy_PC)
-                epi_labels += row.probes
+                epi_labels.append(row.probes)
             if cur_acety.shape[1] != 0:
                 acety_PC = dm.compute_pcs(cur_acety)[:,0]
                 cur_epigenetic_vars.append(acety_PC)
-                epi_labels += row.peaks
+                epi_labels.append(row.peaks)
         elif opts['separate_epigenetic'] == "single":
             cur_methy = methylation[:, np.isin(m_ids,row.probes.split(","))]
             cur_acety = acetylation[:, np.isin(ac_ids,row.peaks.split(","))]
@@ -171,7 +171,7 @@ def main(**opts):
 
         geno = None
     with joblib.parallel_backend("loky"):
-        mediation_results = joblib.Parallel(n_jobs=-1, verbose=10)(
+        mediation_results = joblib.Parallel(n_jobs=5, verbose=10)(
             joblib.delayed(cit_on_qtl_set)(df, gene, coord_df, methyl, acetyl, express, opts, geno)
             for (gene, df) in tests_df.groupby('gene')
         )

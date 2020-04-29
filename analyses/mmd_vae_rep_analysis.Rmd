@@ -102,6 +102,7 @@ mmd_mediation_df <- cbind(cit_df %>% select(probes,peaks,gene),mmd_train_df, mmd
     mmdvae_batch_model = classify_p_value(mmdvae_batch_part_p, rev_mmdvae_batch_part_p, multisnp_n),
     mmdvae_batch_warmup_model = classify_p_value(mmdvae_batch_warmup_part_p, mmdvae_batch_warmup_part_p, multisnp_n)
   )
+cit_rep_classified_df <- cbind(cit_rep_1_df,cit_df %>% select(probes,peaks,gene),cit_rev_rep_1_df %>% select(-rsid)) %>%mutate(single_snp_replication = classify_p_value(cit_rep_1_df$rep_1_omni_p,cit_rev_rep_1_df$rev_rep_1_omni_p,nrow(cit_rep_1_df)))
 mmd_mediation_df %>% gather("test","mediation_model",ends_with("model")) %>%
   group_by(test, mediation_model) %>% 
   summarize(perc = n()/ nrow(mmd_mediation_df)) %>%
@@ -117,6 +118,7 @@ Okay, this seems pretty variable actually..., need to be more sure about model s
 
 ## Looking into what's called by other methods
 ```{r}
+
 mediation_df <- cbind(cit_df %>% select(probes,peaks,gene),pca_df,alt_lv_df) %>% group_by(probes,peaks,gene)%>% summarize_all(max) %>% unique()%>%
   mutate(
     pca_model = classify_p_value(pca_rep_1_part_p, pca_rev_rep_1_part_p, multisnp_n),
@@ -136,6 +138,87 @@ mediation_df %>% gather("test","mediation_model",ends_with("model")) %>%
     theme(axis.text.x=element_blank())
 ```
 Okay, so kernel PCA calls mediation WAY more than the other two methods, and lfa calls more than pca or fastica. This supports the idea that it's more about nonlinearity in representing features. Also supports the narratife that a more constraints on the factors leads to lower detection of mediation
+
+### Combined figure
+```{r}
+classify_p_value <- function(x,y,n){
+      ifelse(x < (0.05 / n) & y > (0.05 / n),
+        "Epigenetic",
+        ifelse(x > (0.05 / n) & y < (0.05/ n),
+          "Transcriptional",
+          ifelse(x > (0.05 / n) & y > (0.05/ n),
+            "Independent",
+            "Unknown")))
+}
+# Classify
+cit_rep_classified_df <- cbind(cit_rep_1_df,cit_df %>% select(probes,peaks,gene),cit_rev_rep_1_df %>% select(-rsid)) %>%mutate(single_snp_replication = classify_p_value(cit_rep_1_df$rep_1_omni_p,cit_rev_rep_1_df$rev_rep_1_omni_p,nrow(cit_rep_1_df)))
+combined_df <- cbind(mmd_train_df,pca_df,alt_lv_df, cit_rep_classified_df) %>% group_by(probes,peaks,gene) %>% 
+  mutate(
+      class_mmdvae_batch_warmup = classify_p_value(mmdvae_batch_warmup_omni_p , rev_mmdvae_batch_warmup_omni_p,n()),
+      class_ae = classify_p_value(ae_omni_p , rev_ae_omni_p,n()),
+      class_pca = classify_p_value(pca_rep_1_omni_p , pca_rev_rep_1_omni_p,n()),
+      class_kernelpca = classify_p_value(kernelpca_omni_p , rev_kernelpca_omni_p,n()),
+      class_lfa = classify_p_value(lfa_omni_p , rev_lfa_omni_p,n()),
+      class_ica = classify_p_value(fastica_omni_p , rev_fastica_omni_p,n())
+  ) %>% ungroup()
+
+#fix double counting for non-single sets
+#strategy: separate the lv methods , gather classification and rbind
+to_plot_classified <- rbind(
+  combined_df %>%
+    select(single_snp_replication,gene) %>% 
+    gather(model,mediation,single_snp_replication),
+  combined_df %>% 
+    select(
+      probes,peaks,gene,class_mmdvae_batch_warmup,class_ae,class_pca,class_kernelpca,class_lfa,class_ica
+    ) %>% 
+    unique() %>%
+    select(-probes,-peaks)%>%
+    gather(model,mediation, contains("class_"))
+)
+single_med_prop_table <-  to_plot_classified %>% group_by(model,mediation) %>% summarize(n=n()) %>% mutate(prop= n/ sum(n))%>% ungroup() %>% mutate(model = factor(model, levels = c('single_snp_replication','class_ica','class_pca','class_lfa','class_kernelpca', 'class_ae', 'class_mmdvae_batch_warmup')))
+
+ggplot(single_med_prop_table %>% filter(mediation != "Independent"), aes(mediation,prop,fill=model)) + geom_bar(stat="identity", position="dodge") + theme_minimal() + labs(y = "Proportion", x= "") + coord_cartesian(ylim= c(0,0.6))
+```
+### Part mediation comparison
+```{r}
+# classify_p_value <- function(x,y,n){
+#       ifelse(x < (0.05 / n) & y > (0.05 / n),
+#         "Partial Mediation",
+#         ifelse(x > (0.05 / n) & y < (0.05/ n),
+#           "Partial Mediation",
+#           ifelse(x > (0.05 / n) & y > (0.05/ n),
+#             "Independent Association",
+#             "Partial Mediation")))
+#     
+# }
+cit_rep_classified_part_df <- cbind(cit_rep_1_df,cit_df %>% select(probes,peaks,gene),cit_rev_rep_1_df %>% select(-rsid)) %>%mutate(single_snp_replication = classify_p_value(cit_rep_1_df$rep_1_part_p,cit_rev_rep_1_df$rev_rep_1_part_p,nrow(cit_rep_1_df)))
+combined_part_df <- cbind(mmd_train_df,pca_df,alt_lv_df, cit_rep_classified_part_df) %>% group_by(probes,peaks,gene) %>% 
+  mutate(
+      class_mmdvae_batch_warmup = classify_p_value(mmdvae_batch_warmup_part_p , rev_mmdvae_batch_warmup_part_p,n()),
+      class_ae = classify_p_value(ae_part_p , rev_ae_part_p,n()),
+      class_pca = classify_p_value(pca_rep_1_part_p , pca_rev_rep_1_part_p,n()),
+      class_kernelpca = classify_p_value(kernelpca_part_p , rev_kernelpca_part_p,n()),
+      class_lfa = classify_p_value(lfa_part_p , rev_lfa_part_p,n()),
+      class_ica = classify_p_value(fastica_part_p , rev_fastica_part_p,n())
+  ) %>% ungroup()
+
+to_plot_classified_part <- rbind(
+  combined_part_df %>%
+    select(single_snp_replication,gene) %>% 
+    gather(model,mediation,single_snp_replication),
+  combined_part_df %>% 
+    select(
+      probes,peaks,gene,class_mmdvae_batch_warmup,class_ae,class_pca,class_kernelpca,class_lfa,class_ica
+    ) %>% 
+    unique() %>%
+    select(-probes,-peaks)%>%
+    gather(model,mediation, contains("class_"))
+)
+single_med_prop_table_part <-  to_plot_classified_part %>% group_by(model,mediation) %>% summarize(n=n()) %>% mutate(prop= n/ sum(n))%>% ungroup() %>% mutate(model = factor(model, levels = c('single_snp_replication','class_ica','class_pca','class_lfa','class_kernelpca', 'class_ae', 'class_mmdvae_batch_warmup')))
+
+ggplot(single_med_prop_table_part %>% filter(mediation != "Independent"), aes(mediation,prop,fill=model)) + geom_bar(stat="identity", position="dodge") + theme_minimal() + labs(y = "Proportion", x = "") + coord_cartesian(ylim=c(0,0.6))
+```
 
 ## In Depth Comparisons of methods
 ### P value comparisons
@@ -297,6 +380,8 @@ test_lvl <- c("fastica_model","pca_model", "lfa_model", "kernelpca_model", "mmd_
 (df <- cur_data %>% select(-contains("batch_warmup")) %>% gather("test", "mediation", contains("model")) %>% mutate(test = factor(test, levels = test_lvl)) %>%group_by(test, mediation) %>% 
   summarize(perc = n()/ nrow(mediation_df)) )%>%
   ggplot(aes(y = perc, fill = mediation, x = mediation, group=test)) + geom_bar(color = "black", stat="identity", position=position_dodge()) + scale_y_continuous(limits=c(0,1.25), breaks = seq(0,1,0.25), labels = c("0","25","50","75", "100"))  + labs(y = sprintf("Percentage of K = %d Tests", multisnp_n),fill = "Mediation Scenario", x = "") + ggtitle("Mediation with Multiple SNPs") + theme_minimal()+ theme(text = element_text(family = "Roboto"),axis.text.x = element_blank())
+plot_thesis_prop <- cur_data %>% select(-contains("batch_model"),-contains("original_model")) %>% mutate(test= factor(test,levels=test_lvl)) %>%group_by(test, mediation) %>% 
+  summarize(perc = n()/ nrow(mediation_df))%>% ungroup() %>% mutate(model = recode(model, "fastica" = "Independent Components Analysis", "lfa" = "Latent Factor Analysis", "pca"="PCA","kernelpca" = "RBF Kernel PCA", "mmdvae_batch_warmup")) 
 df %>% group_by(mediation) %>% summarise(max(perc))
 plot_upset <- function(dat,cur_var){
   dat_new <- dat %>% select(contains("model")) %>% mutate_all(function(x) as.numeric(x == cur_var)) %>%rename_all(function(test)gsub("mmd_original", "mmdvae",gsub("warmup","w",gsub("batch","b",gsub("_model","",test))))) 

@@ -106,11 +106,47 @@ for(cur_scenario in unique(fixed_vary_block$scenario)){
   p <- ggplot(fixed_vary_block %>% filter(scenario == cur_scenario),aes(mediation_call, fill = mediation_call)) + geom_bar() +facet_grid(method ~block_struct) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1)) + ggtitle(cur_scenario)
   print(p)
 }
-fixed_vary_num <- result2 %>% mutate(mediation_call= classify_p_value(omni_p,rev_omni_p), num_geno = factor(num_geno, levels = c("1","50","100","200","400"))) 
+fixed_vary_num <- result2 %>% mutate(mediation_call= classify_p_value(omni_p,rev_omni_p), num_geno = factor(num_geno, levels = c("1","50","100","200","400"))) %>% filter(num_geno != "1",method!="ae") %>% mutate(method=factor(method,levels=rev(c("fastica","pca","lfa","kernelpca","mmdvae"))))
 for(cur_scenario in unique(fixed_vary_num$scenario)){
   p <- ggplot(fixed_vary_num %>% filter(scenario == cur_scenario),aes(mediation_call, fill = mediation_call)) + geom_bar() +facet_grid(method ~num_geno) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1)) + ggtitle(cur_scenario)
   print(p)
 }
+
+for(cur_scenario in unique(fixed_vary_num$scenario)){
+  p <- ggplot(fixed_vary_num %>% filter(scenario == cur_scenario)%>% group_by(num_geno,method,mediation_call) %>% summarize(N = n())%>% ungroup() %>% mutate(num_geno=as.numeric(as.character(num_geno)))  ,aes(num_geno,N, color = mediation_call)) + geom_point() + geom_line() +facet_grid(~method) + ggtitle(cur_scenario)
+  print(p)
+}
+
+  p <- ggplot(fixed_vary_num %>% filter(scenario != "null") %>% mutate(num_geno=as.numeric(as.character(num_geno))) %>%group_by(num_geno,method,mediation_call,scenario) %>% summarize(N = n())%>% ungroup()   ,aes(num_geno,N, color = mediation_call)) + geom_point() + geom_line() +facet_grid(method~scenario) + ggtitle(cur_scenario)
+  print(p + ggtitle("All Scenarios"))
+  
+#facet labels
+scenario_facet <- list(
+  "causal"="Full Mediation",
+  "causal_hidden"= "Full Mediation with Hidden Confounding",
+  "causal_independent"="Partial Mediation",
+  "independent"="Independent Association",
+  "independent_hidden" = "Independent Association with Hidden Confounding"
+)
+model_facet <-list(
+  "mmdvae" = "MMD Variational Autoencoder",
+  "kernelpca" = "Kernel PCA",
+
+  "lfa" = "Latent Factor Analysis",
+  "pca" = "PCA",
+  "fastica" = "Independent Components Analysis"
+)
+my_labeller <- function(variable,value){
+  if(variable == "method"){
+    return(model_facet[value])
+  } else if (variable == "scenario"){
+    return(scenario_facet[value])
+  }
+}
+    p <- ggplot(fixed_vary_num %>% filter(scenario != "null",grepl("^independent",scenario)) %>% mutate(num_geno=as.numeric(as.character(num_geno))) %>%group_by(num_geno,method,mediation_call,scenario) %>% summarize(N = n())%>% ungroup()   ,aes(num_geno,N, color = mediation_call)) + geom_point() + geom_line() +facet_grid(method~scenario, labeller = my_labeller) + ggtitle(cur_scenario) + labs(x = "Number of Genotypes", y = "Number of Calls") + theme_bw()+theme(strip.text.y = element_text(size=7))
+  print(p + ggtitle("Simulation of Independent Scenarios"))
+    p <- ggplot(fixed_vary_num %>% filter(scenario != "null",grepl("^causal",scenario)) %>% mutate(num_geno=as.numeric(as.character(num_geno))) %>%group_by(num_geno,method,mediation_call,scenario) %>% summarize(N = n())%>% ungroup()   ,aes(num_geno,N, color = mediation_call)) + geom_point() + geom_line() +facet_grid(method~scenario, labeller = my_labeller) + ggtitle(cur_scenario)+ labs(x = "Number of Genotypes", y = "Number of Calls") + theme_bw() + theme(strip.text.y = element_text(size=7))
+  print(p + ggtitle("Simulation of Causal Scenarios"))
 ```
 ```{r}
 random_vary_block <- result3 %>% mutate(mediation_call= classify_p_value(omni_p,rev_omni_p), block_struct = factor(block_struct, levels= c("100", "80-20", "50-50","33-33-34","all-25", "all-20", "all")))
