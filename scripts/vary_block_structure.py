@@ -41,12 +41,9 @@ def main():
         'models': model_str.keys(),
         'num_genotypes': [200],
         'lv_method': [
-<<<<<<< HEAD
-=======
             'none',
-            'none.5',
-            'none.25',
->>>>>>> update to how blocks are generated
+            #'none.5',
+            #'none.25',
             'pca',
             'lfa',
             'kernelpca',
