@@ -11,6 +11,6 @@ vaecit.Rproj
 *.RData
 *.log*
 CIT_groupby_order.txt
-cit_genotypes.csv
-cit_genotypes_hrc.csv
+*.csv
+*.csv
 eQTX_manifest.txt
