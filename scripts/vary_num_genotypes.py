@@ -9,7 +9,6 @@ import scipy.stats as stats
 def run_cit_sim(trait,expr,geno,scenario,lv_method,num_latent,vae_depth,num_bootstrap):
     z = dm.reduce_genotype(geno,lv_method,num_latent,"",vae_depth=vae_depth)
     if type(z) != np.ndarray:
-        print(z)
         z = z.detach().numpy().astype(np.float64)
     result = cit.cit(trait,expr,z,num_bootstrap=num_bootstrap)
     result_rev = cit.cit(expr,trait,z,num_bootstrap=num_bootstrap)
@@ -29,10 +28,8 @@ def main():
     }
     params = {
         'models': model_str.keys(),
-        'num_genotypes': [1,2,3,4,5,10,25,50,100,200],
+        'num_genotypes': [5,10,25,50,100,200],
         'lv_method': [
-            'none.5',
-            'none.25',
             'none',
             'pca',
             'lfa',
@@ -40,15 +37,12 @@ def main():
             'kernelpca-linear',
             'kernelpca-sigmoid',
             'fastica',
-            #'mmdvae_warmup',
-            #'mmdvae_batch',
             'ae',
-            'mmdvae'
-            #'ae_batch'
+            'mmdvae_batch_warmup'
         ],
         'fix_effects': sys.argv[1] == "fix_effects" if len(sys.argv) > 1 else False,
-        'num_latent': 1,
-        'num_simulations': 1000,
+        'num_latent': [1,2,3,4,5,10],
+        'num_simulations': 100,
         'num_samples': 500,
         'num_bootstrap': None,
         'vae_depth': 5
@@ -66,16 +60,17 @@ def main():
         for model in params['models']
     }
     with joblib.parallel_backend('loky', n_jobs=8):
-        for lv_method in params['lv_method']:
-            for k in data:
-                fname = f"{sys.argv[1] if len(sys.argv) > 1 else ''}simulation_{lv_method}_{k}_debug.csv"
-                cur_files = [f for (_,_,files) in os.walk("/h/wcasazza/vaecit/data/") for f in files]
-                if fname not in cur_files and not os.path.isfile(fname):
-                    results = joblib.Parallel(verbose=10)(
-                        joblib.delayed(run_cit_sim)(trait,expr,geno, k, lv_method, params['num_latent'], params['vae_depth'], params['num_bootstrap'])
-                            for (trait,expr,geno) in data[k]
-                    )
-                    cit.write_csv(results, fname)
+        for num_latent in params['num_latent']:
+            for lv_method in params['lv_method']:
+                for k in data:
+                    fname = f"{sys.argv[1] if len(sys.argv) > 1 else ''}simulation_{lv_method}_{k}_{num_latent}_lvs.csv"
+                    cur_files = [f for (_,_,files) in os.walk("/h/wcasazza/vaecit/data/") for f in files]
+                    if fname not in cur_files and not os.path.isfile(fname):
+                        results = joblib.Parallel(verbose=10)(
+                            joblib.delayed(run_cit_sim)(trait, expr, geno, k, lv_method, num_latent, params['vae_depth'], params['num_bootstrap'])
+                                for (trait,expr,geno) in data[k]
+                        )
+                        cit.write_csv(results, fname)
 
 
 if __name__ == "__main__":
