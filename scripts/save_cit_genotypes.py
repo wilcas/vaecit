@@ -2,19 +2,25 @@ import pandas as pd
 import os
 import re
 import numpy as np
+import joblib
 
 def select_genotypes(path, snps, fname):
-    lines = []
-    for f in os.listdir(path):
+    def closure(i,f):
+        lines = []
         with open(os.path.join(path,f), 'r') as reader:
             samples = reader.readline()
             for line in reader:
                 parsed = line.split(",")
                 if parsed[0] in snps:
                     lines.append(line)
-    with open(fname,'w+') as writer:
-        writer.write(samples)
-        writer.writelines(lines)
+        with open("{}_{}".format(i,fname),'w+') as writer:
+            if i  == 0:
+                writer.write(samples)
+            writer.writelines(lines)
+        
+    with joblib.parallel_backend("loky"):
+        all_lines = joblib.Parallel(n_jobs=-1, verbose=10)(joblib.delayed(closure)(i, f) for (i, f) in enumerate(os.listdir(path)))
+
 
 def select_genotypes_plink(path, snps, fname):
     dfs = []
@@ -43,6 +49,12 @@ def select_genotypes_plink(path, snps, fname):
     df.iloc[:,rosmap_samples].to_csv(fname)
 
 if __name__ == "__main__":
-    cit_table = pd.read_csv("/zfs3/users/william.casazza/william.casazza/vaecit/CIT.txt", sep = '\t')
-    # df = select_genotypes("/zfs3/scratch/saram_lab/ROSMAP/data/genotypeImputed/1kg/snpMatrix/",cit_table.snp.unique(), "cit_genotypes.csv")
-    select_genotypes_plink("/zfs3/scratch/saram_lab/ROSMAP/data/genotypeImputed/hrc/snpMatrix/",cit_table.snp.unique(), "cit_genotypes_hrc.csv")
+    #cit_table = pd.read_csv("/zfs3/users/william.casazza/william.casazza/vaecit/CIT.txt", sep = '\t')
+    cit_f = "/zfs3/users/william.casazza/william.casazza/eQTX_manifest.txt"
+    snps = []
+    with open(cit_f,'r') as f:
+        f.readline()
+        for line in f:
+            snps.extend(line.split()[1].split(","))
+    df = select_genotypes("/zfs3/scratch/saram_lab/ROSMAP/data/genotypeImputed/1kg/snpMatrix/",pd.Series(snps).unique(), "cit_genotypes.csv")
+    #select_genotypes_plink("/zfs3/scratch/saram_lab/ROSMAP/data/genotypeImputed/hrc/snpMatrix/",cit_table.snp.unique(), "cit_genotypes_hrc.csv")
