@@ -1,7 +1,6 @@
-data/*
 *.out
 CIT.txt
-.Rproj.user
+.Rproj.user*
 vaecit.Rproj
 .Rhistory
 *__pycache__*
@@ -10,7 +9,13 @@ vaecit.Rproj
 *.e*
 *.RData
 *.log*
+*.csv
 CIT_groupby_order.txt
 *.csv
-*.csv
 eQTX_manifest.txt
+.ipynb_checkpoints/
+cit_merged_mhaQTL.txt
+.vscode
+*.gmt
+*.RDS
+.Rproj.user

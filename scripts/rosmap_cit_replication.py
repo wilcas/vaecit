@@ -39,7 +39,10 @@ def cit_on_qtl_set(df, gene, methyl, acetyl, express, opts, geno=None):
         (g_samples, genotype) = (g_samples[g_idx], genotype[g_idx,:])
     else:
         (g_samples, g_ids, genotype) = geno
-        cur_genotype = genotype[:,np.isin(g_ids, df.snp.to_numpy())]
+        if opts['lv_mediator']:
+            cur_genotype = genotype[:, np.isin(g_ids, np.array([rsid for sublist in df.snp for rsid in sublist.split(",")]))]
+        else:
+            cur_genotype = genotype[:,np.isin(g_ids, df.snp.to_numpy())]
 
     # reduce genotype
     latent_genotype = dm.reduce_genotype(cur_genotype, opts['lv_method'], opts['num_latent'], gene, opts['vae_depth'], opts['model_dir'])
@@ -54,32 +57,70 @@ def cit_on_qtl_set(df, gene, methyl, acetyl, express, opts, geno=None):
     for (_, row) in df.iterrows():
         if opts['lv_mediator']:
             lv_method = opts['lv_method']
+            state_name = gene+"_mediator"
+            model_dir = opts['model_dir']
+            depth = opts['vae_depth']
         else:
             lv_method = "pca"
-        cur_epigenetic = dm.get_mediator(
-            methylation,
-            m_ids,
-            row.probes.split(","),
-            data2=acetylation,
-            ids2=ac_ids,
-            which_ids2=row.peaks.split(","),
-            lv_method=lv_method
-        )
-        # run CIT
-        if opts['run_reverse']:
-            mediation_results.append(
-                cit.cit(
-                    cur_epigenetic.reshape(n,1),
-                    cur_exp.reshape(n,1),
-                    latent_genotype.reshape(n,opts['num_latent']),
-                    num_bootstrap=opts['num_bootstrap']))
+            state_name = ""
+            model_dir = ""
+            depth = None
+        if opts['separate_epigenetic'] is None:
+            cur_epigenetic = dm.get_mediator(
+                methylation,
+                m_ids,
+                row.probes.split(","),
+                data2=acetylation,
+                ids2=ac_ids,
+                which_ids2=row.peaks.split(","),
+                lv_method=lv_method,
+                state_name=state_name,
+                model_dir = model_dir,
+                vae_depth = depth
+            )
+            if ("ae" in lv_method) and opts['lv_mediator']:
+                cur_epigenetic = cur_epigenetic.numpy().astype(np.float64)
+            cur_epigenetic_vars = [cur_epigenetic] # list of epigenetic variables to test
+            epi_labels = [",".join([row.probes,row.peaks])]
+        elif opts['separate_epigenetic'] == "PC":
+            cur_methy = methylation[:, np.isin(m_ids,row.probes.split(","))]
+            cur_acety = acetylation[:, np.isin(ac_ids,row.peaks.split(","))]
+            cur_epigenetic_vars = []
+            epi_labels = []
+            if cur_methy.shape[1] != 0:
+                methy_PC = dm.compute_pcs(cur_methy)[:,0]
+                cur_epigenetic_vars.append(methy_PC)
+                epi_labels.append(row.probes)
+            if cur_acety.shape[1] != 0:
+                acety_PC = dm.compute_pcs(cur_acety)[:,0]
+                cur_epigenetic_vars.append(acety_PC)
+                epi_labels.append(row.peaks)
+        elif opts['separate_epigenetic'] == "single":
+            cur_methy = methylation[:, np.isin(m_ids,row.probes.split(","))]
+            cur_acety = acetylation[:, np.isin(ac_ids,row.peaks.split(","))]
+            cur_methy = [col for col in cur_methy.T]
+            cur_acety = [col for col in cur_acety.T]
+            cur_epigenetic_vars = cur_methy + cur_acety
+            epi_labels = row.probes.split(",") + row.peaks.split(",")
         else:
-            mediation_results.append(
-                cit.cit(
+            raise IOError("Problem with parameters for 'separate_epigenetic' ")
+        # run CIT
+        for cur_epigenetic,label in zip(cur_epigenetic_vars, epi_labels):
+            if opts['run_reverse']:
+                res = cit.cit(
+                    cur_epigenetic.reshape(n,1),
+                    cur_exp.reshape(n,1),
+                    latent_genotype.reshape(n,opts['num_latent']),
+                    num_bootstrap=opts['num_bootstrap'])
+            else:
+                res = cit.cit(
                     cur_exp.reshape(n,1),
                     cur_epigenetic.reshape(n,1),
                     latent_genotype.reshape(n,opts['num_latent']),
-                    num_bootstrap=opts['num_bootstrap']))
+                    num_bootstrap=opts['num_bootstrap'])
+            res['gene'] = gene
+            res['epi_var'] = label
+            mediation_results.append(res)
     return mediation_results
 
 
@@ -106,6 +147,7 @@ def cit_on_qtl_set(df, gene, methyl, acetyl, express, opts, geno=None):
 @click.option('--run-reverse', default=False, is_flag=True)
 @click.option('--model-dir')
 @click.option('--lv-mediator', default=False, is_flag=True)
+@click.option('--separate-epigenetic', default=None, type=click.Choice(['PC','single']))
 def main(**opts):
     logging.basicConfig(
         filename="{}_run.log{}".format(
@@ -128,7 +170,9 @@ def main(**opts):
     expression = dm.standardize_remove_pcs(expression, pcs_to_remove)
 
     # run tests by qtl Gene
-    tests_df = pd.read_csv(opts['cit_tests'], sep='\t')
+    tests_df = pd.read_csv(opts['cit_tests'], sep='\t' )
+    if pd.isna(tests_df).any().any():
+        tests_df[pd.isna(tests_df)] = ""
     if opts['genotype_file'] is not None:
         genotype_df = pd.read_csv(opts['genotype_file'], index_col=0)
         genotype = genotype_df.to_numpy().T
@@ -149,11 +193,11 @@ def main(**opts):
         express = (e_samples, e_ids, expression)
         geno = None
     with joblib.parallel_backend("loky"):
-       mediation_results = joblib.Parallel(n_jobs=6, verbose=10)(
+       mediation_results = joblib.Parallel(n_jobs=5, verbose=10)(
            joblib.delayed(cit_on_qtl_set)(df, gene, methyl, acetyl, express, opts, geno)
            for (gene, df) in tests_df.groupby('gene')
        )
-    # mediation_results = [cit_on_qtl_set(df,gene,coord_df,methyl,acetyl,express,opts,geno) for (gene,df) in tests_df.groupby('gene')] # SEQUENTIAL VERSION
+    #mediation_results = [cit_on_qtl_set(df,gene,coord_df,methyl,acetyl,express,opts,geno) for (gene,df) in tests_df.groupby('gene')] # SEQUENTIAL VERSION
     merged_results = [item for sublist in mediation_results for item in sublist]
     # generate output
     if opts['run_reverse']:

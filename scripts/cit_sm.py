@@ -19,23 +19,34 @@ def test_independence(T, G, L, num_bootstrap):
     residual = tmp_fit.resid.reshape((n,1))
     Ge = tmp_fit.fittedvalues.reshape((n,1))
     if num_bootstrap is None:
-        num_bootstrap = 100
-    fstats = np.zeros(num_bootstrap)
-    for i in range(num_bootstrap):
+        num_iter = 100
+    else:
+        num_iter = num_bootstrap
+    fstats = np.zeros(num_iter)
+    for i in range(num_iter):
         np.random.shuffle(residual)
         G_star = Ge + residual
         fit = sm.OLS(T, np.c_[np.ones((n,1)), G_star, L]).fit()
-        fstats[i] =fit.tvalues[-1] ** 2
+        if L.shape[1] > 1:
+            A = np.identity(len(fit.params))[2:,:]
+            f_test = fit.f_test(A)
+            fstats[i] = f_test.fvalue.item()
+        else:
+            fstats[i] = fit.tvalues[-1] ** 2
     if num_bootstrap is None:
-        v1 = 1
-        v2 = n - 3
+        if L.shape[1] == 1:
+            v1 = 1
+            v2 = n - 3
+        else:
+            v1 = f_test.df_num
+            v2 = f_test.df_denom
         delta = ((np.mean(fstats) * v1 * (v2 - 2)) / v2) - v1
         pperm = stats.ncf.cdf(fstats,v1,v2,delta)
         zperm = stats.norm.ppf(pperm)
         porig = stats.ncf.cdf(f_orig,v1,v2,delta)
         zorig = stats.norm.ppf(porig)
         p = stats.norm.cdf(zorig,scale=np.std(zperm))
-        if p == np.nan:
+        if np.isnan(p):
             return 1
     else:
         p = np.sum(fstats <= f_orig) / num_bootstrap
@@ -45,9 +56,16 @@ def test_independence(T, G, L, num_bootstrap):
 def cit(target, mediator, instrument, num_bootstrap=10000):
     # run tests
     n = target.shape[0]
-    p1 = sm.OLS(target,np.c_[np.ones((n, 1)), instrument]).fit().pvalues[-1]
+    num_instruments = instrument.shape[1]
+    if num_instruments > 1:
+        p1_fit =  sm.OLS(target,np.c_[np.ones((n, 1)), instrument]).fit()
+        A = np.identity(len(p1_fit.params))[1:,:]
+        p1 = p1_fit.f_test(A).pvalue.item()
+    else:
+        p1 = sm.OLS(target,np.c_[np.ones((n, 1)), instrument]).fit().pvalues[-1]
     p2 = sm.OLS(mediator, np.c_[np.ones((n, 1)), target, instrument]).fit().pvalues[-1]
-    p3 = sm.OLS(target,np.c_[np.ones((n, 1)), instrument, mediator]).fit().pvalues[-1]
+    p3_fit = sm.OLS(target,np.c_[np.ones((n, 1)), instrument, mediator]).fit()
+    p3 = p3_fit.pvalues[-1]
     p4 = test_independence(target, mediator, instrument, num_bootstrap)
     omni_p = max(p1, p2, p3, p4)
-    return {"p1":p1, "p2":p2,"p3":p3,"p4":p4,"omni_p": omni_p}
+    return {"p1":p1, "p2":p2,"p3":p3,"p4":p4,"omni_p": omni_p, "mediation_coef": p3_fit.params[-1] }

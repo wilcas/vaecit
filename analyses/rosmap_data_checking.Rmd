@@ -1,0 +1,15 @@
+---
+title: "Exploring ROSMAP Associations"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load in Data Considered in DCARS
+```{r}
+
+```
+

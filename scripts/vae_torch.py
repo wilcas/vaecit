@@ -1,5 +1,7 @@
 """PyTorch implementation of MMD-VAE described in Info-VAE paper."""
 import pandas as pd
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
@@ -7,7 +9,6 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torch.utils.data
 import numpy as np
-
 class AEData(torch.utils.data.Dataset):
     def __init__(self,x):
         super(AEData, self).__init__()
@@ -119,7 +120,7 @@ def train_mmd_vae(genotype, params, verbose=False, plot_loss=False, save_loss=Fa
         pass
     else:
         warmup = 0
-    while(i < 1000): #num epochs
+    while(i < 150): #num epochs
         i += 1
         for (j,gen_batch) in enumerate(trainloader):
             if gen_batch.shape[0] <= 1:

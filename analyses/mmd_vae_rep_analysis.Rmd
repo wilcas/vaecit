@@ -8,6 +8,7 @@ output: beamer_presentation
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(scales)
+setwd("~/vaecit/analyses")
 knitr::opts_chunk$set(echo = TRUE)
 ```
 # Breaking down performance of autoencoder vs PCA vs other dimensionality reduction methods
@@ -18,36 +19,46 @@ There are a few experiments here that I want to cover:
 
 Here I'll be loading in data into a clean dataframe (the previous analyses were starting to get messy):
 ```{r}
+
 cit_df <- read.table("../data/rosmap_cit_pca/CIT_groupby_order.txt", header = TRUE) %>% select(snp,probes,peaks,gene,pCausal,pReact) %>% rename(pub_omni_p=pCausal,rev_pub_omni_p=pReact)
 cit_rep_1_df <- read.csv("../data/rosmap_complete_rep/perm_test_cit_sanity_check_rep_1.csv") %>%
-  rename(rep_1_p1 = p1, rep_1_p2 = p2, rep_1_p3 = p3, rep_1_p4 = p4, rep_1_omni_p = omni_p)
+  rename(rep_1_p1 = p1, rep_1_p2 = p2, rep_1_p3 = p3, rep_1_p4 = p4, rep_1_omni_p = omni_p) %>% mutate(rep_1_part_p = pmax(rep_1_p1,rep_1_p2,rep_1_p3))
 cit_rev_rep_1_df <- read.csv("../data/rosmap_complete_rep/perm_test_rev_cit_sanity_check_rep_1.csv") %>%
-  rename( rev_rep_1_p1=p1, rev_rep_1_p2=p2, rev_rep_1_p3=p3, rev_rep_1_p4=p4, rev_rep_1_omni_p=omni_p) 
+  rename( rev_rep_1_p1=p1, rev_rep_1_p2=p2, rev_rep_1_p3=p3, rev_rep_1_p4=p4, rev_rep_1_omni_p=omni_p) %>% mutate(rev_rep_1_part_p = pmax(rev_rep_1_p1,rev_rep_1_p2,rev_rep_1_p3)) 
 cit_rep_df <- cbind(cit_df,cit_rep_1_df,cit_rev_rep_1_df)# MAIN DF
 head(cit_rep_df)
 
 pca_cit_rep_1_df <- read.csv("../data/rosmap_cit_pca/perm_test_pca_1_latent_cit_rep_1.csv") %>%
-    rename(pca_rep_1_p1 = p1,pca_rep_1_p2 = p2,pca_rep_1_p3 = p3,pca_rep_1_p4= p4,pca_rep_1_omni_p = omni_p )
+    rename(pca_rep_1_p1 = p1,pca_rep_1_p2 = p2,pca_rep_1_p3 = p3,pca_rep_1_p4= p4,pca_rep_1_omni_p = omni_p ) %>%
+    mutate(pca_rep_1_part_p = pmax(pca_rep_1_p1,pca_rep_1_p2,pca_rep_1_p3))
 pca_cit_rev_rep_1_df <- read.csv("../data/rosmap_cit_pca/perm_test_rev_pca_1_latent_cit_rep_1.csv") %>%
-    rename(pca_rev_rep_1_p1 = p1,pca_rev_rep_1_p2 = p2,pca_rev_rep_1_p3 = p3,pca_rev_rep_1_p4= p4,pca_rev_rep_1_omni_p = omni_p )
+    rename(pca_rev_rep_1_p1 = p1,pca_rev_rep_1_p2 = p2,pca_rev_rep_1_p3 = p3,pca_rev_rep_1_p4= p4,pca_rev_rep_1_omni_p = omni_p ) %>%
+    mutate(pca_rev_rep_1_part_p = pmax(pca_rev_rep_1_p1,pca_rev_rep_1_p2,pca_rev_rep_1_p3))
 pca_df <- cbind(pca_cit_rep_1_df,pca_cit_rev_rep_1_df)# MAIN DF
 head(pca_df)
 
 mmd_cit_rep_1_df <- read.csv("../data/rosmap_cit_mmdvae/perm_test_mmdvae_1_latent_depth_10_cit_rep_1.csv") %>%
-  rename(mmd_rep_1_p1 = p1,mmd_rep_1_p2 = p2,mmd_rep_1_p3 = p3,mmd_rep_1_p4= p4,mmd_rep_1_omni_p = omni_p )
+  rename(mmd_rep_1_p1 = p1,mmd_rep_1_p2 = p2,mmd_rep_1_p3 = p3,mmd_rep_1_p4= p4,mmd_rep_1_omni_p = omni_p ) %>%
+  mutate(mmd_rep_1_part_p = pmax(mmd_rep_1_p1,mmd_rep_1_p2,mmd_rep_1_p3))
 mmd_cit_rev_rep_1_df <- read.csv("../data/rosmap_cit_mmdvae/perm_test_rev_mmdvae_1_latent_depth_10_cit_rep1.csv") %>%
-  rename(mmd_rev_rep_1_p1 = p1,mmd_rev_rep_1_p2 = p2,mmd_rev_rep_1_p3 = p3,mmd_rev_rep_1_p4= p4,mmd_rev_rep_1_omni_p = omni_p )
+  rename(mmd_rev_rep_1_p1 = p1,mmd_rev_rep_1_p2 = p2,mmd_rev_rep_1_p3 = p3,mmd_rev_rep_1_p4= p4,mmd_rev_rep_1_omni_p = omni_p )%>%
+  mutate(mmd_rev_rep_1_part_p = pmax(mmd_rev_rep_1_p1,mmd_rev_rep_1_p2,mmd_rev_rep_1_p3))
 mmd_df <- cbind(mmd_cit_rep_1_df,mmd_cit_rev_rep_1_df)# MAIN DF
 head(mmd_df)
 
 mmd_train_list <- list()
 for(f in dir("../data/mmd_vae_new_train/", full.names = TRUE)){
   num_epochs<-gsub(".*/perm_test.*_mmdvae_1_latent_depth_10_(.*)_epochs.csv$","\\1",f)
-  model <- paste0("mmdvae", num_epochs,"_")
-  if(grepl("rev",f)){
-    model <- paste0("rev_", model)
+  if(!grepl("epochs",f)){
+    model <- paste0(gsub(".*//perm_test_(.*)_1_latent_depth_5_cit.csv$","\\1",f),"_")
+  }else{
+    model <- paste0("mmdvae", num_epochs,"_")
+    if(grepl("rev",f)){
+      model <- paste0("rev_", model)
+    }
   }
-  df <- read.csv(f) %>% rename_all(function(x) paste0(model,x))
+  
+  df <- read.csv(f) %>% mutate(part_p=pmax(p1,p2,p3)) %>% rename_all(function(x) paste0(model,x))
   mmd_train_list[[f]] <- df
 }
 mmd_train_df <- bind_cols(mmd_train_list) # MAIN DF
@@ -59,7 +70,7 @@ for(f in dir("../data/alt_lv/", full.names = TRUE)){
   if(grepl("rev",f)){
     model <- paste0("rev_", model)
   }
-  df <- read.csv(f) %>% rename_all(function(x) paste0(model,"_",x))
+  df <- read.csv(f)%>% mutate(part_p=pmax(p1,p2,p3)) %>% rename_all(function(x) paste0(model,"_",x))
   alt_lv_list[[f]] <- df
 }
 alt_lv_df <- bind_cols(alt_lv_list) # MAIN DF
@@ -68,23 +79,30 @@ alt_lv_df %>% select(contains("lfa_omni_p"))
 ## Variability in autoencoder mediation results
 I retrained the autoencoder using a lower number of epochs, 20, 50, and 100
 ```{r}
+multisnp_n <- nrow(cit_df %>% select(probes,peaks,gene) %>% unique())
 classify_p_value <- function(x,y,n){
       ifelse(x < (0.05 / n) & y > (0.05 / n),
-        "Epigenetic Mediation",
-        ifelse(x > (0.05) / n & y < (0.05/ n),
-          "Transcriptional Mediation",
-          ifelse(x > (0.05) / n & y > (0.05/ n),
+        "Partial Mediation",
+        ifelse(x > (0.05 / n) & y < (0.05/ n),
+          "Partial Mediation",
+          ifelse(x > (0.05 / n) & y > (0.05/ n),
             "Independent Association",
-            "Unclassified")))
+            "Partial Mediation")))
     
 }
-mmd_mediation_df <- cbind(mmd_train_df, mmd_df) %>% select(contains("omni_p")) %>%
+mmd_mediation_df <- cbind(cit_df %>% select(probes,peaks,gene),mmd_train_df, mmd_df) %>% group_by(probes,peaks,gene)%>% summarize_all(max) %>% select(contains("part_p")) %>%
   mutate(
-    mmd_original_model = classify_p_value(mmd_rep_1_omni_p,mmd_rev_rep_1_omni_p, n()),
-    mmd_20_model = classify_p_value(mmdvaecit_20_omni_p,rev_mmdvaecit_20_omni_p, n()),
-    mmd_50_model = classify_p_value(mmdvaecit_50_omni_p,rev_mmdvaecit_50_omni_p, n()),
-    mmd_100_model = classify_p_value(mmdvaecit_100_omni_p,rev_mmdvaecit_100_omni_p, n())
+    mmd_original_model = classify_p_value(mmd_rep_1_part_p,mmd_rev_rep_1_part_p, multisnp_n),
+    mmd_20_model = classify_p_value(mmdvaecit_20_part_p,rev_mmdvaecit_20_part_p, multisnp_n),
+    mmd_50_model = classify_p_value(mmdvaecit_50_part_p,rev_mmdvaecit_50_part_p, multisnp_n),
+    mmd_100_model = classify_p_value(mmdvaecit_100_part_p,rev_mmdvaecit_100_part_p, multisnp_n),
+    ae_model = classify_p_value(ae_part_p,rev_ae_part_p,multisnp_n),
+    ae_batch_model = classify_p_value(ae_batch_part_p,rev_ae_batch_part_p, multisnp_n),
+    mmdvae_warmup_model = classify_p_value(mmdvae_warmup_part_p,rev_mmdvae_warmup_part_p,multisnp_n),
+    mmdvae_batch_model = classify_p_value(mmdvae_batch_part_p, rev_mmdvae_batch_part_p, multisnp_n),
+    mmdvae_batch_warmup_model = classify_p_value(mmdvae_batch_warmup_part_p, mmdvae_batch_warmup_part_p, multisnp_n)
   )
+cit_rep_classified_df <- cbind(cit_rep_1_df,cit_df %>% select(probes,peaks,gene),cit_rev_rep_1_df %>% select(-rsid)) %>%mutate(single_snp_replication = classify_p_value(cit_rep_1_df$rep_1_omni_p,cit_rev_rep_1_df$rev_rep_1_omni_p,nrow(cit_rep_1_df)))
 mmd_mediation_df %>% gather("test","mediation_model",ends_with("model")) %>%
   group_by(test, mediation_model) %>% 
   summarize(perc = n()/ nrow(mmd_mediation_df)) %>%
@@ -100,11 +118,13 @@ Okay, this seems pretty variable actually..., need to be more sure about model s
 
 ## Looking into what's called by other methods
 ```{r}
-mediation_df <- alt_lv_df %>%
+
+mediation_df <- cbind(cit_df %>% select(probes,peaks,gene),pca_df,alt_lv_df) %>% group_by(probes,peaks,gene)%>% summarize_all(max) %>% unique()%>%
   mutate(
-    lfa_model = classify_p_value(lfa_omni_p,rev_lfa_omni_p, n()),
-    fastica_model = classify_p_value(fastica_omni_p,rev_fastica_omni_p, n()),
-    kernelpca_model = classify_p_value(kernelpca_omni_p,rev_kernelpca_omni_p, n())
+    pca_model = classify_p_value(pca_rep_1_part_p, pca_rev_rep_1_part_p, multisnp_n),
+    lfa_model = classify_p_value(lfa_part_p,rev_lfa_part_p, multisnp_n),
+    fastica_model = classify_p_value(fastica_part_p,rev_fastica_part_p, multisnp_n),
+    kernelpca_model = classify_p_value(kernelpca_part_p,rev_kernelpca_part_p, multisnp_n)
   )
 mediation_df %>% gather("test","mediation_model",ends_with("model")) %>%
   group_by(test, mediation_model) %>% 
@@ -118,3 +138,481 @@ mediation_df %>% gather("test","mediation_model",ends_with("model")) %>%
     theme(axis.text.x=element_blank())
 ```
 Okay, so kernel PCA calls mediation WAY more than the other two methods, and lfa calls more than pca or fastica. This supports the idea that it's more about nonlinearity in representing features. Also supports the narratife that a more constraints on the factors leads to lower detection of mediation
+
+### Combined figure
+```{r}
+classify_p_value <- function(x,y,n){
+      ifelse(x < (0.05 / n) & y > (0.05 / n),
+        "Epigenetic",
+        ifelse(x > (0.05 / n) & y < (0.05/ n),
+          "Transcriptional",
+          ifelse(x > (0.05 / n) & y > (0.05/ n),
+            "Independent",
+            "Unknown")))
+}
+# Classify
+cit_rep_classified_df <- cbind(cit_rep_1_df,cit_df %>% select(probes,peaks,gene),cit_rev_rep_1_df %>% select(-rsid)) %>%mutate(single_snp_replication = classify_p_value(cit_rep_1_df$rep_1_omni_p,cit_rev_rep_1_df$rev_rep_1_omni_p,nrow(cit_rep_1_df)))
+combined_df <- cbind(mmd_train_df,pca_df,alt_lv_df, cit_rep_classified_df) %>% group_by(probes,peaks,gene) %>% 
+  mutate(
+      class_mmdvae_batch_warmup = classify_p_value(mmdvae_batch_warmup_omni_p , rev_mmdvae_batch_warmup_omni_p,n()),
+      class_ae = classify_p_value(ae_omni_p , rev_ae_omni_p,n()),
+      class_pca = classify_p_value(pca_rep_1_omni_p , pca_rev_rep_1_omni_p,n()),
+      class_kernelpca = classify_p_value(kernelpca_omni_p , rev_kernelpca_omni_p,n()),
+      class_lfa = classify_p_value(lfa_omni_p , rev_lfa_omni_p,n()),
+      class_ica = classify_p_value(fastica_omni_p , rev_fastica_omni_p,n())
+  ) %>% ungroup()
+
+#fix double counting for non-single sets
+#strategy: separate the lv methods , gather classification and rbind
+to_plot_classified <- rbind(
+  combined_df %>%
+    select(single_snp_replication,gene) %>% 
+    gather(model,mediation,single_snp_replication),
+  combined_df %>% 
+    select(
+      probes,peaks,gene,class_mmdvae_batch_warmup,class_ae,class_pca,class_kernelpca,class_lfa,class_ica
+    ) %>% 
+    unique() %>%
+    select(-probes,-peaks)%>%
+    gather(model,mediation, contains("class_"))
+)
+single_med_prop_table <-  to_plot_classified %>% group_by(model,mediation) %>% summarize(n=n()) %>% mutate(prop= n/ sum(n))%>% ungroup() %>% mutate(model = factor(model, levels = c('single_snp_replication','class_ica','class_pca','class_lfa','class_kernelpca', 'class_ae', 'class_mmdvae_batch_warmup')))
+
+ggplot(single_med_prop_table %>% filter(mediation != "Independent"), aes(mediation,prop,fill=model)) + geom_bar(stat="identity", position="dodge") + theme_minimal() + labs(y = "Proportion", x= "") + coord_cartesian(ylim= c(0,0.6))
+```
+### Part mediation comparison
+```{r}
+# classify_p_value <- function(x,y,n){
+#       ifelse(x < (0.05 / n) & y > (0.05 / n),
+#         "Partial Mediation",
+#         ifelse(x > (0.05 / n) & y < (0.05/ n),
+#           "Partial Mediation",
+#           ifelse(x > (0.05 / n) & y > (0.05/ n),
+#             "Independent Association",
+#             "Partial Mediation")))
+#     
+# }
+cit_rep_classified_part_df <- cbind(cit_rep_1_df,cit_df %>% select(probes,peaks,gene),cit_rev_rep_1_df %>% select(-rsid)) %>%mutate(single_snp_replication = classify_p_value(cit_rep_1_df$rep_1_part_p,cit_rev_rep_1_df$rev_rep_1_part_p,nrow(cit_rep_1_df)))
+combined_part_df <- cbind(mmd_train_df,pca_df,alt_lv_df, cit_rep_classified_part_df) %>% group_by(probes,peaks,gene) %>% 
+  mutate(
+      class_mmdvae_batch_warmup = classify_p_value(mmdvae_batch_warmup_part_p , rev_mmdvae_batch_warmup_part_p,n()),
+      class_ae = classify_p_value(ae_part_p , rev_ae_part_p,n()),
+      class_pca = classify_p_value(pca_rep_1_part_p , pca_rev_rep_1_part_p,n()),
+      class_kernelpca = classify_p_value(kernelpca_part_p , rev_kernelpca_part_p,n()),
+      class_lfa = classify_p_value(lfa_part_p , rev_lfa_part_p,n()),
+      class_ica = classify_p_value(fastica_part_p , rev_fastica_part_p,n())
+  ) %>% ungroup()
+
+to_plot_classified_part <- rbind(
+  combined_part_df %>%
+    select(single_snp_replication,gene) %>% 
+    gather(model,mediation,single_snp_replication),
+  combined_part_df %>% 
+    select(
+      probes,peaks,gene,class_mmdvae_batch_warmup,class_ae,class_pca,class_kernelpca,class_lfa,class_ica
+    ) %>% 
+    unique() %>%
+    select(-probes,-peaks)%>%
+    gather(model,mediation, contains("class_"))
+)
+single_med_prop_table_part <-  to_plot_classified_part %>% group_by(model,mediation) %>% summarize(n=n()) %>% mutate(prop= n/ sum(n))%>% ungroup() %>% mutate(model = factor(model, levels = c('single_snp_replication','class_ica','class_pca','class_lfa','class_kernelpca', 'class_ae', 'class_mmdvae_batch_warmup')))
+
+ggplot(single_med_prop_table_part %>% filter(mediation != "Independent"), aes(mediation,prop,fill=model)) + geom_bar(stat="identity", position="dodge") + theme_minimal() + labs(y = "Proportion", x = "") + coord_cartesian(ylim=c(0,0.6))
+```
+
+## In Depth Comparisons of methods
+### P value comparisons
+One easy thing I can do is just compare the omnibus p values between methods to see whether or not the reason I call mediation in one case vs the other is more due to  p values being at the edge of my threshold, rather than true differences in how "rare" the signal each model capures is:
+```{r}
+library(GGally)
+
+# Deep methods
+cbind(mmd_train_df, mmd_df) %>%
+    select(contains("omni_p"), -contains("rev"), -matches("[0-9]")) %>% 
+    rename_all(function(x) gsub("_omni_p","",x)) %>% 
+    mutate_all(function(x) -log10(x)) %>% 
+    ggpairs(
+      progress = F,
+      lower = list(continuous = wrap("points", size =0.1)),
+      upper = list(continuous = wrap("cor", size=3)))+
+    theme(text=element_text(size=8))
+cbind(mmd_train_df, mmd_df) %>%
+    select(matches(".*rev.*omni_p"),-matches("[0-9]")) %>%
+    rename_all(function(x) gsub("_omni_p","",x)) %>% 
+    mutate_all(function(x) -log10(x)) %>%
+    ggpairs(
+      progress = F,
+      lower = list(continuous = wrap("points", size =0.1)),
+      upper = list(continuous = wrap("cor", size=3)))+
+    theme(text=element_text(size=8))
+
+# Non-deep methods
+cbind(pca_df, alt_lv_df) %>%
+    select(contains("omni_p"), -contains("rev"), -matches("2|3")) %>% 
+    rename_all(function(x) gsub("_omni_p","",x)) %>% 
+    mutate_all(function(x) -log10(x)) %>% 
+    ggpairs(
+      progress = F,
+      lower = list(continuous = wrap("points", size =0.1)),
+      upper = list(continuous = wrap("cor", size=3)))+
+    theme(text=element_text(size=8))
+
+cbind(pca_df, alt_lv_df) %>%
+    select(matches(".*rev.*omni_p"),-matches("2|3")) %>%
+    rename_all(function(x) gsub("_omni_p","",x)) %>% 
+    mutate_all(function(x) -log10(x)) %>%
+    ggpairs(
+      progress = F,
+      lower = list(continuous = wrap("points", size =0.1)),
+      upper = list(continuous = wrap("cor", size=3)))+
+    theme(text=element_text(size=8))
+
+
+
+
+# ALL METHODS
+cbind(mmd_train_df, mmd_df,pca_df,alt_lv_df) %>%
+    select(contains("omni_p"), -contains("rev"), -matches("2|3"), -matches("[0-9][0-9]")) %>%
+    rename_all(function(x) gsub("_omni_p","",x)) %>% 
+    mutate_all(function(x) -log10(x)) %>%
+    ggpairs(
+      progress = F,
+      lower = list(continuous = wrap("points", size =0.1)),
+      upper = list(continuous = wrap("cor", size=3)))+
+    theme(text=element_text(size=8))
+
+cbind(mmd_train_df, mmd_df,pca_df,alt_lv_df) %>%
+    select(matches(".*rev.*omni_p"), -matches("2|3"), -matches("[0-9][0-9]")) %>%
+    rename_all(function(x) gsub("_omni_p","",x)) %>% 
+    mutate_all(function(x) -log10(x)) %>%
+    ggpairs(
+      progress = F,
+      lower = list(continuous = wrap("points", size =0.1)),
+      upper = list(continuous = wrap("cor", size=3)))+
+    theme(text=element_text(size=8))
+
+  
+```
+## P Checking P value distributions for each method
+```{r}
+cbind(pca_df,alt_lv_df,mmd_df,mmd_train_df) %>% 
+  gather("model", "Omnibus_P", matches("omni_p"), -matches("rev")) %>%
+  ggplot(aes(x = Omnibus_P)) + 
+    geom_histogram(bins=100) + 
+    facet_wrap(~model)
+
+cbind(pca_df,alt_lv_df,mmd_df,mmd_train_df) %>% 
+  gather("model", "Omnibus_P", matches(".*rev.*omni_p")) %>%
+  ggplot(aes(x = Omnibus_P)) + 
+    geom_histogram(bins=100) + 
+    facet_wrap(~model)
+
+# test_results <- cbind(pca_df,alt_lv_df,mmd_df,mmd_train_df) %>% 
+#   mutate(
+#     mmd_original_min = pmin(mmd_rep_1_omni_p,mmd_rev_rep_1_omni_p),
+#     ae_min = pmin(ae_omni_p,rev_ae_omni_p,n()),
+#     ae_batch_min = pmin(ae_batch_omni_p,rev_ae_batch_omni_p),
+#     mmdvae_warmup_min = pmin(mmdvae_warmup_omni_p,rev_mmdvae_warmup_omni_p),
+#     mmdvae_batch_min = pmin(mmdvae_batch_omni_p, rev_mmdvae_batch_omni_p),
+#     mmdvae_batch_warmup_min = pmin(mmdvae_batch_warmup_omni_p, mmdvae_batch_warmup_omni_p),
+#     pca_min = pmin(pca_rep_1_omni_p, pca_rev_rep_1_omni_p),
+#     lfa_min = pmin(lfa_omni_p,rev_lfa_omni_p),
+#     fastica_min = pmin(fastica_omni_p,rev_fastica_omni_p),
+#     kernelpca_min = pmin(kernelpca_omni_p,rev_kernelpca_omni_p),
+#     mmd_original_max = pmax(mmd_rep_1_omni_p,mmd_rev_rep_1_omni_p),
+#     ae_max = pmax(ae_omni_p,rev_ae_omni_p),
+#     ae_batch_max = pmax(ae_batch_omni_p,rev_ae_batch_omni_p),
+#     mmdvae_warmup_max = pmax(mmdvae_warmup_omni_p,rev_mmdvae_warmup_omni_p),
+#     mmdvae_batch_max = pmax(mmdvae_batch_omni_p, rev_mmdvae_batch_omni_p),
+#     mmdvae_batch_warmup_max = pmax(mmdvae_batch_warmup_omni_p, mmdvae_batch_warmup_omni_p),
+#     pca_max = pmax(pca_rep_1_omni_p, pca_rev_rep_1_omni_p),
+#     lfa_max = pmax(lfa_omni_p,rev_lfa_omni_p),
+#     fastica_max = pmax(fastica_omni_p,rev_fastica_omni_p),
+#     kernelpca_max = pmax(kernelpca_omni_p,rev_kernelpca_omni_p)
+#   )
+# ggplot(test_results%>% gather("model","Min_P", contains("min")),aes(x = Min_P)) + 
+#     geom_histogram(bins=100) + 
+#     facet_wrap(~model)
+# 
+# ggplot(test_results%>% gather("model","Max_P", contains("max")),aes(x = Max_P)) + 
+#     geom_histogram(bins=100) + 
+#     facet_wrap(~model)
+
+# classify_p_value <- function(x,y,n){
+#       ifelse(x < (0.05 / n) & y > (0.05 / n),
+#         "Epigenetic Mediation",
+#         ifelse(x > (0.05 / n) & y < (0.05/ n),
+#           "Transcriptional Mediation",
+#           ifelse(x > (0.05 / n) & y > (0.05/ n),
+#             "Independent Association",
+#             "Unclassified")))
+# 
+# }
+
+forward_df <- cbind(cit_df %>% select(probes,peaks,gene),pca_df,alt_lv_df,mmd_df,mmd_train_df) %>%group_by(probes,peaks,gene)%>% summarize_all(max) %>%
+  gather("model", "for_p", contains("omni_p"), -contains("rev")) %>%
+  select(model, probes,peaks,gene,for_p) 
+reverse_df <- cbind(cit_df %>% select(probes,peaks,gene),pca_df,alt_lv_df,mmd_df,mmd_train_df) %>% group_by(probes,peaks,gene)%>% summarize_all(max) %>%
+  gather("model", "rev_p", matches(".*rev.*omni_p")) %>%
+  mutate(model = gsub("rev_|_rev_","_",model)) %>%
+  select(probes,peaks,gene,rev_p)
+all(forward_df%>%select(probes,peaks,gene) == reverse_df%>%select(probes,peaks,gene))
+cbind(forward_df%>% select(-probes,-peaks,-gene), reverse_df%>% select(-probes,-peaks,-gene)) %>% filter(grepl("kernel",model)) %>% #filter(!grepl("20|50|100",model)) %>%
+    ggplot(aes(x = -log10(for_p),y = -log10(rev_p))) +
+      geom_point(size=0.1,alpha = 0.2) +
+      geom_hline(yintercept = -log10(0.05 / nrow(mmd_df)), color="red",linetype=2)+
+      geom_vline(xintercept = -log10(0.05 / nrow(mmd_df)), color = "red",linetype=2) +
+      labs(x= "-log10(P_Epigenetic)", y = "-log10(P_Transcriptional)")
+      # facet_wrap(~model)
+all(reverse_df$model == forward_df$model)
+```
+it looks like the threshold actially matters quite a bit for calling independent vs mediation, perhaps not *as* much for unclassified vs other. I will summarize changes in calling by method by threshold chosen in a later section.
+
+## Overlap in calling between methods
+Here I want to show whether or not methods are replicating the same mediation events by gene/epigenetic variable (I will need to merge in the original CIT tests from the xQTL paper).
+
+First I will just try to hack a bar plot that shows this, but it may be more beneficial to try something that won't repeat variables as much, perhaps an [upset plot](https://github.com/hms-dbmi/UpSetR)
+
+```{r}
+cur_data <- cbind(mediation_df,mmd_mediation_df) %>% select(probes,peaks,gene,contains("model"), -matches("20|50|100")) %>% unique()%>% ungroup()
+
+test_lvl <- c("fastica_model","pca_model", "lfa_model", "kernelpca_model", "mmd_original_model", "ae_model", "ae_batch_model", "mmdvae_warmup_model", "mmdvae_batch_model", "mmdvae_batch_warmup_model")
+(df <- cur_data %>% select(-contains("batch_warmup")) %>% gather("test", "mediation", contains("model")) %>% mutate(test = factor(test, levels = test_lvl)) %>%group_by(test, mediation) %>% 
+  summarize(perc = n()/ nrow(mediation_df)) )%>%
+  ggplot(aes(y = perc, fill = mediation, x = mediation, group=test)) + geom_bar(color = "black", stat="identity", position=position_dodge()) + scale_y_continuous(limits=c(0,1.25), breaks = seq(0,1,0.25), labels = c("0","25","50","75", "100"))  + labs(y = sprintf("Percentage of K = %d Tests", multisnp_n),fill = "Mediation Scenario", x = "") + ggtitle("Mediation with Multiple SNPs") + theme_minimal()+ theme(text = element_text(family = "Roboto"),axis.text.x = element_blank())
+plot_thesis_prop <- cur_data %>% select(-contains("batch_model"),-contains("original_model")) %>% mutate(test= factor(test,levels=test_lvl)) %>%group_by(test, mediation) %>% 
+  summarize(perc = n()/ nrow(mediation_df))%>% ungroup() %>% mutate(model = recode(model, "fastica" = "Independent Components Analysis", "lfa" = "Latent Factor Analysis", "pca"="PCA","kernelpca" = "RBF Kernel PCA", "mmdvae_batch_warmup")) 
+df %>% group_by(mediation) %>% summarise(max(perc))
+plot_upset <- function(dat,cur_var){
+  dat_new <- dat %>% select(contains("model")) %>% mutate_all(function(x) as.numeric(x == cur_var)) %>%rename_all(function(test)gsub("mmd_original", "mmdvae",gsub("warmup","w",gsub("batch","b",gsub("_model","",test))))) 
+  UpSetR::upset(as.data.frame(dat_new),nsets = ncol(dat_new), order.by = "freq",nintersects = 5,)
+}
+plot_venn <- function(dat,cur_var){
+  dat_new <- dat %>% ungroup() %>%  select(contains("model")) %>% mutate_all(function(x) x == cur_var) %>%rename_all(function(test)gsub("mmd_original", "mmdvae",gsub("warmup","w",gsub("batch","b",gsub("_model","",test))))) 
+  plot(eulerr::venn(dat_new[,c("ae_b", "mmdvae_b", "kernelpca", "pca", "lfa")]))
+}
+plot_upset(cur_data, "Independent Association")
+plot_upset(cur_data, "Epigenetic Mediation")
+plot_upset(cur_data, "Transcriptional Mediation")
+plot_upset(cur_data, "Unclassified")
+plot_venn(cur_data, "Independent Association")
+plot_venn(cur_data, "Epigenetic Mediation")
+plot_venn(cur_data, "Transcriptional Mediation")
+plot_venn(cur_data, "Unclassified")
+cur_data %>% select(contains("model"), -contains("batch_warmup")) %>%
+  rename_all(function(test)gsub("mmd_original", "mmdvae",gsub("warmup","w",gsub("batch","b",gsub("_model","",test))))) %>%
+  gather("value","type", everything()) %>% group_by(value) %>% summarize_all(function(x) sum(grepl("Transcriptional Mediation",x))) %>% mutate(value = factor(value, levels = value[order(-type)]))%>%
+  ggplot(aes(value, type)) + geom_bar(stat = "identity")+ labs(y = "Total Number of Tests Classified", x = "Model")+theme_minimal(base_family ="Roboto") + theme(axis.text.x=element_text(angle=45, hjust=1,vjust=1))
+cur_data %>% select(contains("model"), -contains("batch_warmup")) %>%
+  rename_all(function(test)gsub("mmd_original", "mmdvae",gsub("warmup","w",gsub("batch","b",gsub("_model","",test))))) %>%
+  gather("value","type", everything()) %>% group_by(value) %>% summarize_all(function(x) sum(grepl("Epigenetic Mediation",x))) %>% mutate(value = factor(value, levels = value[order(-type)]))%>%
+  ggplot(aes(value, type)) + geom_bar(stat = "identity") + labs(y = "Total Number of Tests Classified", x = "Model")+theme_minimal(base_family ="Roboto") + theme(axis.text.x=element_text(angle=45, hjust=1,vjust=1))
+cur_data %>% select(contains("model"), -contains("batch_warmup")) %>%
+  rename_all(function(test)gsub("mmd_original", "mmdvae",gsub("warmup","w",gsub("batch","b",gsub("_model","",test))))) %>%
+  gather("value","type", everything()) %>% group_by(value) %>% summarize_all(function(x) sum(grepl("Independent Association",x))) %>% mutate(value = factor(value, levels = value[order(-type)]))%>%
+  ggplot(aes(value, type)) + geom_bar(stat = "identity")+ labs(y = "Total Number of Tests Classified", x = "Model")+theme_minimal(base_family ="Roboto")+ theme(axis.text.x=element_text(angle=45, hjust=1,vjust=1))
+cur_data %>% select(contains("model"), -contains("batch_warmup")) %>%
+  rename_all(function(test)gsub("mmd_original", "mmdvae",gsub("warmup","w",gsub("batch","b",gsub("_model","",test))))) %>%
+  gather("value","type", everything()) %>% group_by(value) %>% summarize_all(function(x) sum(grepl("Unclassified",x))) %>% mutate(value = factor(value, levels = value[order(-type)]))%>%
+  ggplot(aes(value, type)) + geom_bar(stat = "identity")+ labs(y = "Total Number of Tests Classified", x = "Model")+theme_minimal(base_family ="Roboto") + theme(axis.text.x=element_text(angle=45, hjust=1,vjust=1))
+```
+
+## More sensitivity of calling mediation by thresholds
+This is probably best done in a nice table showing percentages called for each threshold, sorted by method and then by threshold:
+```{r}
+classify_p_value <- function(x,y,n,threshold){
+      ifelse(x < (threshold / n) & y > (threshold / n),
+        "Epigenetic Mediation",
+        ifelse(x > (threshold / n) & y < (threshold/ n),
+          "Transcriptional Mediation",
+          ifelse(x > (threshold / n) & y > (threshold/ n),
+            "Independent Association",
+            "Unclassified")
+          ))
+}
+mediation_at_threshold <- function(cur_n,threshold){
+  mediation_threshold_df <- cbind(cit_df %>% select(probes,peaks,gene),mmd_train_df, mmd_df,pca_df,alt_lv_df) %>% group_by(probes,peaks,gene)%>% summarize_all(max) %>% unique()%>%
+    mutate(
+      mmd_original_model = classify_p_value(mmd_rep_1_omni_p,mmd_rev_rep_1_omni_p, cur_n,threshold),
+      ae_model = classify_p_value(ae_omni_p,rev_ae_omni_p,cur_n,threshold),
+      ae_batch_model = classify_p_value(ae_batch_omni_p,rev_ae_batch_omni_p, cur_n,threshold),
+      mmdvae_warmup_model = classify_p_value(mmdvae_warmup_omni_p,rev_mmdvae_warmup_omni_p,cur_n,threshold),
+      mmdvae_batch_model = classify_p_value(mmdvae_batch_omni_p, rev_mmdvae_batch_omni_p, cur_n,threshold),
+      mmdvae_batch_warmup_model = classify_p_value(mmdvae_batch_warmup_omni_p, mmdvae_batch_warmup_omni_p, cur_n,threshold),
+      pca_model = classify_p_value(pca_rep_1_omni_p, pca_rev_rep_1_omni_p, cur_n,threshold),
+      lfa_model = classify_p_value(lfa_omni_p,rev_lfa_omni_p, cur_n,threshold),
+      fastica_model = classify_p_value(fastica_omni_p,rev_fastica_omni_p, cur_n,threshold),
+      kernelpca_model = classify_p_value(kernelpca_omni_p,rev_kernelpca_omni_p, cur_n,threshold)
+    )
+  return(mediation_threshold_df %>% select(probes,peaks,gene,contains('model'))) 
+}
+plot_at_threshold <- function(threshold){
+  p <- mediation_at_threshold(multisnp_n,threshold) %>% gather("test","mediation_model",ends_with("model")) %>%
+    group_by(test, mediation_model) %>% 
+    summarize(perc = n()/ nrow(mediation_df)) %>%
+    ggplot(aes(x = mediation_model,y=perc,label=percent(perc,accuracy = 0.001),fill=mediation_model)) +
+      geom_bar(stat="identity", position = position_dodge()) +
+      geom_text(position = position_dodge(), vjust=0.5, hjust = 0.6, size = 3) + 
+      facet_wrap(~test,ncol = 3) + 
+      labs(x= NULL) + 
+      theme_minimal() + 
+      theme(axis.text.x=element_blank())
+  print(p)
+}
+
+plot_at_threshold(0.001)
+plot_at_threshold(0.01)
+plot_at_threshold(0.05)
+plot_at_threshold(0.10)
+plot_at_threshold(0.15)
+plot_at_threshold(0.20)
+plot_at_threshold(0.25)
+plot_at_threshold(0.50)
+plot_at_threshold(0.75)
+plot_at_threshold(1)
+
+
+
+cur_data <- mediation_at_threshold(multisnp_n,0.05)
+plot_upset(cur_data, "Independent Association")
+plot_upset(cur_data, "Epigenetic Mediation")
+plot_upset(cur_data, "Transcriptional Mediation")
+plot_upset(cur_data, "Unclassified")
+cur_data <- mediation_at_threshold(multisnp_n,0.20)
+plot_upset(cur_data, "Independent Association")
+plot_upset(cur_data, "Epigenetic Mediation")
+plot_upset(cur_data, "Transcriptional Mediation")
+plot_upset(cur_data, "Unclassified")
+```
+
+
+
+## Analysis of Latent Representations
+First let's load in these latent reps and see how they correlate with one another for respective genes:
+```{r}
+lv_dfs <- list()
+for(f in list.files("../data/mmd_vae_new_train_latent",full.names = T)){
+  testing <- read.csv(f)
+  method <- gsub(".*/(.*)_lvs_1kg_cit_replication.csv", "\\1",f)
+  testing <- testing %>% rename(sample_id = X)
+  lv_dfs[[method]] <- testing
+}
+lvs_df <- bind_rows(lv_dfs,.id = "method")
+head(lvs_df)
+```
+
+```{r}
+library(corrplot)
+corrs <- list()
+for(i in names(lv_dfs)){
+  tmp<- list()
+  for(gene in colnames(lv_dfs[[i]][,-c(1)])){
+    
+    tmp[[gene]] <- data.frame(lapply(lv_dfs, function(x) cor(x[,gene],lv_dfs[[i]][,gene])))
+    
+  }
+  corrs[[i]] <- tmp
+}
+cor_df <- bind_rows(lapply(corrs,function(x)bind_rows(x,.id="gene")),.id = "method") 
+```
+
+```{r}
+library(pheatmap)
+to_plot <- cor_df %>%  gather("method2", "value", everything(), -method, -gene) %>% filter(method != method2) %>%  group_by(method) %>% summarize(mean_abs_cor = mean(abs(value)))
+  ggplot(to_plot, aes(method, mean_abs_cor)) +
+    geom_bar(stat = "identity") +
+    geom_hline(yintercept = min(to_plot$mean_abs_cor), color= "red", linetype=2) + 
+    theme(axis.text.x = element_text(angle = 90, hjust=1,vjust=1))
+  
+cor_df %>% gather("method2", "value", everything(), -method,-gene) %>% filter(method != method2) %>%
+ggplot(aes(gene,method2, fill= value)) + 
+  geom_tile()+
+  scale_fill_gradient2(low = "dodgerblue",mid="white",high = "red") + 
+  facet_wrap(~method)
+annot <- cor_df %>% filter_at(vars(everything(), -method,-gene),function(x) !all(x == 1)) %>%mutate(id_col= paste0(method,gene)) %>% select(method,id_col) %>% column_to_rownames("id_col")
+df <- cor_df %>% filter_at(vars(everything(), -method,-gene),function(x) !all(x == 1)) %>% mutate(id_col= paste0(method,gene)) %>% select(-method,-gene) %>% column_to_rownames("id_col")
+library(RColorBrewer)
+colors <- colorRampPalette(rev(brewer.pal(n = 7, name = "RdYlBu")))(100)
+colors[2] <- colors[1]
+colors[100] <- colors[99]
+pheatmap(t(df),annotation_col = annot, show_colnames = F, legend_breaks = c(-0.99,0,0.99), color = colors)
+```
+
+FURTHER EXPLORATION GOES HERE!!!
+```{r}
+
+```
+
+## eQTX experiment
+
+
+```{r}
+(eQTX_manifest <- read.table("~/eQTX_manifest.txt", sep = " ",header = T))
+eQTX_list <- list()
+for(f in dir("../data/eQTX_experiment/", full.names = TRUE)){
+  model <- gsub(".*/perm_test.*_(.*)_1_latent_depth_5_cit.csv$","\\1",f)
+  if(grepl("rev",f)){
+    model <- paste0("rev_", model)
+  }
+  df <- read.csv(f) %>% rename_all(function(x) paste0(model,"_",x))
+  eQTX_list[[f]] <- df
+}
+eQTX_df <- bind_cols(eQTX_list) # MAIN DF
+head(eQTX_df %>% select(contains("omni_p")))
+eQTX_df %>% select(contains("omni_p")) %>% gather("method", "omni_p", everything()) %>% 
+  ggplot(aes(omni_p)) +
+    geom_histogram() +
+    facet_wrap(~method)
+eQTX_df %>% select(contains("omni_p")) %>% gather("method", "omni_p", everything()) %>% group_by(method) %>% summarize(sum(is.na(omni_p)))
+classify_p_value <- function(x,y,n){
+      ifelse(x < (0.05 / n) & y > (0.05 / n),
+        "Epigenetic Mediation",
+        ifelse(x > (0.05 / n) & y < (0.05/ n),
+          "Transcriptional Mediation",
+          ifelse(x > (0.05 / n) & y > (0.05/ n),
+            "Independent Association",
+            "Unclassified")))
+    
+}
+eQTX_mediation <- cbind(eQTX_manifest, eQTX_df) %>% group_by(gene) %>% 
+    mutate(
+      ae_model = classify_p_value(ae_omni_p,rev_ae_omni_p,multisnp_n),
+      pca_model = classify_p_value(pca_omni_p, rev_pca_omni_p, multisnp_n),
+      lfa_model = classify_p_value(lfa_omni_p,rev_lfa_omni_p, multisnp_n),
+      fastica_model = classify_p_value(fastica_omni_p,rev_fastica_omni_p, multisnp_n),
+      kernelpca_model = classify_p_value(kernelpca_omni_p,rev_kernelpca_omni_p, multisnp_n)
+    )
+eQTX_mediation %>%gather("test","mediation_model",ends_with("model")) %>% mutate(mediation_model = replace(mediation_model,is.na(mediation_model), "Unclassified")) %>% 
+  group_by(test, mediation_model) %>%
+  summarize(perc = n()/ nrow(eQTX_manifest)) %>%
+  ggplot(aes(x = mediation_model,y=perc,group=test,label=percent(perc,accuracy = 0.001),fill=mediation_model)) +
+    geom_bar(stat="identity", position = position_dodge()) +
+    geom_text(position = position_dodge(), vjust=0.5, hjust = 0.6, size = 3) + 
+    labs(x= NULL) + 
+    theme_minimal() + 
+    theme(axis.text.x=element_blank())
+eQTX_mediation %>%gather("test","mediation_model",ends_with("model")) %>% mutate(mediation_model = replace(mediation_model,is.na(mediation_model), "Unclassified")) %>% 
+  group_by(test, mediation_model) %>%
+  summarize(perc = n()/ nrow(eQTX_manifest)) %>% filter(grepl("Mediation", mediation_model)) 
+
+
+runGSEA <- function(my_title, ranks, pathway){
+  ranks <- ranks_df$v
+  names(ranks) <- as.character(ranks_df$gene)
+  ad_results <- fgsea(pathways = gmtPathways(pathway),stats= ranks, nperm=1000)
+
+  fgseaResTidy <- ad_results %>%
+    as_tibble() %>%
+    arrange(desc(NES))
+  p <- ggplot(fgseaResTidy, aes(reorder(pathway, NES), NES)) +
+    geom_col(aes(fill=padj<0.25)) +
+    coord_flip() +
+    labs(x="Pathway", y="Normalized Enrichment Score",
+         title=my_title) + 
+    theme_minimal()
+  print(p)
+  return(fgseaResTidy)
+}
+
+df <- eQTX_mediation %>%gather("test","mediation_model",ends_with("model")) %>% mutate(mediation_model = replace(mediation_model,is.na(mediation_model), "Unclassified")) %>% filter(test == "kernelpca_model", mediation_model == "Transcriptional Mediation")
+```

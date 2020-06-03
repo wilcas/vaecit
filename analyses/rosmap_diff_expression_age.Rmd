@@ -1,0 +1,203 @@
+---
+title: "rosmap_diff_expression_age"
+author: "William Casazza"
+date: '2019-09-17'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(R.matlab)
+library(RSpectra)
+library(fgsea)
+knitr::opts_chunk$set(echo = TRUE)
+knitr::read_chunk("/home/wcasazza/vaecit/analyses/result_loading_utils.R")
+```
+
+
+```{r}
+exprs <- readMat("/media/wcasazza/DATA2/wcasazza/ROSMAP/expressionNonAgeSexAdj.mat")
+expression <- exprs$Res[[1]]
+rownames(expression) <- unlist(exprs$Res[[2]])
+colnames(expression) <- unlist(exprs$Res[[3]])
+phen <- readMat("/media/wcasazza/DATA2/wcasazza/ROSMAP/phenotype.mat")
+phenotype <- phen$Pm[[1]]
+rownames(phenotype) <- unlist(phen$Pm[[2]])
+colnames(phenotype) <- unlist(phen$Pm[[3]])
+# regress out covariates
+decomp <- svds(expression,10)
+expression <- expression - (decomp$u %*% diag(decomp$d) %*% t(decomp$v))
+expression <- expression[match(rownames(phenotype), rownames(expression)),]
+all(rownames(expression) == rownames(phenotype))
+fit <- lm(expression ~  phenotype[,"msex"])
+expression <- resid(fit)
+```
+
+# Differentially expressed with age
+```{r}
+diff_exp_fit <- lm(expression ~ phenotype[,"age death"])
+diff_exp_summary <- summary(diff_exp_fit)
+diff_exp_df <- lapply(diff_exp_summary,function(x) as.data.frame(t(coef(x)[1,])))
+names(diff_exp_df) <- gsub("Response ", "", names(diff_exp_df))
+diff_exp_df <- bind_rows(diff_exp_df, .id = "gene") %>% mutate(q_val = p.adjust(`Pr(>|t|)`, method = "BH"))
+```
+
+# GSEA Tests
+There are two things that I can do here:
+1. Rank genes by their effect size on age, and then see if certain mediation groups are enriched in up or down regulated areas
+    1. I need criteria for selecting how a gene is put into a particular mediation set
+        1. one is just ignore overlapping mediation classification and just include a gene in a set if any probes for that gene show that type of mediation X
+        2. another is to select the most frequent mediation call for each gene X
+        3. A final criteria would be to take the mediation call with the lowest omnibus p value for each gene X
+2. Rank genes by mediation effect and see if top differentially expressed genes are enriched with strong or weak mediation
+    1. I will need to have criteria for selecting a particular probe for mediation tests (i.e. largest magnitude effect for each gene) X
+    2. I will also need to choose from several LV methods X
+
+### Load data from last xQTL ROSMAP analysis
+```{r load_cit_data}
+```
+
+## Run GSEA with Age Ranking
+```{r}
+calculate_mode <- function(x) {
+  uniqx <- unique(na.omit(x))
+  uniqx[which.max(tabulate(match(x, uniqx)))]
+}
+age_ranks_df <- diff_exp_df  %>% group_by(gene) %>% summarize(Estimate = Estimate[which.max(q_val)]) %>% select(gene, Estimate)
+age_ranks <- age_ranks_df$Estimate
+names(age_ranks) <- age_ranks_df$gene
+
+gene_sets_df<- mediation_df %>% select(contains("model"), gene) %>% gather(key = "method", value = "mediation", contains("model")) %>% group_by(method,mediation) %>% summarise(genes = paste0(unique(gene),collapse=","))
+gene_sets <- strsplit(gene_sets_df$genes, ",")
+names(gene_sets) <- paste0(gene_sets_df$method,"_", gene_sets_df$mediation)
+res1 <- fgsea(gene_sets, age_ranks, 1e5)
+gene_sets_df2 <- mediation_df %>% select(contains("model"), gene) %>% gather(key = "method", value = "mediation", contains("model")) %>% group_by(method,gene) %>% summarize(mediation= calculate_mode(mediation)) %>% group_by(method,mediation)%>% summarise(genes = paste0(unique(gene),collapse=","))
+gene_sets2 <- strsplit(gene_sets_df2$genes, ",")
+names(gene_sets2) <- paste0(gene_sets_df2$method,"_", gene_sets_df2$mediation)
+res2 <- fgsea(gene_sets2, age_ranks, 1e5)
+
+gene_sets3_df <- mediation_df %>% 
+  mutate(
+  "ae_min_p" = min(ae_omni_p,rev_ae_omni_p),
+  "ae_batch_min_p" = min(ae_batch_omni_p, rev_ae_batch_omni_p),
+  "mmdvae_warmup_min_p" = min(mmdvae_warmup_omni_p, rev_mmdvae_warmup_omni_p),
+  "mmdvae_batch_min_p"=min(mmdvae_batch_omni_p, rev_mmdvae_batch_omni_p),
+  "pca_min_p" = min(pca_omni_p, rev_pca_omni_p),
+  "lfa_min_p"= min(lfa_omni_p,rev_lfa_omni_p),
+  "fastica_min_p" = min(fastica_omni_p, rev_fastica_omni_p),
+  "kernelpca_min_p" = min(kernelpca_omni_p, rev_kernelpca_omni_p)) %>%
+  gather("method", "mediation", contains("model")) %>%
+  group_by(gene) %>%
+  summarize(
+    ae = mediation[which.min(ae_min_p[method == "ae_model"])],
+    ae_batch = mediation[which.min(ae_batch_min_p[method == "ae_batch_model"])],
+    mmdvae_warmup = mediation[which.min(mmdvae_warmup_min_p[method == "mmdvae_warmup_model"])],
+    mmdvae_batch = mediation[which.min(mmdvae_batch_min_p[method == "mmdvae_batch_model"])],
+    pca = mediation[which.min(pca_min_p[method == "pca_model"])],
+    lfa = mediation[which.min(lfa_min_p[method == "lfa_model"])],
+    fastica = mediation[which.min(fastica_min_p[method == "fastica_model"])],
+    kernelpca = mediation[which.min(kernelpca_min_p[method == "kernelpca_model"])]
+  ) %>% gather("model", "mediation", -gene) %>% group_by(model,mediation) %>% summarise(genes = paste0(gene,collapse = ","))
+gene_sets3 <- strsplit(gene_sets3_df$genes, ",")
+names(gene_sets3) <- paste0(gene_sets3_df$model,"_", gene_sets3_df$mediation)
+res3 <- fgsea(gene_sets3, age_ranks, 1e5)
+```
+
+```{r}
+fgseaResTidy1 <- res1 %>%
+    as_tibble() %>%
+    arrange(desc(NES))
+  p1 <- ggplot(fgseaResTidy1, aes(reorder(pathway, NES), NES)) +
+    geom_col(aes(fill=padj<0.10)) +
+    coord_flip() +
+    labs(x="Pathway", y="Normalized Enrichment Score",
+         title="Method 1: Any q") + 
+    geom_text(aes(label = round(pval, digits = 4), y = ifelse(NES > 0, -0.25, 0.25)),size = 3, position = position_identity())+theme_bw()
+print(p1)
+
+fgseaResTidy2 <- res2 %>%
+    as_tibble() %>%
+    arrange(desc(NES))
+  p2 <- ggplot(fgseaResTidy2, aes(reorder(pathway, NES), NES)) +
+    geom_col(aes(fill=padj<0.10)) +
+    coord_flip() +
+    labs(x="Pathway", y="Normalized Enrichment Score",
+         title="Method 2: Majority q") + 
+    geom_text(aes(label = round(pval, digits = 4), y = ifelse(NES > 0, -0.25, 0.25)),size = 3, position = position_identity())+theme_bw()
+print(p2)
+
+fgseaResTidy3 <- res3 %>%
+    as_tibble() %>%
+    arrange(desc(NES))
+  p3 <- ggplot(fgseaResTidy3, aes(reorder(pathway, NES), NES)) +
+    geom_col(aes(fill=padj<0.10)) +
+    coord_flip() +
+    labs(x="Pathway", y="Normalized Enrichment Score",
+         title="Method 3: Min P value q") + 
+    geom_text(aes(label = round(pval, digits = 4), y = ifelse(NES > 0, -0.25, 0.25)),size = 3, position = position_identity())+theme_bw()
+print(p3)
+```
+```{r}
+method_rank_df <- mediation_df %>% gather("method", "mediation_coef", contains("mediation")) %>% group_by(method,gene) %>% summarize(mediation_rank = max(mediation_coef))
+methods <- c("ae_batch_mediation_coef", "ae_mediation_coef", "mmdvae_warmup_mediation_coef", "mmdvae_batch_mediation_coef", "pca_mediation_coef", "lfa_mediation_coef","fastica_mediation_coef", "kernelpca_mediation_coef")
+method_ranks <- lapply(methods, 
+    function(x){ 
+        tmp <- method_rank_df %>% filter(method == x)
+        genes <- tmp$mediation_rank
+        names(genes) <- tmp$gene
+        return(genes)
+    })
+names(method_ranks) <- methods
+diff_exp_gene_df <- diff_exp_df %>% filter(q_val < 0.05)
+diff_exp_genes_fdr <- list(diff_exp_with_age = diff_exp_gene_df$gene)
+fgseares_max <- lapply(method_ranks, function(x) fgsea(diff_exp_genes_fdr,x, 1e5))
+
+method_rank_df <- mediation_df %>% gather("method", "mediation_coef", contains("mediation")) %>% group_by(method,gene) %>% summarize(mediation_rank = mean(mediation_coef))
+methods <- c("ae_batch_mediation_coef", "ae_mediation_coef", "mmdvae_warmup_mediation_coef", "mmdvae_batch_mediation_coef", "pca_mediation_coef", "lfa_mediation_coef","fastica_mediation_coef", "kernelpca_mediation_coef")
+method_ranks <- lapply(methods, 
+    function(x){ 
+        tmp <- method_rank_df %>% filter(method == x)
+        genes <- tmp$mediation_rank
+        names(genes) <- tmp$gene
+        return(genes)
+    })
+names(method_ranks) <- methods
+diff_exp_gene_df <- diff_exp_df %>% filter(q_val < 0.05)
+diff_exp_genes_fdr <- list(diff_exp_with_age = diff_exp_gene_df$gene)
+fgseares_mean<- lapply(method_ranks, function(x) fgsea(diff_exp_genes_fdr,x, 1e5))
+```
+Note about above , based on results table, it seems only one gene in mediation set overlaps differentially expressed genes.
+
+## GSEA Age in single genes
+```{r}
+epi_less <- read.csv("~/vaecit/scripts/_leMean_5_cit_replication_perm_test.csv")
+colnames(epi_less) <- paste0("less_", colnames(epi_less))
+epi_greater <- read.csv("~/vaecit/scripts/_geMean_5_cit_replication_perm_test.csv")
+colnames(epi_greater) <- paste0("greater_", colnames(epi_greater))
+epi_less %>% filter(less_omni_p * n() < 0.05)
+epi_greater %>% filter(greater_omni_p * n() < 0.05)
+to_plot <- data.frame(group = c("Younger", "Older"), amt_Mediation=c(604,805)) %>% mutate(group = factor(group, levels = c("Younger", "Older")))
+ggplot(to_plot, aes(x=group, y = amt_Mediation)) + geom_bar(stat = "identity") + ggtitle("Epigenetic Mediation in Young Versus Old (single SNPs)") + theme_minimal()
+epi_less_rev<- read.csv("~/vaecit/scripts/rev_leMean_5_cit_replication_perm_test.csv")
+colnames(epi_less_rev) <- paste0("rev_less_",colnames(epi_less_rev))
+epi_greater_rev <- read.csv("~/vaecit/scripts/rev_geMean_5_cit_replication_perm_test.csv")
+colnames(epi_greater_rev) <- paste0("rev_greater_",colnames(epi_greater_rev))
+mediation_single <- cbind(epi_greater,epi_greater_rev, epi_less, epi_less_rev) %>% mutate(greater_mediation = classify_p_value(greater_omni_p, rev_greater_omni_p, n()), less_mediation = classify_p_value(less_omni_p, rev_less_omni_p, n()))
+ggplot(mediation_single %>% filter(less_mediation != "Independent Association"), aes(less_mediation)) + geom_histogram(stat = "count")
+mediation_single %>% gather("group", "call", ends_with("_mediation")) %>% group_by(group,call) %>% summarize(n())
+ggplot(mediation_single %>% filter(greater_mediation != "Independent Association"), aes(greater_mediation)) + geom_histogram(stat = "count")
+
+```
+
+```{r}
+cit_rep_1_df <- read.csv("../data/rosmap_complete_rep/perm_test_cit_sanity_check_rep_1.csv") %>%
+  rename(rep_1_p1 = p1, rep_1_p2 = p2, rep_1_p3 = p3, rep_1_p4 = p4, rep_1_omni_p = omni_p)
+cit_rev_rep_1_df <- read.csv("../data/rosmap_complete_rep/perm_test_rev_cit_sanity_check_rep_1.csv") %>%
+  rename(
+    rev_rep_1_p1=p1,
+    rev_rep_1_p2=p2,
+    rev_rep_1_p3=p3,
+    rev_rep_1_p4=p4, 
+    rev_rep_1_omni_p=omni_p) 
+```
+
