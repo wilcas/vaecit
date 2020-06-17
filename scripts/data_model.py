@@ -395,19 +395,19 @@ def reduce_genotype(genotype, lv_method, num_latent, state_name, vae_depth=None,
     elif lv_method == "pca":
         latent_genotype = compute_pcs(genotype)[:, 0:num_latent]
     elif lv_method == "lfa":
-        lfa = FactorAnalysis(n_components=1)
+        lfa = FactorAnalysis(n_components=num_latent)
         latent_genotype = lfa.fit_transform(stats.zscore(genotype))
     elif lv_method == "kernelpca":
-        kpca = KernelPCA(n_components=1, kernel="rbf")
+        kpca = KernelPCA(n_components=num_latent, kernel="rbf")
         latent_genotype = kpca.fit_transform(stats.zscore(genotype))
     elif lv_method == "kernelpca-linear":
-        kpca = KernelPCA(n_components=1, kernel="linear")
+        kpca = KernelPCA(n_components=num_latent, kernel="linear")
         latent_genotype = kpca.fit_transform(stats.zscore(genotype))
     elif lv_method == "kernelpca-sigmoid":
-        kpca = KernelPCA(n_components=1, kernel="sigmoid")
+        kpca = KernelPCA(n_components=num_latent, kernel="sigmoid")
         latent_genotype = kpca.fit_transform(stats.zscore(genotype))
     elif lv_method == "fastica":
-        ica = FastICA(n_components=1)
+        ica = FastICA(n_components=num_latent)
         latent_genotype = ica.fit_transform(stats.zscore(genotype))
     else:
         raise NotImplementedError("LV method not defined!")
